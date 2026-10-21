@@ -4,7 +4,7 @@ Quinielas privadas de LaLiga y UEFA Champions League. React 19, TypeScript estri
 
 ## Arranque
 
-Requisitos: Node.js 24 y npm. Java 21 para las pruebas de Firestore.
+Requisitos: Node.js 24 y npm. Java 21 para las pruebas de Firestore. 
 
 ```sh
 npm ci
