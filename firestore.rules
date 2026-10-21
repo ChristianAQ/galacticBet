@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function signed() { return request.auth != null; }
+  function member(gid) { return signed() && request.auth.uid in get(/databases/$(database)/documents/groups/$(gid)).data.memberIds; }
+  function owner(gid) { return signed() && get(/databases/$(database)/documents/groups/$(gid)).data.ownerId == request.auth.uid; }
+  function onlyMemberChange(before, after) { return after.diff(before).affectedKeys().hasOnly(['memberIds']); }
+  match /users/{uid} {
+   allow read: if signed();
+   allow create, update: if signed() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['name','avatar','updatedAt']) && request.resource.data.name is string && request.resource.data.name.size() <= 100 && (request.resource.data.avatar == null || request.resource.data.avatar is string) && request.resource.data.updatedAt == request.time;
+   allow delete: if signed() && request.auth.uid == uid;
+  }
+  match /competitions/{id} { allow read: if true; }
+  match /seasons/{id} { allow read: if true; }
+  match /rounds/{id} { allow read: if true; }
+  match /matches/{id} { allow read: if true; }
+  match /groups/{gid} {
+   // A high-entropy document ID is an invitation capability. Lists remain member-only.
+   allow get: if signed();
+   allow list: if signed() && request.auth.uid in resource.data.memberIds;
+   allow create: if signed() && request.resource.data.keys().hasOnly(['name','ownerId','memberIds','createdAt']) && request.resource.data.ownerId == request.auth.uid && request.resource.data.memberIds == [request.auth.uid] && getAfter(/databases/$(database)/documents/groups/$(gid)/members/$(request.auth.uid)).data.userId == request.auth.uid && request.resource.data.name is string && request.resource.data.name.size() >= 3 && request.resource.data.name.size() <= 60 && request.resource.data.createdAt == request.time;
+   allow update: if signed() && (
+    (owner(gid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']) && request.resource.data.name is string && request.resource.data.name.size() >= 3 && request.resource.data.name.size() <= 60)
+    || (onlyMemberChange(resource.data,request.resource.data) && request.resource.data.memberIds is list && request.resource.data.memberIds.size() <= 30 && (
+      (!(request.auth.uid in resource.data.memberIds) && request.resource.data.memberIds.toSet() == resource.data.memberIds.toSet().union([request.auth.uid].toSet()) && request.resource.data.memberIds.size() == resource.data.memberIds.size() + 1 && getAfter(/databases/$(database)/documents/groups/$(gid)/members/$(request.auth.uid)).data.userId == request.auth.uid)
+      || (request.auth.uid in resource.data.memberIds && resource.data.ownerId != request.auth.uid && request.resource.data.memberIds.toSet() == resource.data.memberIds.toSet().difference([request.auth.uid].toSet()) && request.resource.data.memberIds.size() == resource.data.memberIds.size() - 1 && !existsAfter(/databases/$(database)/documents/groups/$(gid)/members/$(request.auth.uid)))
+    ))
+   );
+   match /members/{uid} {
+    allow read: if member(gid);
+    allow create: if signed() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['userId','joinedAt']) && request.resource.data.userId == uid && request.resource.data.joinedAt == request.time && uid in getAfter(/databases/$(database)/documents/groups/$(gid)).data.memberIds;
+    allow delete: if signed() && request.auth.uid == uid && !(uid in getAfter(/databases/$(database)/documents/groups/$(gid)).data.memberIds);
+   }
+   match /gameSeasons/{sid} {
+    allow read: if member(gid);
+    allow create: if signed() && getAfter(/databases/$(database)/documents/groups/$(gid)).data.ownerId == request.auth.uid && request.resource.data.keys().hasOnly(['competition','seasonId','mode','createdAt']) && request.resource.data.competition in ['PD','CL'] && request.resource.data.seasonId == sid && request.resource.data.mode in ['classic','exact'] && request.resource.data.createdAt == request.time;
+    // No client updates: mode and season remain immutable, even for the owner.
+    match /predictions/{pid} {
+     function fixture() { return get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data; }
+     function game() { return get(/databases/$(database)/documents/groups/$(gid)/gameSeasons/$(sid)).data; }
+     function own() { return signed() && request.resource.data.userId == request.auth.uid && pid == request.auth.uid + '_' + request.resource.data.matchId; }
+     function exact(v) { return v is map && v.keys().hasOnly(['home','away']) && v.home is int && v.away is int && v.home >= 0 && v.away >= 0 && v.home <= 99 && v.away <= 99; }
+     allow read: if member(gid) && (resource.data.userId == request.auth.uid || request.time >= get(/databases/$(database)/documents/matches/$(resource.data.matchId)).data.kickoffAt);
+     allow create, update: if member(gid) && own() && request.resource.data.keys().hasOnly(['userId','matchId','roundId','value','updatedAt']) && request.resource.data.updatedAt == request.time && fixture().seasonId == sid && fixture().competition == game().competition && fixture().roundId == request.resource.data.roundId && request.time < fixture().kickoffAt && fixture().status in ['TIMED','SCHEDULED'] && ((game().mode == 'classic' && request.resource.data.value in ['1','X','2']) || (game().mode == 'exact' && exact(request.resource.data.value)));
+    }
+    match /standings/{uid} { allow read: if member(gid); }
+   }
+  }
+ }
+}

@@ -1,0 +1,103 @@
+export type Mode = "classic" | "exact";
+export type Outcome = "1" | "X" | "2";
+export interface Prediction {
+  home: number;
+  away: number;
+}
+export interface Match {
+  id: string;
+  competition: "PD" | "CL";
+  seasonId: string;
+  roundId: string;
+  matchday: number;
+  stage: string;
+  utcDate: string;
+  status: string;
+  home: string;
+  away: string;
+  homeCrest?: string;
+  awayCrest?: string;
+  homeScore: number | null;
+  awayScore: number | null;
+}
+export const outcome = (home: number, away: number): Outcome =>
+  home > away ? "1" : home < away ? "2" : "X";
+export function score(
+  mode: Mode,
+  prediction: Prediction | Outcome,
+  result: Prediction,
+): number {
+  if (typeof prediction === "string")
+    return mode === "classic" &&
+      prediction === outcome(result.home, result.away)
+      ? 1
+      : 0;
+  if (mode !== "exact") return 0;
+  return prediction.home === result.home && prediction.away === result.away
+    ? 3
+    : outcome(prediction.home, prediction.away) ===
+        outcome(result.home, result.away)
+      ? 1
+      : 0;
+}
+export function canPredict(
+  kickoff: string,
+  serverNow: number,
+  status = "TIMED",
+) {
+  return (
+    ["TIMED", "SCHEDULED"].includes(status) && serverNow < Date.parse(kickoff)
+  );
+}
+export function validPrediction(value: Prediction) {
+  return (
+    Number.isInteger(value.home) &&
+    Number.isInteger(value.away) &&
+    value.home >= 0 &&
+    value.away >= 0 &&
+    value.home <= 99 &&
+    value.away <= 99
+  );
+}
+
+export const matchStatusLabel: Record<string, string> = {
+  SCHEDULED: "Programado",
+  TIMED: "Próximamente",
+  IN_PLAY: "En juego",
+  PAUSED: "Descanso",
+  FINISHED: "Finalizado",
+  POSTPONED: "Aplazado",
+  SUSPENDED: "Suspendido",
+  CANCELLED: "Cancelado",
+  AWARDED: "Adjudicado",
+};
+
+const stages: Record<string, string> = {
+  REGULAR_SEASON: "Jornada",
+  LEAGUE_STAGE: "Fase liga",
+  GROUP_STAGE: "Fase de grupos",
+  PLAYOFFS: "Playoffs",
+  LAST_32: "Dieciseisavos",
+  LAST_16: "Octavos de final",
+  QUARTER_FINALS: "Cuartos de final",
+  SEMI_FINALS: "Semifinales",
+  FINAL: "Final",
+  QUALIFICATION: "Clasificación",
+};
+export function roundLabel(match: Pick<Match, "stage" | "matchday">) {
+  const stage = stages[match.stage] || match.stage.replaceAll("_", " ");
+  return match.stage === "REGULAR_SEASON"
+    ? `Jornada ${match.matchday}`
+    : `${stage}${match.matchday ? ` · Jornada ${match.matchday}` : ""}`;
+}
+export function roundLabelFromId(id: string) {
+  const parts = id.split("-");
+  return roundLabel({ stage: parts[2] || "", matchday: Number(parts[3]) || 0 });
+}
+export function preferredRound(matches: Match[]) {
+  return (
+    matches.find((m) => canPredict(m.utcDate, Date.now(), m.status))?.roundId ||
+    matches.at(-1)?.roundId ||
+    ""
+  );
+}
