@@ -72,11 +72,11 @@ export default function RoundDeliveryStatus({
       </p>
       {ready &&
         (missing.length ? (
-          <details className="delivery-missing" open={missing.length <= 4}>
-            <summary>
-              {closed ? "Sin entregar" : "Faltan por guardar"} ·{" "}
-              {missing.length}
-            </summary>
+          <div className="delivery-missing">
+            <h3>
+              {closed ? "Sin entregar" : "Faltan por guardar"}
+              <span>{missing.length}</span>
+            </h3>
             <ul>
               {missing.map((id) => (
                 <li key={id}>
@@ -85,7 +85,7 @@ export default function RoundDeliveryStatus({
                 </li>
               ))}
             </ul>
-          </details>
+          </div>
         ) : (
           <p className="delivery-all-done">
             Todo el grupo ha guardado su quiniela.

@@ -5,7 +5,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { ChevronDown, ChevronUp, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   hasMatchStarted,
@@ -54,7 +54,6 @@ export default function GroupPredictions({
   canShare: boolean;
   completedIds: string[];
 }) {
-  const [requested, setRequested] = useState(false);
   const [entries, setEntries] = useState<SharedEntries>({});
   const [pending, setPending] = useState(false);
   const [ready, setReady] = useState(false);
@@ -67,7 +66,7 @@ export default function GroupPredictions({
     setReady(false);
     setError("");
     setPending(false);
-    if (!requested || !canShare || membersQueryKey === "[]") return;
+    if (!canShare || membersQueryKey === "[]") return;
     if (demo) {
       setEntries(
         Object.fromEntries(
@@ -126,7 +125,6 @@ export default function GroupPredictions({
       },
     );
   }, [
-    requested,
     canShare,
     membersQueryKey,
     groupId,
@@ -158,11 +156,10 @@ export default function GroupPredictions({
           ownValue={ownValues[m.id]}
           loadingOwn={loadingOwn}
           entries={canShare ? entries : {}}
-          pending={pending || !requested}
+          pending={pending}
           ready={ready}
           error={error}
           completedIds={completedIds}
-          onRequest={() => setRequested(true)}
           onRetry={() => setAttempt((n) => n + 1)}
         />
       ))}
@@ -183,7 +180,6 @@ function RivalsCard({
   ready,
   error,
   completedIds,
-  onRequest,
   onRetry,
 }: {
   match: Match;
@@ -199,10 +195,8 @@ function RivalsCard({
   ready: boolean;
   error: string;
   completedIds: string[];
-  onRequest: () => void;
   onRetry: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const visible = participants.filter(
     (p) => p.id !== userId && completedIds.includes(p.id),
   );
@@ -253,47 +247,22 @@ function RivalsCard({
           <TeamForm match={match} side="away" matches={history} />
         </div>
       </div>
-      {(hasScore || (canShare && visible.length > 0)) && (
+      {hasScore && (
         <div className="saved-match-footer">
-          {hasScore && (
-            <div
-              className="saved-match-result"
-              aria-label="Resultado real a 90 minutos"
-            >
-              <span>
-                {match.status === "FINISHED" ? "Resultado" : "Marcador"} · 90
-                min
-              </span>
-              <strong>
-                {match.homeScore} – {match.awayScore}
-              </strong>
-            </div>
-          )}
-          {canShare && visible.length > 0 && (
-            <button
-              className="rivals-toggle"
-              disabled={visible.length === 0}
-              onClick={() => {
-                setOpen((v) => !v);
-                onRequest();
-              }}
-              aria-expanded={open}
-              aria-label={
-                open
-                  ? "Ocultar pronósticos del grupo"
-                  : "Ver pronósticos del grupo"
-              }
-            >
-              <span>
-                <Users size={15} />
-                {open ? "Ocultar grupo" : "Ver grupo"}
-              </span>
-              {open ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-            </button>
-          )}
+          <div
+            className="saved-match-result"
+            aria-label="Resultado real a 90 minutos"
+          >
+            <span>
+              {match.status === "FINISHED" ? "Resultado" : "Marcador"} · 90 min
+            </span>
+            <strong>
+              {match.homeScore} – {match.awayScore}
+            </strong>
+          </div>
         </div>
       )}
-      {canShare && open && (
+      {canShare && (
         <div className="rivals-content" aria-busy={pending || !ready}>
           {pending || !ready ? (
             <p className="rivals-loading" role="status">
@@ -309,8 +278,18 @@ function RivalsCard({
           ) : (
             <>
               <div className="rivals-count">
-                {available}/{visible.length} pronósticos compartidos
+                <span>
+                  <Users size={13} /> Compañeros
+                </span>
+                <span>
+                  {available}/{visible.length}
+                </span>
               </div>
+              {visible.length === 0 && (
+                <p className="rivals-empty">
+                  Aquí aparecerán cuando guarden su quiniela.
+                </p>
+              )}
               <div className="rivals-grid">
                 {visible.map((person) => (
                   <div className="rival-player" key={person.id}>
@@ -322,11 +301,12 @@ function RivalsCard({
                           person.name.trim().charAt(0).toUpperCase()
                         )}
                       </span>
-                      <h3>{person.name}</h3>
+                      <h3 title={person.name}>{person.name}</h3>
                     </div>
                     <PickValue
                       match={match}
                       value={entries[person.id]?.[match.id]}
+                      condensed
                     />
                   </div>
                 ))}
@@ -343,10 +323,12 @@ function PickValue({
   match,
   value,
   compact = false,
+  condensed = false,
 }: {
   match: Match;
   value?: PredictionValue;
   compact?: boolean;
+  condensed?: boolean;
 }) {
   const sign = value
     ? typeof value === "string"
@@ -363,7 +345,10 @@ function PickValue({
           : "Sin pronóstico";
   return (
     <div
-      className={`rival-selection ${compact ? "compact" : ""} ${sign === "1" ? "pick-home" : sign === "X" ? "pick-draw" : sign === "2" ? "pick-away" : "pick-missing"}`}
+      role="group"
+      aria-label={`Pronóstico: ${value ? predictionSummary(value) : "sin pronóstico"}, ${label}`}
+      title={condensed ? label : undefined}
+      className={`rival-selection ${condensed ? "condensed" : ""} ${compact ? "compact" : ""} ${sign === "1" ? "pick-home" : sign === "X" ? "pick-draw" : sign === "2" ? "pick-away" : "pick-missing"}`}
     >
       <strong>{value ? predictionSummary(value) : "—"}</strong>
       <span>
