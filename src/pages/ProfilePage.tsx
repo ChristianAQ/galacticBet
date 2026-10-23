@@ -38,8 +38,8 @@ export default function ProfilePage({
         <h2>Juego limpio, por defecto</h2>
         <p>
           La modalidad queda fija durante la temporada. Puedes editar cada
-          pronóstico hasta el inicio del partido. Los de tus amigos permanecen
-          ocultos hasta ese momento.
+          pronóstico hasta el inicio del partido o hasta guardar y cerrar la
+          quiniela. Los de tus amigos permanecen ocultos hasta ese momento.
         </p>
         <p>
           En las eliminatorias cuentan los 90 minutos más el descuento. La

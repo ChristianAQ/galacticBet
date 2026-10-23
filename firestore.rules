@@ -35,13 +35,21 @@ service cloud.firestore {
     allow read: if member(gid);
     allow create: if signed() && getAfter(/databases/$(database)/documents/groups/$(gid)).data.ownerId == request.auth.uid && request.resource.data.keys().hasOnly(['competition','seasonId','mode','createdAt']) && request.resource.data.competition in ['PD','CL'] && request.resource.data.seasonId == sid && request.resource.data.mode in ['classic','exact'] && request.resource.data.createdAt == request.time;
     // No client updates: mode and season remain immutable, even for the owner.
+    match /submissions/{uid}/rounds/{rid} {
+     allow read: if member(gid) && request.auth.uid == uid;
+     allow create: if member(gid) && request.auth.uid == uid && request.resource.data.keys().hasOnly(['userId','roundId','submittedAt']) && request.resource.data.userId == uid && request.resource.data.roundId == rid && request.resource.data.submittedAt == request.time && get(/databases/$(database)/documents/rounds/$(rid)).data.seasonId == sid;
+     // Final means final: neither the player nor the group owner can reopen a round.
+    }
     match /predictions/{pid} {
      function fixture() { return get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data; }
      function game() { return get(/databases/$(database)/documents/groups/$(gid)/gameSeasons/$(sid)).data; }
      function own() { return signed() && request.resource.data.userId == request.auth.uid && pid == request.auth.uid + '_' + request.resource.data.matchId; }
      function exact(v) { return v is map && v.keys().hasOnly(['home','away']) && v.home is int && v.away is int && v.home >= 0 && v.away >= 0 && v.home <= 99 && v.away <= 99; }
-     allow read: if member(gid) && (resource.data.userId == request.auth.uid || request.time >= get(/databases/$(database)/documents/matches/$(resource.data.matchId)).data.kickoffAt);
-     allow create, update: if member(gid) && own() && request.resource.data.keys().hasOnly(['userId','matchId','roundId','value','updatedAt']) && request.resource.data.updatedAt == request.time && fixture().seasonId == sid && fixture().competition == game().competition && fixture().roundId == request.resource.data.roundId && request.time < fixture().kickoffAt && fixture().status in ['TIMED','SCHEDULED'] && ((game().mode == 'classic' && request.resource.data.value in ['1','X','2']) || (game().mode == 'exact' && exact(request.resource.data.value)));
+     function revealed() { let m = get(/databases/$(database)/documents/matches/$(resource.data.matchId)).data; return request.time >= m.kickoffAt && !(m.status in ['POSTPONED','CANCELLED']); }
+     allow read: if member(gid) && (resource.data.userId == request.auth.uid || revealed());
+     function validWrite() { return member(gid) && own() && request.resource.data.keys().hasOnly(['userId','matchId','roundId','value','updatedAt']) && request.resource.data.updatedAt == request.time && fixture().seasonId == sid && fixture().competition == game().competition && fixture().roundId == request.resource.data.roundId && !exists(/databases/$(database)/documents/groups/$(gid)/gameSeasons/$(sid)/submissions/$(request.auth.uid)/rounds/$(request.resource.data.roundId)) && request.time < fixture().kickoffAt && fixture().status in ['TIMED','SCHEDULED'] && ((game().mode == 'classic' && request.resource.data.value in ['1','X','2']) || (game().mode == 'exact' && exact(request.resource.data.value))); }
+     allow create: if validWrite();
+     allow update: if validWrite() && request.resource.data.roundId == resource.data.roundId;
     }
     match /standings/{uid} { allow read: if member(gid); }
    }

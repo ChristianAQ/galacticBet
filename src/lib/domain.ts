@@ -4,6 +4,16 @@ export interface Prediction {
   home: number;
   away: number;
 }
+export type PredictionValue = Outcome | Prediction;
+
+export function samePrediction(a: PredictionValue, b: PredictionValue) {
+  if (typeof a === "string" || typeof b === "string") return a === b;
+  return a.home === b.home && a.away === b.away;
+}
+
+export function predictionSummary(value: PredictionValue) {
+  return typeof value === "string" ? value : `${value.home} – ${value.away}`;
+}
 export interface Match {
   id: string;
   competition: "PD" | "CL";
@@ -99,5 +109,15 @@ export function preferredRound(matches: Match[]) {
     matches.find((m) => canPredict(m.utcDate, Date.now(), m.status))?.roundId ||
     matches.at(-1)?.roundId ||
     ""
+  );
+}
+
+export function canRevealPredictions(
+  match: Pick<Match, "utcDate" | "status">,
+  now: number,
+) {
+  return (
+    !["POSTPONED", "CANCELLED"].includes(match.status) &&
+    now >= Date.parse(match.utcDate)
   );
 }

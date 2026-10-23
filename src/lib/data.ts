@@ -1,7 +1,9 @@
+import { sealRound } from "./roundSubmission";
 import {
   collection,
   doc,
   getDocs,
+  getDoc,
   query,
   runTransaction,
   serverTimestamp,
@@ -10,7 +12,13 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
-import type { Match, Mode, Outcome, Prediction } from "./domain";
+import {
+  type Match,
+  type Mode,
+  type Outcome,
+  type Prediction,
+  type PredictionValue,
+} from "./domain";
 import { db } from "./firebase";
 export interface Group {
   id: string;
@@ -120,6 +128,35 @@ export async function savePrediction(
       value,
       updatedAt: serverTimestamp(),
     },
+  );
+}
+
+export function submitRound(
+  uid: string,
+  groupId: string,
+  seasonId: string,
+  roundId: string,
+  expected: Record<string, PredictionValue>,
+) {
+  return sealRound(database(), uid, groupId, seasonId, roundId, expected);
+}
+
+export interface Participant {
+  id: string;
+  name: string;
+  avatar: string | null;
+}
+export async function loadParticipants(group: Group): Promise<Participant[]> {
+  const store = database();
+  return Promise.all(
+    group.memberIds.map(async (uid) => {
+      const profile = await getDoc(doc(store, "users", uid));
+      return {
+        id: uid,
+        name: profile.data()?.name || "Jugador",
+        avatar: profile.data()?.avatar || null,
+      };
+    }),
   );
 }
 
