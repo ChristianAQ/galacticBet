@@ -1,13 +1,6 @@
 import type { User } from "firebase/auth";
 import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
-import {
-  Check,
-  LockKeyhole,
-  Save,
-  ShieldCheck,
-  Target,
-  Users,
-} from "lucide-react";
+import { LockKeyhole, Save, Target, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import CompetitionLogo from "../components/CompetitionLogo";
@@ -305,7 +298,7 @@ export default function PredictionsPage({
   return (
     <>
       <PageTitle
-        eyebrow="CONFÍA EN TU INSTINTO"
+        eyebrow="QUINIELAS"
         title={isSealed ? "Ya estás jugando" : "Mi quiniela"}
       />
       {!demo && (
@@ -358,7 +351,7 @@ export default function PredictionsPage({
               setRound("");
             }}
           >
-            <CompetitionLogo code={code} />
+            <CompetitionLogo code={code} small />
             <span>
               {code === "PD" ? "LaLiga EA Sports" : "Champions League"}
             </span>
@@ -541,15 +534,9 @@ export default function PredictionsPage({
                             Partido cerrado
                           </>
                         ) : values[m.id] ? (
-                          <>
-                            <Check size={14} />
-                            Elección guardada
-                          </>
+                          "Guardado"
                         ) : (
-                          <>
-                            <ShieldCheck size={14} />
-                            Elige tu pronóstico
-                          </>
+                          "Tu pronóstico"
                         )}
                       </span>
                       {mode === "classic" ? (
@@ -563,7 +550,6 @@ export default function PredictionsPage({
                               onClick={() => void choose(m, v)}
                             >
                               {v}
-                              {values[m.id] === v && <Check size={13} />}
                             </button>
                           ))}
                         </div>

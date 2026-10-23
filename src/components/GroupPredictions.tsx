@@ -1,15 +1,9 @@
 import { collection, onSnapshot, query, where } from "firebase/firestore";
-import {
-  CheckCheck,
-  ChevronDown,
-  ChevronUp,
-  LockKeyhole,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { ChevronDown, ChevronUp, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   canRevealPredictions,
+  matchStatusLabel,
   outcome,
   predictionSummary,
   type Match,
@@ -17,7 +11,9 @@ import {
 } from "../lib/domain";
 import type { Participant } from "../lib/data";
 import { db } from "../lib/firebase";
-import { MatchRow, readableError } from "./ui";
+import { kickoffLabel } from "../lib/matchInsights";
+import { Team, readableError } from "./ui";
+import TeamForm from "./TeamForm";
 
 export default function GroupPredictions({
   matches,
@@ -50,8 +46,7 @@ export default function GroupPredictions({
         <h2>El grupo</h2>
         {sealed && (
           <span className="round-state saved" role="status">
-            <CheckCheck size={14} />
-            Quiniela guardada
+            Guardada
           </span>
         )}
       </div>
@@ -167,105 +162,130 @@ function RivalsCard({
     attempt,
   ]);
   const available = participants.filter((p) => rows[p.id]).length;
+  const hasScore =
+    match.homeScore !== null &&
+    match.awayScore !== null &&
+    ["FINISHED", "IN_PLAY", "PAUSED"].includes(match.status);
+  const scheduled = ["TIMED", "SCHEDULED"].includes(match.status);
   return (
     <article className="panel group-match-card">
-      <MatchRow match={match} history={history} />
-      <div
-        className="match-own-pick"
-        aria-label="Tu pronóstico"
-        aria-busy={loadingOwn}
-      >
-        <span>Tu pronóstico</span>
-        {loadingOwn ? (
-          <span className="muted">Cargando…</span>
-        ) : (
-          <PickValue match={match} value={ownValue} compact />
-        )}
-      </div>
-      {!revealed ? (
-        <div className="rivals-waiting">
-          <LockKeyhole size={13} />
-          <span>
-            {match.status === "POSTPONED"
-              ? "Partido aplazado"
-              : match.status === "CANCELLED"
-                ? "Partido cancelado"
-                : "A la espera del inicio"}
-          </span>
+      <header className="saved-match-heading">
+        <time dateTime={match.utcDate}>{kickoffLabel(match.utcDate)}</time>
+        <span
+          className={`saved-match-status ${["IN_PLAY", "PAUSED"].includes(match.status) ? "is-live" : ""}`}
+        >
+          {scheduled
+            ? revealed
+              ? "Pendiente de actualización"
+              : "A la espera del inicio"
+            : matchStatusLabel[match.status] || match.status}
+        </span>
+      </header>
+      <div className="saved-fixture">
+        <div className="saved-team">
+          <Team name={match.home} crest={match.homeCrest} />
+          <TeamForm match={match} side="home" matches={history} />
         </div>
-      ) : (
-        <>
-          <button
-            className="rivals-toggle"
-            disabled={participants.length === 0}
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-          >
-            <span>
-              <Users size={17} />
-              {open ? "Pronósticos del grupo" : "Ver pronósticos del grupo"}
-              {participants.length > 0 && (
-                <small>{participants.length} jugadores</small>
-              )}
+        <div
+          className="match-own-pick"
+          role="group"
+          aria-label="Tu pronóstico"
+          aria-busy={loadingOwn}
+        >
+          <span>Tu pronóstico</span>
+          {loadingOwn ? (
+            <span className="saved-pick-loading" role="status">
+              Cargando…
             </span>
-            {open ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
-          </button>
-          {open && (
-            <div className="rivals-content" aria-busy={pending || !ready}>
-              {pending || !ready ? (
-                <p className="rivals-loading" role="status">
-                  Reuniendo al vestuario…
-                </p>
-              ) : error ? (
-                <div className="rivals-error">
-                  <p role="alert">{error}</p>
-                  <button
-                    className="button secondary"
-                    onClick={() => setAttempt((v) => v + 1)}
-                  >
-                    Volver a intentar
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="rivals-count">
-                    <ShieldCheck size={13} />
-                    {available}/{participants.length} pronósticos
-                  </div>
-                  <div className="rivals-grid">
-                    {participants
-                      .filter((person) => person.id !== userId)
-                      .map((person) => {
-                        const value = rows[person.id];
-                        return (
-                          <div className="rival-player" key={person.id}>
-                            <div className="rival-person">
-                              <span className="rival-avatar">
-                                {person.avatar ? (
-                                  <img src={person.avatar} alt="" />
-                                ) : (
-                                  person.name.trim().charAt(0).toUpperCase()
-                                )}
-                              </span>
-                              <div>
-                                <h3>{person.name}</h3>
-                                <small>
-                                  {demo
-                                    ? "Jugador de ejemplo"
-                                    : "Compañero de grupo"}
-                                </small>
-                              </div>
-                            </div>
-                            <PickValue match={match} value={value} />
-                          </div>
-                        );
-                      })}
-                  </div>
-                </>
-              )}
+          ) : (
+            <PickValue match={match} value={ownValue} compact />
+          )}
+        </div>
+        <div className="saved-team">
+          <Team name={match.away} crest={match.awayCrest} />
+          <TeamForm match={match} side="away" matches={history} />
+        </div>
+      </div>
+      {(hasScore || revealed) && (
+        <div className="saved-match-footer">
+          {hasScore && (
+            <div
+              className="saved-match-result"
+              aria-label="Resultado real a 90 minutos"
+            >
+              <span>
+                {match.status === "FINISHED" ? "Resultado" : "Marcador"} · 90
+                min
+              </span>
+              <strong>
+                {match.homeScore} – {match.awayScore}
+              </strong>
             </div>
           )}
-        </>
+          {revealed && (
+            <button
+              className="rivals-toggle"
+              disabled={participants.length < 2}
+              onClick={() => setOpen((v) => !v)}
+              aria-expanded={open}
+              aria-label={
+                open
+                  ? "Ocultar pronósticos del grupo"
+                  : "Ver pronósticos del grupo"
+              }
+            >
+              <span>
+                <Users size={15} />
+                {open ? "Ocultar grupo" : "Ver grupo"}
+              </span>
+              {open ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+            </button>
+          )}
+        </div>
+      )}
+      {revealed && open && (
+        <div className="rivals-content" aria-busy={pending || !ready}>
+          {pending || !ready ? (
+            <p className="rivals-loading" role="status">
+              Cargando pronósticos…
+            </p>
+          ) : error ? (
+            <div className="rivals-error">
+              <p role="alert">{error}</p>
+              <button
+                className="button secondary"
+                onClick={() => setAttempt((v) => v + 1)}
+              >
+                Volver a intentar
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="rivals-count">
+                {available}/{participants.length} pronósticos
+              </div>
+              <div className="rivals-grid">
+                {participants
+                  .filter((person) => person.id !== userId)
+                  .map((person) => (
+                    <div className="rival-player" key={person.id}>
+                      <div className="rival-person">
+                        <span className="rival-avatar">
+                          {person.avatar ? (
+                            <img src={person.avatar} alt="" />
+                          ) : (
+                            person.name.trim().charAt(0).toUpperCase()
+                          )}
+                        </span>
+                        <h3>{person.name}</h3>
+                      </div>
+                      <PickValue match={match} value={rows[person.id]} />
+                    </div>
+                  ))}
+              </div>
+            </>
+          )}
+        </div>
       )}
     </article>
   );
@@ -298,7 +318,15 @@ function PickValue({
       className={`rival-selection ${compact ? "compact" : ""} ${sign === "1" ? "pick-home" : sign === "X" ? "pick-draw" : sign === "2" ? "pick-away" : "pick-missing"}`}
     >
       <strong>{value ? predictionSummary(value) : "—"}</strong>
-      <span>{label}</span>
+      <span>
+        {compact && value
+          ? sign === "1"
+            ? "Local"
+            : sign === "2"
+              ? "Visitante"
+              : "Empate"
+          : label}
+      </span>
     </div>
   );
 }
