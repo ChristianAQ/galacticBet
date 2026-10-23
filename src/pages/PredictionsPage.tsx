@@ -9,7 +9,6 @@ import {
 } from "firebase/firestore";
 import {
   Check,
-  CheckCheck,
   LockKeyhole,
   Save,
   ShieldCheck,
@@ -18,7 +17,6 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { FormGuide } from "../components/TeamForm";
 import CompetitionLogo from "../components/CompetitionLogo";
 import ConfirmQuiniela from "../components/ConfirmQuiniela";
 import GroupPredictions from "../components/GroupPredictions";
@@ -86,7 +84,7 @@ export default function PredictionsPage({
   const [view, setView] = useState<"mine" | "group">("mine");
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [peopleError, setPeopleError] = useState("");
-  const uid = user?.uid || "demo-me";
+  const uid = demo ? "demo-me" : user?.uid || "demo-me";
   const selectedGroup = groups.find((g) => g.id === group);
   const active = seasons.find((s) => s.id === season);
   const mode: Mode = demo ? "classic" : active?.mode || "classic";
@@ -99,6 +97,7 @@ export default function PredictionsPage({
   const selected = rounds.includes(round) ? round : preferredRound(filtered);
   const list = filtered.filter((m) => m.roundId === selected);
   const isSealed = demo ? Boolean(demoSeals[selected]) : sealed;
+  const shownView = isSealed ? "group" : view;
   const pending = !demo && (loadingPredictions || loadingSeal);
   const completed = list.filter((m) => values[m.id]).length;
   const missingOpen = list.filter(
@@ -283,16 +282,23 @@ export default function PredictionsPage({
     }
   }
   useEffect(() => {
-    if (isSealed && !submitting) setConfirm(false);
+    if (isSealed && !submitting) {
+      setConfirm(false);
+      document
+        .getElementById("group-predictions")
+        ?.focus({ preventScroll: true });
+    }
   }, [isSealed, submitting]);
+  useEffect(() => {
+    setView("mine");
+  }, [group, season, selected]);
   const disabled = Boolean(busy) || pending || submitting;
   const selectorsDisabled = Boolean(busy) || submitting;
   return (
     <>
       <PageTitle
         eyebrow="CONFÍA EN TU INSTINTO"
-        title="Mi quiniela"
-        description="Elige tus resultados, revisa tu jornada y guárdala cuando lo tengas claro."
+        title={isSealed ? "Ya estás jugando" : "Mi quiniela"}
       />
       {!demo && (
         <div className="filter-row">
@@ -390,7 +396,6 @@ export default function PredictionsPage({
           ))}
         </select>
       </div>
-      <FormGuide />
       {error && (
         <p className="error" role="alert">
           {error}
@@ -398,73 +403,40 @@ export default function PredictionsPage({
       )}
       {list.length ? (
         <>
-          <section
-            className={`round-save-panel panel ${isSealed ? "is-sealed" : ""}`}
-            aria-label="Estado de la quiniela"
-          >
-            <div className="round-save-heading">
-              <span className="round-save-icon">
-                {isSealed ? <CheckCheck size={22} /> : <Target size={22} />}
-              </span>
-              <div>
-                <h2>
-                  {isSealed
-                    ? "Quiniela guardada y cerrada"
-                    : "Tu próxima jugada"}
-                </h2>
-                <p>
-                  {isSealed
-                    ? "Tus pronósticos ya no se pueden modificar. ¡Ahora toca disfrutar del fútbol!"
-                    : "Tus elecciones se conservan al elegir. Al guardar la quiniela, quedarán cerradas definitivamente."}
-                </p>
+          {!isSealed && (
+            <section
+              className="round-save-panel panel"
+              aria-label="Estado de la quiniela"
+              aria-busy={pending || submitting}
+            >
+              <div className="round-save-progress">
+                <div className="round-progress-row">
+                  <strong>
+                    {completed}/{list.length}
+                  </strong>
+                  <span>
+                    {pending
+                      ? "Comprobando…"
+                      : missingOpen > 0
+                        ? `${missingOpen} pendientes`
+                        : completed > 0
+                          ? "Lista para guardar"
+                          : "Sin pronósticos"}
+                  </span>
+                </div>
+                <div
+                  className="round-progress-track"
+                  role="progressbar"
+                  aria-label="Pronósticos completados"
+                  aria-valuemin={0}
+                  aria-valuemax={list.length}
+                  aria-valuenow={completed}
+                >
+                  <span
+                    style={{ width: `${(completed / list.length) * 100}%` }}
+                  />
+                </div>
               </div>
-              <span className={`round-state ${isSealed ? "saved" : ""}`}>
-                {isSealed ? (
-                  <>
-                    <LockKeyhole size={12} />
-                    Guardada
-                  </>
-                ) : (
-                  "En edición"
-                )}
-              </span>
-            </div>
-            <div className="round-progress-row">
-              <span>
-                {completed} / {list.length} completados
-              </span>
-              <span>
-                {isSealed
-                  ? "Jornada cerrada"
-                  : missingOpen > 0
-                    ? `${missingOpen} por completar`
-                    : "Lista para guardar"}
-              </span>
-            </div>
-            <div className="round-progress-track">
-              <span
-                style={{
-                  width: `${list.length ? (completed / list.length) * 100 : 0}%`,
-                }}
-              />
-            </div>
-            <div className="round-save-bottom">
-              <p>
-                {isSealed ? (
-                  <>
-                    <ShieldCheck size={14} />
-                    Tus amigos verán cada pronóstico al inicio del partido.
-                  </>
-                ) : pending ? (
-                  "Comprobando tus elecciones y el cierre…"
-                ) : missingOpen > 0 ? (
-                  "Completa los partidos disponibles antes de guardar."
-                ) : completed === 0 ? (
-                  "No tienes pronósticos en esta jornada."
-                ) : (
-                  "Antes de confirmar podrás revisar todos tus pronósticos."
-                )}
-              </p>
               <button
                 className="button primary"
                 disabled={!canSubmit}
@@ -473,66 +445,61 @@ export default function PredictionsPage({
                   setConfirm(true);
                 }}
               >
-                {isSealed ? (
-                  <>
-                    <Check size={16} />
-                    Quiniela guardada
-                  </>
-                ) : (
-                  <>
-                    <Save size={16} />
-                    Guardar quiniela
-                  </>
-                )}
+                <Save size={16} />
+                Guardar quiniela
+              </button>
+            </section>
+          )}
+          {!isSealed && (
+            <div
+              className="prediction-view-tabs"
+              role="tablist"
+              aria-label="Vista de pronósticos"
+              onKeyDown={(event) => {
+                if (
+                  !["ArrowLeft", "ArrowRight", "Home", "End"].includes(
+                    event.key,
+                  )
+                )
+                  return;
+                event.preventDefault();
+                const next =
+                  event.key === "Home"
+                    ? "mine"
+                    : event.key === "End"
+                      ? "group"
+                      : view === "mine"
+                        ? "group"
+                        : "mine";
+                setView(next);
+                document.getElementById(`${next}-tab`)?.focus();
+              }}
+            >
+              <button
+                id="mine-tab"
+                role="tab"
+                aria-selected={view === "mine"}
+                tabIndex={view === "mine" ? 0 : -1}
+                aria-controls="mine-predictions"
+                onClick={() => setView("mine")}
+              >
+                <Target size={17} />
+                Mi quiniela
+              </button>
+              <button
+                id="group-tab"
+                role="tab"
+                aria-selected={view === "group"}
+                tabIndex={view === "group" ? 0 : -1}
+                aria-controls="group-predictions"
+                onClick={() => setView("group")}
+              >
+                <Users size={17} />
+                El grupo
               </button>
             </div>
-          </section>
-          <div
-            className="prediction-view-tabs"
-            role="tablist"
-            aria-label="Vista de pronósticos"
-            onKeyDown={(event) => {
-              if (
-                !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
-              )
-                return;
-              event.preventDefault();
-              const next =
-                event.key === "Home"
-                  ? "mine"
-                  : event.key === "End"
-                    ? "group"
-                    : view === "mine"
-                      ? "group"
-                      : "mine";
-              setView(next);
-              document.getElementById(`${next}-tab`)?.focus();
-            }}
-          >
-            <button
-              id="mine-tab"
-              role="tab"
-              aria-selected={view === "mine"}
-              tabIndex={view === "mine" ? 0 : -1}
-              aria-controls="mine-predictions"
-              onClick={() => setView("mine")}
-            >
-              <Target size={17} />
-              Mi quiniela
-            </button>
-            <button
-              id="group-tab"
-              role="tab"
-              aria-selected={view === "group"}
-              tabIndex={view === "group" ? 0 : -1}
-              aria-controls="group-predictions"
-              onClick={() => setView("group")}
-            >
-              <Users size={17} />
-              El grupo
-            </button>
-          </div>
-          {view === "mine" ? (
+          )}
+          {shownView === "mine" ? (
             <div
               id="mine-predictions"
               role="tabpanel"
@@ -606,30 +573,29 @@ export default function PredictionsPage({
           ) : (
             <div
               id="group-predictions"
-              role="tabpanel"
-              aria-labelledby="group-tab"
+              tabIndex={isSealed ? -1 : 0}
+              role={isSealed ? "region" : "tabpanel"}
+              aria-label={isSealed ? "El grupo" : undefined}
+              aria-labelledby={!isSealed ? "group-tab" : undefined}
             >
-              {peopleError ? (
+              {peopleError && (
                 <p className="error" role="alert">
                   {peopleError}
                 </p>
-              ) : !demo && participants.length === 0 ? (
-                <Empty title="Reuniendo al vestuario…">
-                  Cargando los participantes del grupo.
-                </Empty>
-              ) : (
-                <GroupPredictions
-                  matches={list}
-                  history={matches}
-                  participants={demo ? demoPlayers : participants}
-                  userId={uid}
-                  groupId={group}
-                  seasonId={season}
-                  clock={clock}
-                  demo={demo}
-                  ownValues={values}
-                />
               )}
+              <GroupPredictions
+                matches={list}
+                history={matches}
+                participants={demo ? demoPlayers : participants}
+                userId={uid}
+                groupId={group}
+                seasonId={season}
+                clock={clock}
+                demo={demo}
+                ownValues={values}
+                sealed={isSealed}
+                loadingOwn={!demo && loadingPredictions}
+              />
             </div>
           )}
         </>
@@ -656,10 +622,6 @@ export default function PredictionsPage({
           )}
         </Empty>
       )}
-      <p className="muted footnote">
-        La hora del servidor cierra cada partido al comenzar. Guardar la
-        quiniela la cierra antes y de forma definitiva.
-      </p>
       {confirm && (
         <ConfirmQuiniela
           matches={list}

@@ -8,7 +8,7 @@ import {
 } from "../lib/matchInsights";
 import CompetitionLogo from "./CompetitionLogo";
 import Modal from "./Modal";
-import TeamForm, { FormGuide } from "./TeamForm";
+import TeamForm from "./TeamForm";
 import { Team } from "./ui";
 
 export default function MatchDetails({
@@ -88,10 +88,6 @@ export default function MatchDetails({
           }).format(new Date(match.utcDate))}
         </time>
       </p>
-      <p className="match-data-note">
-        Hora de tu dispositivo. Datos de la última sincronización; la
-        actualización puede tener retraso.
-      </p>
       {["EXTRA_TIME", "PENALTY_SHOOTOUT"].includes(
         match.scoreDuration || "",
       ) && (
@@ -99,26 +95,12 @@ export default function MatchDetails({
           {match.scoreDuration === "EXTRA_TIME"
             ? "Este partido se resolvió con prórroga."
             : "Este partido se resolvió en una tanda de penaltis."}{" "}
-          Aquí se muestra solo el marcador a 90 minutos, el que cuenta para la
-          quiniela.
+          Marcador mostrado a 90 minutos.
         </p>
       )}
       {match.status === "FINISHED" && !resultKnown && (
-        <p className="match-context-note">
-          El partido ha terminado, pero todavía no hay un marcador reglamentario
-          fiable disponible. El resultado y los puntos se actualizarán cuando
-          esté disponible.
-        </p>
+        <p className="match-context-note">Marcador reglamentario pendiente.</p>
       )}
-      <section className="match-insight-section">
-        <h3>Forma antes del partido</h3>
-        <FormGuide />
-        <p className="match-data-note">
-          Hasta cinco resultados previos disponibles de LaLiga y Champions,
-          incluidos los de temporadas anteriores. Los puntos huecos indican que
-          falta historial.
-        </p>
-      </section>
       {context && (
         <section className="match-insight-section">
           <h3>
@@ -161,20 +143,12 @@ export default function MatchDetails({
                 </div>
               ) : (
                 <p className="match-data-note">
-                  El global aparecerá cuando haya resultados reglamentarios
-                  fiables.
+                  Global reglamentario pendiente.
                 </p>
               )}
-              <p className="match-data-note">
-                No incluye prórroga ni penaltis. El global reglamentario puede
-                diferir del resultado que decide qué equipo se clasifica.
-              </p>
             </>
           ) : (
-            <p className="match-data-note">
-              El calendario disponible aún no permite identificar una ida y una
-              vuelta con seguridad.
-            </p>
+            <p className="match-data-note">Cruce completo no disponible.</p>
           )}
         </section>
       )}
@@ -183,12 +157,11 @@ export default function MatchDetails({
         <p className="match-data-note">
           {match.competition === "PD" ? "LaLiga" : "Champions"} ·{" "}
           {match.seasonId.split("-")[1]}/
-          {String(Number(match.seasonId.split("-")[1]) + 1).slice(-2)} ·
-          resultados disponibles antes de este encuentro, a 90 minutos.
+          {String(Number(match.seasonId.split("-")[1]) + 1).slice(-2)}.
         </p>
         {!home.played && !away.played ? (
           <p className="match-context-note">
-            Aún no hay resultados previos de esta temporada para estos equipos.
+            Sin resultados previos esta temporada.
           </p>
         ) : (
           <table className="match-stats-table">
@@ -240,8 +213,7 @@ export default function MatchDetails({
           </ul>
         ) : (
           <p className="match-data-note">
-            No hay enfrentamientos anteriores entre ambos equipos en el
-            historial disponible.
+            Sin enfrentamientos anteriores disponibles.
           </p>
         )}
       </section>

@@ -3,6 +3,7 @@ import { ArrowRight, LogOut, Target, Trophy, UserRound } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import GroupList from "../components/GroupList";
+import { FormGuide } from "../components/TeamForm";
 import { Empty, PageTitle, readableError } from "../components/ui";
 import type { Group } from "../lib/data";
 import { logout, saveDisplayName } from "../lib/firebase";
@@ -246,25 +247,21 @@ export default function ProfilePage({
                   competición. Selecciona la jornada y completa tus pronósticos.
                 </li>
                 <li>
-                  Puedes editar cada pronóstico antes del inicio del partido. Si
-                  pulsas Guardar quiniela y confirmas, toda esa jornada queda
-                  cerrada definitivamente para ti.
+                  Tus elecciones se conservan al aplicarlas. Puedes revisarlas
+                  hasta el inicio del partido o hasta pulsar Guardar quiniela y
+                  confirmar el cierre definitivo de toda la jornada.
                 </li>
                 <li>
-                  En El grupo podrás ver los pronósticos de tus compañeros
-                  cuando empiece cada partido; los tuyos siempre están
-                  disponibles.
+                  Al guardar, la jornada pasa a El grupo y ya estás jugando. Tus
+                  pronósticos siguen visibles mientras esperas al inicio; los de
+                  tus compañeros se revelan cuando empieza cada partido.
                 </li>
                 <li>
                   Consulta los puntos de una jornada o el acumulado en
                   Clasificación.
                 </li>
               </ol>
-              <p>
-                La modalidad queda fija durante la temporada. En eliminatorias
-                cuentan los 90 minutos más el descuento; la prórroga y los
-                penaltis no cuentan.
-              </p>
+              <p>La modalidad queda fija durante la temporada.</p>
               <p>
                 Sin dinero de por medio. Solo intuición, fútbol y rivalidad
                 entre amigos.
@@ -275,6 +272,29 @@ export default function ProfilePage({
                   <ArrowRight size={16} />
                 </button>
               )}
+            </div>
+            <div className="panel form-panel match-help-panel">
+              <h2>Forma y datos de los partidos</h2>
+              <FormGuide />
+              <p>
+                Los cinco puntos representan los últimos resultados disponibles
+                antes del partido, de más antiguo a más reciente. Combinan
+                LaLiga y Champions; los huecos indican que falta historial.
+              </p>
+              <p>
+                La forma, las estadísticas y el global se calculan a 90 minutos
+                más el descuento. No incluyen prórroga ni penaltis; el global
+                reglamentario puede diferir del que decide la clasificación.
+              </p>
+              <p>
+                Las estadísticas se limitan a la temporada y competición del
+                encuentro. Al consultar un partido pasado, solo se consideran
+                resultados anteriores a su inicio.
+              </p>
+              <p>
+                Los horarios usan la hora de tu dispositivo. Los resultados
+                dependen de la sincronización y pueden tener retraso.
+              </p>
             </div>
           </>
         )}

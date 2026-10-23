@@ -50,14 +50,14 @@ export function PageTitle({
 }: {
   eyebrow: string;
   title: string;
-  description: string;
+  description?: string;
 }) {
   return (
     <div className="page-heading">
       <div>
         <div className="eyebrow">{eyebrow}</div>
         <h1>{title}</h1>
-        <p>{description}</p>
+        {description && <p>{description}</p>}
       </div>
     </div>
   );

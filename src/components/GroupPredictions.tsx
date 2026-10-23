@@ -1,5 +1,6 @@
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import {
+  CheckCheck,
   ChevronDown,
   ChevronUp,
   LockKeyhole,
@@ -28,6 +29,8 @@ export default function GroupPredictions({
   clock,
   demo,
   ownValues,
+  sealed = false,
+  loadingOwn = false,
 }: {
   matches: Match[];
   history: Match[];
@@ -38,25 +41,19 @@ export default function GroupPredictions({
   clock: number;
   demo: boolean;
   ownValues: Record<string, PredictionValue>;
+  sealed?: boolean;
+  loadingOwn?: boolean;
 }) {
   return (
     <section className="group-predictions" aria-label="Pronósticos del grupo">
-      <div className="group-view-intro">
-        <span className="group-view-icon">
-          <Users size={22} />
-        </span>
-        <div>
-          <h2>El fútbol se ve mejor en grupo</h2>
-          <p>
-            Compara vuestras elecciones en cada encuentro. Antes del inicio
-            permanecen en secreto.
-          </p>
-        </div>
-      </div>
-      <div className="pick-legend">
-        <span className="pick-home">1 · Local</span>
-        <span className="pick-draw">X · Empate</span>
-        <span className="pick-away">2 · Visitante</span>
+      <div className="group-view-heading">
+        <h2>El grupo</h2>
+        {sealed && (
+          <span className="round-state saved" role="status">
+            <CheckCheck size={14} />
+            Quiniela guardada
+          </span>
+        )}
       </div>
       {matches.map((m) => (
         <RivalsCard
@@ -70,6 +67,7 @@ export default function GroupPredictions({
           revealed={canRevealPredictions(m, clock)}
           demo={demo}
           ownValue={ownValues[m.id]}
+          loadingOwn={loadingOwn}
         />
       ))}
     </section>
@@ -85,6 +83,7 @@ function RivalsCard({
   revealed,
   demo,
   ownValue,
+  loadingOwn,
 }: {
   match: Match;
   history: Match[];
@@ -95,6 +94,7 @@ function RivalsCard({
   revealed: boolean;
   demo: boolean;
   ownValue?: PredictionValue;
+  loadingOwn: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<Record<string, PredictionValue>>({});
@@ -170,51 +170,43 @@ function RivalsCard({
   return (
     <article className="panel group-match-card">
       <MatchRow match={match} history={history} />
+      <div
+        className="match-own-pick"
+        aria-label="Tu pronóstico"
+        aria-busy={loadingOwn}
+      >
+        <span>Tu pronóstico</span>
+        {loadingOwn ? (
+          <span className="muted">Cargando…</span>
+        ) : (
+          <PickValue match={match} value={ownValue} compact />
+        )}
+      </div>
       {!revealed ? (
-        <div className="rivals-hidden">
-          <span className="rivals-lock">
-            <LockKeyhole size={18} />
+        <div className="rivals-waiting">
+          <LockKeyhole size={13} />
+          <span>
+            {match.status === "POSTPONED"
+              ? "Partido aplazado"
+              : match.status === "CANCELLED"
+                ? "Partido cancelado"
+                : "A la espera del inicio"}
           </span>
-          <div>
-            <strong>
-              {match.status === "POSTPONED"
-                ? "Partido aplazado: los pronósticos siguen ocultos"
-                : match.status === "CANCELLED"
-                  ? "Partido cancelado"
-                  : "Todos los pronósticos siguen en secreto"}
-            </strong>
-            <p>
-              {match.status === "POSTPONED" ? (
-                "Se mostrarán cuando se confirme y llegue la nueva hora de inicio."
-              ) : match.status === "CANCELLED" ? (
-                "Los pronósticos de este encuentro no se revelan."
-              ) : (
-                <>
-                  Se revelan el{" "}
-                  {new Intl.DateTimeFormat("es", {
-                    day: "numeric",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    timeZone: "Europe/Madrid",
-                  }).format(new Date(match.utcDate))}
-                  .
-                </>
-              )}
-            </p>
-          </div>
         </div>
       ) : (
         <>
           <button
             className="rivals-toggle"
+            disabled={participants.length === 0}
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
           >
             <span>
               <Users size={17} />
               {open ? "Pronósticos del grupo" : "Ver pronósticos del grupo"}
-              <small>{participants.length} jugadores</small>
+              {participants.length > 0 && (
+                <small>{participants.length} jugadores</small>
+              )}
             </span>
             {open ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
           </button>
@@ -238,62 +230,36 @@ function RivalsCard({
                 <>
                   <div className="rivals-count">
                     <ShieldCheck size={13} />
-                    {available} de {participants.length} jugadores hicieron su
-                    pronóstico
+                    {available}/{participants.length} pronósticos
                   </div>
                   <div className="rivals-grid">
-                    {participants.map((person) => {
-                      const value = rows[person.id];
-                      const sign = value
-                        ? typeof value === "string"
-                          ? value
-                          : outcome(value.home, value.away)
-                        : null;
-                      const label =
-                        sign === "1"
-                          ? match.home
-                          : sign === "2"
-                            ? match.away
-                            : sign === "X"
-                              ? "Empate"
-                              : "Sin pronóstico";
-                      const own = person.id === userId;
-                      return (
-                        <div
-                          className={`rival-player ${own ? "is-me" : ""}`}
-                          key={person.id}
-                        >
-                          <div className="rival-person">
-                            <span className="rival-avatar">
-                              {person.avatar ? (
-                                <img src={person.avatar} alt="" />
-                              ) : (
-                                person.name.trim().charAt(0).toUpperCase()
-                              )}
-                            </span>
-                            <div>
-                              <h3>{person.name}</h3>
-                              <small>
-                                {own
-                                  ? "Tu pronóstico"
-                                  : demo
+                    {participants
+                      .filter((person) => person.id !== userId)
+                      .map((person) => {
+                        const value = rows[person.id];
+                        return (
+                          <div className="rival-player" key={person.id}>
+                            <div className="rival-person">
+                              <span className="rival-avatar">
+                                {person.avatar ? (
+                                  <img src={person.avatar} alt="" />
+                                ) : (
+                                  person.name.trim().charAt(0).toUpperCase()
+                                )}
+                              </span>
+                              <div>
+                                <h3>{person.name}</h3>
+                                <small>
+                                  {demo
                                     ? "Jugador de ejemplo"
                                     : "Compañero de grupo"}
-                              </small>
+                                </small>
+                              </div>
                             </div>
-                            {own && <span className="rival-you">Tú</span>}
+                            <PickValue match={match} value={value} />
                           </div>
-                          <div
-                            className={`rival-selection ${sign === "1" ? "pick-home" : sign === "X" ? "pick-draw" : sign === "2" ? "pick-away" : "pick-missing"}`}
-                          >
-                            <strong>
-                              {value ? predictionSummary(value) : "—"}
-                            </strong>
-                            <span>{label}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                   </div>
                 </>
               )}
@@ -302,5 +268,37 @@ function RivalsCard({
         </>
       )}
     </article>
+  );
+}
+
+function PickValue({
+  match,
+  value,
+  compact = false,
+}: {
+  match: Match;
+  value?: PredictionValue;
+  compact?: boolean;
+}) {
+  const sign = value
+    ? typeof value === "string"
+      ? value
+      : outcome(value.home, value.away)
+    : null;
+  const label =
+    sign === "1"
+      ? match.home
+      : sign === "2"
+        ? match.away
+        : sign === "X"
+          ? "Empate"
+          : "Sin pronóstico";
+  return (
+    <div
+      className={`rival-selection ${compact ? "compact" : ""} ${sign === "1" ? "pick-home" : sign === "X" ? "pick-draw" : sign === "2" ? "pick-away" : "pick-missing"}`}
+    >
+      <strong>{value ? predictionSummary(value) : "—"}</strong>
+      <span>{label}</span>
+    </div>
   );
 }

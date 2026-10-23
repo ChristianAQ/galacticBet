@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import MatchDetails from "../components/MatchDetails";
-import { FormGuide } from "../components/TeamForm";
 import { knockoutContext } from "../lib/matchInsights";
 import CompetitionLogo from "../components/CompetitionLogo";
 import { Empty, MatchRow, PageTitle } from "../components/ui";
@@ -34,7 +33,6 @@ export default function MatchesPage({
       <PageTitle
         eyebrow="CADA PARTIDO CUENTA"
         title="El calendario del fútbol"
-        description="Jornadas, eliminatorias y resultados. Todo en un mismo terreno de juego."
       />
       <div className="tabs">
         {["PD", "CL"].map((c) => (
@@ -76,11 +74,6 @@ export default function MatchesPage({
           )}
         </select>
       </div>
-      <FormGuide />
-      <p className="match-data-note">
-        Horarios en la hora de tu dispositivo. Resultados a 90 minutos, sin
-        prórroga ni penaltis. Los datos pueden tener retraso.
-      </p>
       <div className="match-calendar-list">
         {loading ? (
           <Empty title="Cargando partidos…">Consultando Firestore.</Empty>
