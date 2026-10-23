@@ -59,6 +59,26 @@ Una caché exclusivamente en memoria, limitada a 20 entradas, comparte peticione
 
 Las pantallas se cargan bajo demanda, con precarga al tocar, enfocar o apuntar a su enlace; no se descargan todas al iniciar. Las transiciones usan opacidad y un desplazamiento corto, el selector de competición mueve su fondo y se respeta «Reducir movimiento». Los puntos de forma no se recalculan cada segundo cuando el calendario no cambia. Se han probado navegación, recarga, enlaces, grupos no disponibles, caché compartida, movimiento reducido y pantallas de 320, 390 y 1440 píxeles sin escribir en producción.
 
+## Reducción de lecturas de Firestore
+
+La sincronización reutiliza en memoria los partidos recién descargados de Football-Data para calcular los puntos; no vuelve a consultar `matches where seasonId == …` para las temporadas de esa descarga. Compara el calendario con una copia pública por temporada y escribe únicamente los partidos modificados. Cuando resultados, versión del cálculo y participantes no han cambiado, tampoco lee pronósticos, clasificaciones ni perfiles. Los perfiles que sí necesita se comparten entre grupos durante la ejecución.
+
+El frontend lee `calendars/{seasonId}`: un documento con los partidos públicos normalizados de esa temporada, en vez de un documento por partido. Por ejemplo, 262 partidos requieren una lectura de calendario en lugar de 262. Con una temporada de LaLiga y otra de Champions son dos documentos; temporadas históricas adicionales añaden un documento cada una. Esto reduce lecturas, no elimina la transferencia del calendario. El campo JSON `payload` no se indexa y se limita a 800 KB por temporada, por debajo del máximo de documento de Firestore. Los partidos individuales siguen siendo la fuente del cierre y de las reglas de seguridad.
+
+Solo ese calendario público se conserva en `localStorage`, separado por proyecto Firebase, con una vigencia de cinco minutos y un máximo de 1,5 millones de caracteres para todo el registro. Peticiones simultáneas se comparten. Durante su vigencia, recargar no vuelve a leer el calendario; al caducar, volver al primer plano o permanecer con la aplicación visible permite refrescarlo. No hay consultas periódicas en segundo plano. Almacenamiento bloqueado, lleno o corrupto no impide continuar con caché en memoria. No se guardan pronósticos, cierres ni perfiles en esta persistencia y no se utiliza para autorizar operaciones. Los resultados mantienen la frecuencia de actualización del backend, con hasta cinco minutos adicionales de caché local.
+
+Los pronósticos propios se escuchan por **usuario y jornada**, aprovechando el índice compuesto existente; entrar en una jornada ya no descarga toda la temporada. Las modalidades se comparten entre quiniela y clasificación mediante la caché existente. Se mantienen la ocultación de elecciones ajenas, el cierre irreversible y la validación de hora del servidor.
+
+Para activar la optimización en una instalación existente:
+
+1. Espera a que termine **Deploy frontend**, que publica también las reglas y la exclusión de índice del calendario.
+2. Ejecuta **Synchronize football and standings → Run workflow**, seleccionando `master`, para generar las copias públicas. No necesitas credenciales nuevas.
+3. Reabre la web tras cinco minutos y compara las nuevas ejecuciones en las estadísticas de Firestore. El consumo acumulado de hoy no se elimina con el cambio.
+
+Hasta que exista el primer calendario agregado, la web conserva la lectura antigua como compatibilidad temporal, con la misma caché de cinco minutos. Las temporadas históricas de los grupos que ya no devuelve la API se convierten una sola vez desde los partidos existentes. Esa migración y la primera actualización del estado de puntuación pueden realizar más operaciones; las siguientes sincronizaciones reutilizan los documentos agregados.
+
+Las consultas desde el explorador de datos de Firebase también pueden consumir lecturas. `SELECT _none_ PageSize 300` no se genera en el código de la aplicación; puede corresponder a una consulta de esa herramienta. El emulador verifica los documentos leídos y las escrituras omitidas, pero la reducción del consumo total del proyecto debe confirmarse con sus métricas reales, que incluyen navegación, reglas, sincronización y consultas administrativas.
+
 ## Perfil y grupos
 
 El icono de usuario abre directamente `/perfil`. «Mi perfil» permite cambiar el nombre en Authentication y en el documento público de perfil; el correo es informativo. «Mis grupos» muestra los grupos con los nombres de sus miembros y enlaza a sus detalles. «Cómo jugar» explica modalidades, cierre y clasificaciones. El único botón de cerrar sesión está al final del perfil, con estilo discreto.
@@ -88,7 +108,7 @@ El proceso admite `FIREBASE_SERVICE_ACCOUNT` o Application Default Credentials c
 
 La API se consulta solo en backend. Hace una consulta de competiciones y una de partidos por competición, con timeout, reintentos limitados y espera ante HTTP 429/5xx. No se desactiva TLS. Normaliza `seasonId`, `roundId`, fases de Champions, estado, equipos y resultado reglamentario. Los IDs de Football-Data evitan duplicados. Los resultados tras prórroga o penaltis solo puntúan si existe un `regularTime` explícito: nunca se usa `fullTime` como sustituto dudoso. Los partidos finalizados sin ese dato se registran como pendientes de puntuación.
 
-Las escrituras se agrupan en lotes de menos de 500 y los metadatos repetidos se deduplican. Las clasificaciones consultan pronósticos solo de jornadas cuyos resultados han cambiado, con huellas del marcador y reemplazo atómico de totales. Las correcciones sustituyen puntos anteriores. Se recalculan las jornadas históricas cuando cambia la membresía, por ejemplo al volver a un grupo. No se incrementa un contador por cada ejecución. Las Actions de sincronización se serializan; evita lanzar otra sincronización administrativa simultánea fuera de Actions.
+Las escrituras de partidos modificados se agrupan en lotes de menos de 500 y los metadatos repetidos se deduplican. El calendario agregado se publica después de confirmar esos lotes; una ejecución interrumpida conserva la copia publicada y reintenta los cambios pendientes. Las clasificaciones consultan pronósticos solo de jornadas cuyos resultados han cambiado, con huellas del marcador y reemplazo atómico de totales. Las correcciones sustituyen puntos anteriores. Se recalculan las jornadas históricas cuando cambia la membresía, por ejemplo al volver a un grupo. No se incrementa un contador por cada ejecución. Las Actions de sincronización se serializan; evita lanzar otra sincronización administrativa simultánea fuera de Actions.
 
 La primera importación/historial puede consumir más lecturas; monitoriza las cuotas gratuitas de Firestore y los minutos de Actions. Los grupos se limitan inicialmente a 30 participantes para contener operaciones y cuotas. Los logos y escudos los sirve el proveedor; hay alternativas de texto cuando no se descargan. No hay vínculo oficial con LaLiga ni UEFA.
 
@@ -102,6 +122,7 @@ competitions/{PD|CL}                metadatos del proveedor
 seasons/{PD-2026|CL-2026}            temporada y fechas
 rounds/{competition-year-stage-day} fase + jornada/ronda
 matches/{providerId}                kickoffAt Timestamp, utcDate, estado, marcador de 90 min
+calendars/{competition-year}        copia pública normalizada por temporada, solo escritura backend
 groups/{groupId}                    ownerId inmutable, memberIds, nombre
   members/{uid}                    membresía y fecha de unión
   gameSeasons/{competition-year}    modalidad fija, temporada y estado de recálculo backend
@@ -142,7 +163,7 @@ En este entorno, para evitar escribir la configuración de la CLI en un director
 XDG_CONFIG_HOME=/tmp/galacticbet-cli-config npm run test:rules
 ```
 
-Validación actual: 45 pruebas unitarias y 19 pruebas de Firestore aprobadas, estas últimas ejecutadas contra el emulador con un proyecto demo aislado. Se comprueban el cierre irreversible, la privacidad, la protección frente a suplantación, la comparación con un resumen antiguo y ambos modos de pronóstico. También se ha probado en Chromium móvil y escritorio el resumen, la cancelación y confirmación del cierre, el panel compacto, la reapertura directa en El grupo, la elección propia antes del inicio (incluido fallo de perfiles), el cambio a otra competición editable y la comparación visual tras comenzar. Las comprobaciones de interfaz con servicios simulados no escriben en producción. La compilación usa el prefijo `/galacticBet/`. No se han ejecutado publicaciones administrativas contra un proyecto Firebase real desde esta máquina.
+Validación actual: 52 pruebas unitarias y 28 pruebas de Firestore aprobadas, estas últimas ejecutadas contra el emulador con proyectos demo aislados. Incluyen la sincronización de 380 partidos con una lectura de calendario, ausencia de escrituras si no cambian, puntuación y correcciones, altas y bajas, recuperación tras un fallo parcial, migración histórica y privacidad de los nuevos calendarios. Se comprueban también el cierre irreversible, la protección frente a suplantación, la comparación con un resumen antiguo y ambos modos de pronóstico. En Chromium se han comprobado dos lecturas de calendario iniciales, ninguna al recargar dentro de los cinco minutos y dos al caducar; además, el cambio de jornada/competición con consultas por usuario y ronda, sin barridos de partidos ni errores de interfaz. Las comprobaciones de interfaz con servicios simulados no escriben en producción. Las revisiones anteriores verificaron también móvil/escritorio, navegación, preferencias y la confirmación del cierre. La compilación usa el prefijo `/galacticBet/`. No se han ejecutado publicaciones administrativas contra un proyecto Firebase real desde esta máquina.
 
 ## GitHub Pages
 

@@ -158,19 +158,30 @@ export default function App() {
       return;
     }
     let active = true;
+    const refresh = () => {
+      if (document.visibilityState === "hidden") return;
+      loadMatches()
+        .then((next) => {
+          if (active) setMatches(next);
+        })
+        .catch((e) => {
+          if (active) setError(readableError(e));
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    };
     setLoading(true);
-    loadMatches()
-      .then((next) => {
-        if (active) setMatches(next);
-      })
-      .catch((e) => {
-        if (active) setError(readableError(e));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+    refresh();
+    // The shared loader deduplicates requests and checks at most once every five minutes.
+    const interval = window.setInterval(refresh, 5 * 60_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
     return () => {
       active = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, [demo]);
   useEffect(() => {

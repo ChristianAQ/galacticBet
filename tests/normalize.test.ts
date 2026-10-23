@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { normalize, type ApiMatch } from "../scripts/normalize";
+import { decodeCalendar, encodeCalendar } from "../src/lib/calendar";
 const fixture: ApiMatch = {
   id: 1,
   utcDate: "2026-10-24T19:00:00Z",
@@ -50,4 +51,26 @@ it("conserva los identificadores de equipo y la duración sin alterar el resulta
     awayScore: 1,
   });
   expect(normalize(fixture, "CL").homeTeamId).toBeNull();
+});
+it("conserva las eliminatorias reales con equipos aún por determinar sin romper el calendario público", () => {
+  const m = normalize(
+    {
+      ...fixture,
+      status: "SCHEDULED",
+      homeTeam: { name: null, shortName: null, crest: null },
+      awayTeam: { name: null },
+      score: { duration: null, fullTime: { home: null, away: null } },
+    },
+    "CL",
+  );
+  expect(m.home).toBe("Por determinar");
+  expect(m.away).toBe("Por determinar");
+  expect(m.homeScore).toBeNull();
+  expect(
+    decodeCalendar({
+      formatVersion: 1,
+      seasonId: m.seasonId,
+      payload: encodeCalendar([m]),
+    }),
+  ).toEqual([m]);
 });

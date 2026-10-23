@@ -98,8 +98,8 @@ export default function PredictionsPage({
   const rounds = [...new Set(filtered.map((m) => m.roundId))];
   const selected = rounds.includes(round) ? round : preferredRound(filtered);
   const list = filtered.filter((m) => m.roundId === selected);
-  const predictionKey = `${uid}:${group}:${season}`;
-  const sealKey = `${predictionKey}:${selected}`;
+  const predictionKey = `${uid}:${group}:${season}:${selected}`;
+  const sealKey = predictionKey;
   const values = demo || valuesKey === predictionKey ? storedValues : {};
   const isSealed = demo
     ? Boolean(demoSeals[selected])
@@ -164,7 +164,7 @@ export default function PredictionsPage({
     setValues({});
     setValuesKey(predictionKey);
     setError("");
-    if (!db || !group || !season || !user || demo) {
+    if (!db || !group || !season || !selected || !user || demo) {
       setLoadingPredictions(false);
       return;
     }
@@ -173,6 +173,7 @@ export default function PredictionsPage({
       query(
         collection(db, "groups", group, "gameSeasons", season, "predictions"),
         where("userId", "==", uid),
+        where("roundId", "==", selected),
       ),
       { includeMetadataChanges: true },
       (snap) => {
@@ -188,7 +189,7 @@ export default function PredictionsPage({
         setLoadingPredictions(false);
       },
     );
-  }, [group, season, uid, demo]);
+  }, [group, season, selected, uid, demo]);
   useEffect(() => {
     setSealed({ key: sealKey, value: false });
     setConfirm(false);

@@ -99,6 +99,44 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
       ),
     );
   });
+  it("permite leer calendarios agregados públicos pero nunca escribir resultados desde el cliente", async () => {
+    await env.withSecurityRulesDisabled((c) =>
+      setDoc(doc(c.firestore(), "calendars/PD-2026"), {
+        formatVersion: 1,
+        seasonId: "PD-2026",
+        payload: "[]",
+      }),
+    );
+    const anonymous = env.unauthenticatedContext().firestore();
+    expect(
+      (await assertSucceeds(getDocs(collection(anonymous, "calendars")))).size,
+    ).toBe(1);
+    const db = env.authenticatedContext("alice").firestore();
+    await assertFails(
+      updateDoc(doc(db, "calendars/PD-2026"), { payload: "fake" }),
+    );
+    await assertFails(
+      setDoc(doc(db, "calendars/CL-2026"), { payload: "fake" }),
+    );
+    await assertFails(
+      updateDoc(doc(db, "matches/future"), { status: "FINISHED" }),
+    );
+  });
+  it("permite consultar solo los pronósticos propios de la jornada sin revelar los ajenos", async () => {
+    const db = env.authenticatedContext("bob").firestore();
+    const ref = collection(db, "groups/g/gameSeasons/PD-2026/predictions");
+    const own = await assertSucceeds(
+      getDocs(
+        query(ref, where("userId", "==", "bob"), where("roundId", "==", "r")),
+      ),
+    );
+    expect(own.size).toBe(2);
+    await assertFails(
+      getDocs(
+        query(ref, where("userId", "==", "alice"), where("roundId", "==", "r")),
+      ),
+    );
+  });
   it("rechaza crear o editar después del inicio", async () => {
     const db = env.authenticatedContext("alice").firestore();
     await assertFails(

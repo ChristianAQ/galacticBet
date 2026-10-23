@@ -17,5 +17,7 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    { "collectionGroup": "calendars", "fieldPath": "payload", "indexes": [] }
+  ]
 }

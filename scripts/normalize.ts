@@ -9,18 +9,18 @@ export interface ApiMatch {
   season: { id: number; startDate: string; endDate: string };
   homeTeam: {
     id?: number | null;
-    name: string;
-    shortName?: string;
-    crest?: string;
+    name: string | null;
+    shortName?: string | null;
+    crest?: string | null;
   };
   awayTeam: {
     id?: number | null;
-    name: string;
-    shortName?: string;
-    crest?: string;
+    name: string | null;
+    shortName?: string | null;
+    crest?: string | null;
   };
   score: {
-    duration: string;
+    duration: string | null;
     fullTime: { home: number | null; away: number | null };
     regularTime?: { home: number | null; away: number | null };
   };
@@ -41,11 +41,11 @@ export function normalize(m: ApiMatch, competition: "PD" | "CL"): Match {
     stage: m.stage,
     utcDate: m.utcDate,
     status: m.status,
-    home: m.homeTeam.shortName || m.homeTeam.name,
-    away: m.awayTeam.shortName || m.awayTeam.name,
+    home: m.homeTeam.shortName || m.homeTeam.name || "Por determinar",
+    away: m.awayTeam.shortName || m.awayTeam.name || "Por determinar",
     homeTeamId: m.homeTeam.id ?? null,
     awayTeamId: m.awayTeam.id ?? null,
-    scoreDuration: m.score.duration,
+    scoreDuration: m.score.duration || "",
     homeCrest: m.homeTeam.crest || "",
     awayCrest: m.awayTeam.crest || "",
     homeScore: regulation?.home ?? null,

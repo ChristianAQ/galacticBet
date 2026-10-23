@@ -22,6 +22,8 @@ import { auth, db } from "./firebase";
 import { privateCache } from "./memoryCache";
 import type { SeasonRanking } from "./rankings";
 import { createPrivateGroup, prepareGroupCompetitions } from "./groupSetup";
+import { decodeCalendar } from "./calendar";
+import { createCalendarLoader } from "./calendarCache";
 export { gameSeasonId } from "./groupSetup";
 export interface Group {
   id: string;
@@ -33,12 +35,20 @@ function database() {
   if (!db) throw new Error("Firebase no está configurado.");
   return db;
 }
-export async function loadMatches() {
-  const snap = await getDocs(collection(database(), "matches"));
-  return snap.docs
-    .map((d) => ({ ...d.data(), id: d.id }) as Match)
-    .sort((a, b) => a.utcDate.localeCompare(b.utcDate));
-}
+export const loadMatches = createCalendarLoader(
+  import.meta.env.VITE_FIREBASE_PROJECT_ID || "unconfigured",
+  () => window.localStorage,
+  async () => {
+    const snap = await getDocs(collection(database(), "calendars"));
+    // Keep existing installations usable until their first upgraded backend sync.
+    // Once snapshots exist, this legacy collection scan is never needed again.
+    if (snap.empty) {
+      const legacy = await getDocs(collection(database(), "matches"));
+      return legacy.docs.map((d) => ({ ...d.data(), id: d.id }) as Match);
+    }
+    return snap.docs.flatMap((d) => decodeCalendar(d.data()));
+  },
+);
 export async function loadGroups(uid: string) {
   const snap = await getDocs(
     query(
@@ -194,17 +204,25 @@ export function loadGroupRankings(group: Group) {
   );
 }
 async function fetchGroupRankings(group: Group) {
-  const store = database();
   const [participants, configs] = await Promise.all([
     loadParticipants(group),
-    getDocs(collection(store, "groups", group.id, "gameSeasons")),
+    loadGameSeasons(group.id),
   ]);
   const seasons: SeasonRanking[] = await Promise.all(
-    configs.docs.map(async (config) => {
-      const standings = await getDocs(collection(config.ref, "standings"));
+    configs.map(async (config) => {
+      const standings = await getDocs(
+        collection(
+          database(),
+          "groups",
+          group.id,
+          "gameSeasons",
+          config.id,
+          "standings",
+        ),
+      );
       return {
         id: config.id,
-        competition: String(config.data().competition),
+        competition: config.competition,
         standings: standings.docs.map((doc) => {
           const value = doc.data();
           return {
