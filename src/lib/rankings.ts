@@ -94,3 +94,46 @@ export function rankingRounds(
       a.id.localeCompare(b.id, "es", { numeric: true }),
   );
 }
+
+// Prefer the round being played; otherwise use the next scheduled match or latest result.
+export function currentRankingRound(
+  matches: Match[],
+  roundIds: string[],
+  now = Date.now(),
+) {
+  const allowed = new Set(roundIds);
+  const fixtures = matches.filter(
+    (m) => allowed.has(m.roundId) && Number.isFinite(Date.parse(m.utcDate)),
+  );
+  const latest = (items: Match[]) =>
+    items.sort((a, b) => b.utcDate.localeCompare(a.utcDate))[0]?.roundId;
+  const playing = fixtures.filter(
+    (m) =>
+      ["IN_PLAY", "PAUSED"].includes(m.status) && Date.parse(m.utcDate) <= now,
+  );
+  if (playing.length) return latest(playing)!;
+  const started = fixtures.filter(
+    (m) =>
+      ["TIMED", "SCHEDULED"].includes(m.status) &&
+      Date.parse(m.utcDate) <= now &&
+      now - Date.parse(m.utcDate) < 3 * 60 * 60 * 1000,
+  );
+  if (started.length) return latest(started)!;
+  const upcoming = fixtures
+    .filter(
+      (m) =>
+        ["TIMED", "SCHEDULED"].includes(m.status) &&
+        Date.parse(m.utcDate) > now,
+    )
+    .sort((a, b) => a.utcDate.localeCompare(b.utcDate));
+  return (
+    upcoming[0]?.roundId ||
+    latest(
+      fixtures.filter(
+        (m) => m.status === "FINISHED" && Date.parse(m.utcDate) <= now,
+      ),
+    ) ||
+    roundIds.at(-1) ||
+    ""
+  );
+}

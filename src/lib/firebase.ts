@@ -9,6 +9,7 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { doc, getFirestore, serverTimestamp, setDoc } from "firebase/firestore";
+import { privateCache } from "./memoryCache";
 const e = import.meta.env;
 export const configured = Boolean(
   e.VITE_FIREBASE_API_KEY &&
@@ -49,6 +50,7 @@ export async function emailLogin(
 }
 export async function logout() {
   if (auth) await signOut(auth);
+  privateCache.clear();
 }
 export async function saveDisplayName(value: string) {
   if (!auth?.currentUser || !db)
@@ -68,5 +70,7 @@ export async function saveDisplayName(value: string) {
     throw new Error(
       "El nombre se ha actualizado en tu cuenta, pero no se ha podido actualizar en tus grupos. Pulsa Guardar nombre para reintentar.",
     );
+  } finally {
+    privateCache.clear();
   }
 }

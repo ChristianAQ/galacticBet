@@ -18,7 +18,8 @@ import {
   type Prediction,
   type PredictionValue,
 } from "./domain";
-import { db } from "./firebase";
+import { auth, db } from "./firebase";
+import { privateCache } from "./memoryCache";
 import type { SeasonRanking } from "./rankings";
 import { createPrivateGroup, prepareGroupCompetitions } from "./groupSetup";
 export { gameSeasonId } from "./groupSetup";
@@ -47,13 +48,23 @@ export async function loadGroups(uid: string) {
   );
   return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as Group);
 }
-export function createGroup(uid: string, name: string, mode: Mode) {
-  return createPrivateGroup(database(), uid, name, mode);
+export async function createGroup(uid: string, name: string, mode: Mode) {
+  const id = await createPrivateGroup(database(), uid, name, mode);
+  privateCache.clear();
+  return id;
 }
-export function ensureGroupCompetitions(uid: string, groupId: string) {
-  return prepareGroupCompetitions(database(), uid, groupId);
+export async function ensureGroupCompetitions(uid: string, groupId: string) {
+  if (await prepareGroupCompetitions(database(), uid, groupId))
+    privateCache.clear();
 }
-export async function loadGameSeasons(groupId: string) {
+export function loadGameSeasons(groupId: string) {
+  return privateCache.read(
+    cacheKey("seasons", groupId),
+    () => fetchGameSeasons(groupId),
+    60000,
+  );
+}
+async function fetchGameSeasons(groupId: string) {
   const list = await getDocs(
     collection(database(), "groups", groupId, "gameSeasons"),
   );
@@ -83,6 +94,7 @@ export async function joinGroup(uid: string, code: string) {
       joinedAt: serverTimestamp(),
     });
   });
+  privateCache.clear();
   return cleaned;
 }
 export async function leaveGroup(uid: string, group: Group) {
@@ -97,6 +109,7 @@ export async function leaveGroup(uid: string, group: Group) {
     });
     transaction.delete(doc(ref, "members", uid));
   });
+  privateCache.clear();
 }
 export async function savePrediction(
   uid: string,
@@ -140,7 +153,21 @@ export interface Participant {
   name: string;
   avatar: string | null;
 }
-export async function loadParticipants(group: Group): Promise<Participant[]> {
+function cacheKey(kind: string, group: Group | string) {
+  return JSON.stringify([
+    auth?.currentUser?.uid || "",
+    kind,
+    typeof group === "string" ? group : [group.id, [...group.memberIds].sort()],
+  ]);
+}
+export function loadParticipants(group: Group): Promise<Participant[]> {
+  return privateCache.read(
+    cacheKey("people", group),
+    () => fetchParticipants(group),
+    60000,
+  );
+}
+async function fetchParticipants(group: Group): Promise<Participant[]> {
   const store = database();
   return Promise.all(
     group.memberIds.map(async (uid) => {
@@ -154,7 +181,19 @@ export async function loadParticipants(group: Group): Promise<Participant[]> {
   );
 }
 
-export async function loadGroupRankings(group: Group) {
+export function getCachedGroupRankings(group: Group) {
+  return privateCache.peek<Awaited<ReturnType<typeof fetchGroupRankings>>>(
+    cacheKey("rankings", group),
+  );
+}
+export function loadGroupRankings(group: Group) {
+  return privateCache.read(
+    cacheKey("rankings", group),
+    () => fetchGroupRankings(group),
+    30000,
+  );
+}
+async function fetchGroupRankings(group: Group) {
   const store = database();
   const [participants, configs] = await Promise.all([
     loadParticipants(group),
@@ -183,4 +222,5 @@ export async function loadGroupRankings(group: Group) {
 
 export async function renameGroup(groupId: string, name: string) {
   await updateDoc(doc(database(), "groups", groupId), { name: name.trim() });
+  privateCache.clear();
 }

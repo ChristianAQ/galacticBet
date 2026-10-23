@@ -1,12 +1,5 @@
 import type { User } from "firebase/auth";
-import {
-  collection,
-  doc,
-  getDocs,
-  onSnapshot,
-  query,
-  where,
-} from "firebase/firestore";
+import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 import {
   Check,
   LockKeyhole,
@@ -16,7 +9,7 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import CompetitionLogo from "../components/CompetitionLogo";
 import ConfirmQuiniela from "../components/ConfirmQuiniela";
 import GroupPredictions from "../components/GroupPredictions";
@@ -28,6 +21,7 @@ import {
   readableError,
 } from "../components/ui";
 import {
+  loadGameSeasons,
   loadParticipants,
   savePrediction,
   submitRound,
@@ -44,6 +38,8 @@ import {
   type PredictionValue,
 } from "../lib/domain";
 import { db } from "../lib/firebase";
+import { preferenceStore } from "../lib/preferences";
+import { useGroupSelection } from "../lib/useGroupSelection";
 
 const demoPlayers: Participant[] = [
   { id: "demo-me", name: "Tú", avatar: null },
@@ -62,21 +58,27 @@ export default function PredictionsPage({
   user: User | null;
   demo: boolean;
 }) {
-  const [params] = useSearchParams();
-  const [group, setGroup] = useState(params.get("group") || "");
+  const {
+    groupId: group,
+    selectGroup: setGroup,
+    preferences,
+  } = useGroupSelection(demo ? "" : user?.uid || "", demo ? [] : groups);
   const [demoCompetition, setDemoCompetition] = useState("PD");
   const [season, setSeason] = useState("");
   const [seasons, setSeasons] = useState<
     { id: string; mode: Mode; competition: string }[]
   >([]);
-  const [values, setValues] = useState<Record<string, PredictionValue>>({});
+  const [storedValues, setValues] = useState<Record<string, PredictionValue>>(
+    {},
+  );
+  const [valuesKey, setValuesKey] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [round, setRound] = useState("");
   const [clock, setClock] = useState(Date.now());
   const [loadingPredictions, setLoadingPredictions] = useState(!demo);
   const [loadingSeal, setLoadingSeal] = useState(!demo);
-  const [sealed, setSealed] = useState(false);
+  const [sealed, setSealed] = useState({ key: "", value: false });
   const [demoSeals, setDemoSeals] = useState<Record<string, boolean>>({});
   const [confirm, setConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -96,9 +98,19 @@ export default function PredictionsPage({
   const rounds = [...new Set(filtered.map((m) => m.roundId))];
   const selected = rounds.includes(round) ? round : preferredRound(filtered);
   const list = filtered.filter((m) => m.roundId === selected);
-  const isSealed = demo ? Boolean(demoSeals[selected]) : sealed;
+  const predictionKey = `${uid}:${group}:${season}`;
+  const sealKey = `${predictionKey}:${selected}`;
+  const values = demo || valuesKey === predictionKey ? storedValues : {};
+  const isSealed = demo
+    ? Boolean(demoSeals[selected])
+    : sealed.key === sealKey && sealed.value;
   const shownView = isSealed ? "group" : view;
-  const pending = !demo && (loadingPredictions || loadingSeal);
+  const pending =
+    !demo &&
+    (loadingPredictions ||
+      loadingSeal ||
+      valuesKey !== predictionKey ||
+      sealed.key !== sealKey);
   const completed = list.filter((m) => values[m.id]).length;
   const missingOpen = list.filter(
     (m) => canPredict(m.utcDate, clock, m.status) && !values[m.id],
@@ -120,33 +132,26 @@ export default function PredictionsPage({
     return () => clearInterval(id);
   }, []);
   useEffect(() => {
-    if (!demo && groups.length && !groups.some((g) => g.id === group))
-      setGroup(groups[0]?.id || "");
-  }, [groups, group, demo]);
-  useEffect(() => {
     setSeasons([]);
     setSeason("");
     setRound("");
     if (!db || !group || demo) return;
     let active = true;
-    getDocs(collection(db, "groups", group, "gameSeasons"))
-      .then((s) => {
+    loadGameSeasons(group)
+      .then((configs) => {
         if (!active) return;
-        const next = s.docs.map(
-          (d) =>
-            ({ id: d.id, ...d.data() }) as {
-              id: string;
-              mode: Mode;
-              competition: string;
-            },
-        );
+        const next = [...configs];
         next.sort(
           (a, b) =>
             Number(b.competition === "PD") - Number(a.competition === "PD") ||
             b.id.localeCompare(a.id, "es", { numeric: true }),
         );
         setSeasons(next);
-        setSeason(next[0]?.id || "");
+        setSeason(
+          next.find((s) => s.competition === preferences.competition)?.id ||
+            next[0]?.id ||
+            "",
+        );
       })
       .catch((e) => {
         if (active) setError(readableError(e));
@@ -157,6 +162,7 @@ export default function PredictionsPage({
   }, [group, demo]);
   useEffect(() => {
     setValues({});
+    setValuesKey(predictionKey);
     setError("");
     if (!db || !group || !season || !user || demo) {
       setLoadingPredictions(false);
@@ -184,7 +190,7 @@ export default function PredictionsPage({
     );
   }, [group, season, uid, demo]);
   useEffect(() => {
-    setSealed(false);
+    setSealed({ key: sealKey, value: false });
     setConfirm(false);
     setSubmitError("");
     if (!db || !group || !season || !selected || !user || demo) {
@@ -206,7 +212,8 @@ export default function PredictionsPage({
       ),
       { includeMetadataChanges: true },
       (snap) => {
-        if (!snap.metadata.hasPendingWrites) setSealed(snap.exists());
+        if (!snap.metadata.hasPendingWrites)
+          setSealed({ key: sealKey, value: snap.exists() });
         setLoadingSeal(snap.metadata.fromCache);
       },
       () => {
@@ -272,7 +279,7 @@ export default function PredictionsPage({
             list.filter((m) => values[m.id]).map((m) => [m.id, values[m.id]]),
           ),
         );
-        setSealed(true);
+        setSealed({ key: sealKey, value: true });
       }
       setConfirm(false);
     } catch (e) {
@@ -338,10 +345,15 @@ export default function PredictionsPage({
             }
             onClick={() => {
               if (demo) setDemoCompetition(code);
-              else
+              else {
+                if (user)
+                  preferenceStore.update(user.uid, {
+                    competition: code as "PD" | "CL",
+                  });
                 setSeason(
                   seasons.find((s) => s.competition === code)?.id || "",
                 );
+              }
               setRound("");
             }}
           >

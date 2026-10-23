@@ -16,6 +16,8 @@ import {
   type Group,
   type Participant,
 } from "../lib/data";
+import { preferenceStore } from "../lib/preferences";
+import { usePreferences } from "../lib/useGroupSelection";
 import type { Mode } from "../lib/domain";
 
 export default function GroupsPage({
@@ -30,6 +32,8 @@ export default function GroupsPage({
   onLogin: () => void;
 }) {
   const [params, setParams] = useSearchParams();
+  const preferences = usePreferences(user?.uid || "");
+  const [collapsed, setCollapsed] = useState(false);
   const [message, setMessage] = useState("");
   const modal =
     params.has("join") || params.get("action") === "join"
@@ -37,7 +41,14 @@ export default function GroupsPage({
       : params.get("action") === "create"
         ? "create"
         : null;
-  const selected = params.get("group") || "";
+  const requested = params.get("group");
+  const selected = collapsed
+    ? ""
+    : groups.find((g) => g.id === (requested || preferences.groupId))?.id || "";
+  useEffect(() => {
+    if (user && selected)
+      preferenceStore.update(user.uid, { groupId: selected });
+  }, [user?.uid, selected]);
   function open(action: string) {
     const next = new URLSearchParams(params);
     next.set("action", action);
@@ -74,6 +85,8 @@ export default function GroupsPage({
               uid={user.uid}
               selected={selected}
               onSelect={(id) => {
+                setCollapsed(!id);
+                if (id) preferenceStore.update(user.uid, { groupId: id });
                 const next = new URLSearchParams(params);
                 if (id) next.set("group", id);
                 else next.delete("group");
@@ -116,6 +129,8 @@ export default function GroupsPage({
               onClose={close}
               onComplete={async (id) => {
                 await refresh();
+                preferenceStore.update(user.uid, { groupId: id });
+                setCollapsed(false);
                 setParams({ group: id }, { replace: true });
                 setMessage(
                   modal === "create"

@@ -14,7 +14,14 @@ import {
   X,
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
-import { Link, NavLink, Route, Routes, useNavigate } from "react-router-dom";
+import {
+  Link,
+  NavLink,
+  Route,
+  Routes,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
 import LoginModal from "./components/LoginModal";
 import Sidebar from "./components/Sidebar";
 import { Empty, PrivateGate, readableError } from "./components/ui";
@@ -28,12 +35,25 @@ import { demoMatches } from "./lib/demo";
 import { type Match } from "./lib/domain";
 import { MOBILE_LAYOUT_QUERY } from "./lib/mobileViewport";
 import { auth, configured, db } from "./lib/firebase";
-const HomePage = lazy(() => import("./pages/HomePage"));
-const MatchesPage = lazy(() => import("./pages/MatchesPage"));
-const PredictionsPage = lazy(() => import("./pages/PredictionsPage"));
-const GroupsPage = lazy(() => import("./pages/GroupsPage"));
-const StandingsPage = lazy(() => import("./pages/StandingsPage"));
-const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+import { privateCache } from "./lib/memoryCache";
+const pageLoaders = {
+  "/": () => import("./pages/HomePage"),
+  "/partidos": () => import("./pages/MatchesPage"),
+  "/quiniela": () => import("./pages/PredictionsPage"),
+  "/grupos": () => import("./pages/GroupsPage"),
+  "/clasificacion": () => import("./pages/StandingsPage"),
+  "/perfil": () => import("./pages/ProfilePage"),
+};
+const HomePage = lazy(pageLoaders["/"]);
+const MatchesPage = lazy(pageLoaders["/partidos"]);
+const PredictionsPage = lazy(pageLoaders["/quiniela"]);
+const GroupsPage = lazy(pageLoaders["/grupos"]);
+const StandingsPage = lazy(pageLoaders["/clasificacion"]);
+const ProfilePage = lazy(pageLoaders["/perfil"]);
+function preloadPage(path: string) {
+  const load = pageLoaders[path as keyof typeof pageLoaders];
+  if (load) void load().catch(() => {});
+}
 const nav = [
   { to: "/", label: "Inicio", icon: Home },
   { to: "/partidos", label: "Partidos", icon: CalendarDays },
@@ -43,12 +63,22 @@ const nav = [
 ];
 export default function App() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      if (document.body.style.position !== "fixed")
+        window.scrollTo({ top: 0, behavior: "auto" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pathname]);
   const [, setProfileVersion] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(!auth);
   const [demo, setDemo] = useState(false);
   const [matches, setMatches] = useState<Match[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [groupsUid, setGroupsUid] = useState("");
+  const activeGroups = user && groupsUid === user.uid ? groups : [];
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [login, setLogin] = useState(false);
@@ -71,6 +101,7 @@ export default function App() {
     () =>
       auth
         ? onAuthStateChanged(auth, (u) => {
+            privateCache.clear();
             setUser(u);
             if (u) setLogin(false);
             setAuthReady(true);
@@ -111,7 +142,10 @@ export default function App() {
             "No se pudieron preparar las dos competiciones: " +
               readableError(failed.reason),
           );
-        if (auth?.currentUser?.uid === user.uid) setGroups(next);
+        if (auth?.currentUser?.uid === user.uid) {
+          setGroups(next);
+          setGroupsUid(user.uid);
+        }
       } catch (e) {
         setError(readableError(e));
       }
@@ -151,6 +185,7 @@ export default function App() {
         mobile={mobile}
         onClose={closeMenu}
         items={nav}
+        onPrefetch={preloadPage}
       />
       <div
         className="main-shell"
@@ -177,6 +212,9 @@ export default function App() {
             </span>
             <button
               aria-label="Ver perfil"
+              onPointerEnter={() => preloadPage("/perfil")}
+              onFocus={() => preloadPage("/perfil")}
+              onPointerDown={() => preloadPage("/perfil")}
               className="profile-button"
               onClick={() => navigate("/perfil")}
             >
@@ -213,94 +251,107 @@ export default function App() {
             </div>
           )}
           <Suspense
-            fallback={<Empty title="Cargando…">Preparando tu vestuario.</Empty>}
+            fallback={
+              <div
+                className="page-skeleton"
+                role="status"
+                aria-label="Cargando página"
+              >
+                <span />
+                <span />
+                <span />
+              </div>
+            }
           >
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <HomePage
-                    name={name}
-                    groups={groups}
-                    matches={matches}
-                    loading={loading}
-                    onDemo={() => setDemo(true)}
-                  />
-                }
-              />
-              <Route
-                path="/partidos"
-                element={
-                  <MatchesPage
-                    matches={matches}
-                    demo={demo}
-                    onDemo={() => setDemo(true)}
-                    loading={loading}
-                  />
-                }
-              />
-              <Route
-                path="/quiniela"
-                element={
-                  !authReady ? (
-                    <Empty title="Comprobando sesión…">Un momento.</Empty>
-                  ) : !user && !demo ? (
-                    <PrivateGate
-                      onLogin={() => setLogin(true)}
+            <div className="route-view" key={pathname}>
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    <HomePage
+                      name={name}
+                      groups={activeGroups}
+                      matches={matches}
+                      loading={loading}
                       onDemo={() => setDemo(true)}
                     />
-                  ) : (
-                    <PredictionsPage
+                  }
+                />
+                <Route
+                  path="/partidos"
+                  element={
+                    <MatchesPage
                       matches={matches}
-                      groups={groups}
-                      user={user}
                       demo={demo}
+                      onDemo={() => setDemo(true)}
+                      loading={loading}
                     />
-                  )
-                }
-              />
-              <Route
-                path="/grupos"
-                element={
-                  <GroupsPage
-                    user={user}
-                    groups={groups}
-                    refresh={refreshGroups}
-                    onLogin={() => setLogin(true)}
-                  />
-                }
-              />
-              <Route
-                path="/clasificacion"
-                element={
-                  <StandingsPage
-                    groups={groups}
-                    matches={matches}
-                    user={user}
-                    onLogin={() => setLogin(true)}
-                  />
-                }
-              />
-              <Route
-                path="/perfil"
-                element={
-                  <ProfilePage
-                    user={user}
-                    groups={groups}
-                    onLogin={() => setLogin(true)}
-                    onUpdated={() => setProfileVersion((v) => v + 1)}
-                  />
-                }
-              />
-              <Route
-                path="*"
-                element={
-                  <Empty title="Fuera de juego">
-                    Esta página no existe. <Link to="/">Volver al inicio</Link>
-                  </Empty>
-                }
-              />
-            </Routes>
+                  }
+                />
+                <Route
+                  path="/quiniela"
+                  element={
+                    !authReady ? (
+                      <Empty title="Comprobando sesión…">Un momento.</Empty>
+                    ) : !user && !demo ? (
+                      <PrivateGate
+                        onLogin={() => setLogin(true)}
+                        onDemo={() => setDemo(true)}
+                      />
+                    ) : (
+                      <PredictionsPage
+                        matches={matches}
+                        groups={activeGroups}
+                        user={user}
+                        demo={demo}
+                      />
+                    )
+                  }
+                />
+                <Route
+                  path="/grupos"
+                  element={
+                    <GroupsPage
+                      user={user}
+                      groups={activeGroups}
+                      refresh={refreshGroups}
+                      onLogin={() => setLogin(true)}
+                    />
+                  }
+                />
+                <Route
+                  path="/clasificacion"
+                  element={
+                    <StandingsPage
+                      groups={activeGroups}
+                      matches={matches}
+                      user={user}
+                      onLogin={() => setLogin(true)}
+                    />
+                  }
+                />
+                <Route
+                  path="/perfil"
+                  element={
+                    <ProfilePage
+                      user={user}
+                      groups={activeGroups}
+                      onLogin={() => setLogin(true)}
+                      onUpdated={() => setProfileVersion((v) => v + 1)}
+                    />
+                  }
+                />
+                <Route
+                  path="*"
+                  element={
+                    <Empty title="Fuera de juego">
+                      Esta página no existe.{" "}
+                      <Link to="/">Volver al inicio</Link>
+                    </Empty>
+                  }
+                />
+              </Routes>
+            </div>
           </Suspense>
           <footer className="main-footer">
             <span>© {new Date().getFullYear()} GalacticBet</span>
@@ -321,7 +372,14 @@ export default function App() {
         aria-hidden={mobileMenuOpen || undefined}
       >
         {nav.map((n) => (
-          <NavLink end={n.to === "/"} to={n.to} key={n.to}>
+          <NavLink
+            end={n.to === "/"}
+            to={n.to}
+            key={n.to}
+            onPointerEnter={() => preloadPage(n.to)}
+            onFocus={() => preloadPage(n.to)}
+            onPointerDown={() => preloadPage(n.to)}
+          >
             <n.icon size={21} />
             <span>{n.label}</span>
           </NavLink>

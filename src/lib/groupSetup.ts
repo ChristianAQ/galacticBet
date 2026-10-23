@@ -58,7 +58,7 @@ export async function prepareGroupCompetitions(
   const refs = ["PD", "CL"].map((c) =>
     doc(group, "gameSeasons", gameSeasonId(c)),
   );
-  await runTransaction(store, async (tx) => {
+  return runTransaction(store, async (tx) => {
     const snapshot = await tx.get(group);
     if (!snapshot.exists() || snapshot.data().ownerId !== uid)
       throw new Error(
@@ -76,5 +76,6 @@ export async function prepareGroupCompetitions(
           createdAt: serverTimestamp(),
         });
     });
+    return seasons.some((season) => !season.exists());
   });
 }

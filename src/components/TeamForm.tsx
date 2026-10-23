@@ -1,7 +1,8 @@
+import { memo } from "react";
 import type { Match } from "../lib/domain";
 import { recentForm, type Side } from "../lib/matchInsights";
 export const formNames = { win: "Victoria", draw: "Empate", loss: "Derrota" };
-export default function TeamForm({
+const TeamForm = memo(function TeamForm({
   match,
   side,
   matches,
@@ -42,7 +43,8 @@ export default function TeamForm({
       ))}
     </span>
   );
-}
+});
+export default TeamForm;
 export function FormGuide() {
   return (
     <div className="form-guide">

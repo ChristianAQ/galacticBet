@@ -15,6 +15,7 @@ interface SidebarProps {
   open: boolean;
   mobile: boolean;
   onClose: () => void;
+  onPrefetch?: (path: string) => void;
   items: { to: string; label: string; icon: LucideIcon }[];
 }
 
@@ -23,6 +24,7 @@ export default function Sidebar({
   mobile,
   onClose,
   items,
+  onPrefetch,
 }: SidebarProps) {
   const panel = useRef<HTMLElement>(null);
   const location = useLocation();
@@ -111,7 +113,14 @@ export default function Sidebar({
         <div className="sidebar-caption">TU CENTRO DE JUEGO</div>
         <nav aria-label="Secciones">
           {items.map((item) => (
-            <NavLink end={item.to === "/"} to={item.to} key={item.to}>
+            <NavLink
+              end={item.to === "/"}
+              to={item.to}
+              key={item.to}
+              onPointerEnter={() => onPrefetch?.(item.to)}
+              onFocus={() => onPrefetch?.(item.to)}
+              onPointerDown={() => onPrefetch?.(item.to)}
+            >
               <item.icon size={20} />
               {item.label}
               {item.to === "/quiniela" && <span className="nav-dot" />}

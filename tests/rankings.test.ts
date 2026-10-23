@@ -127,3 +127,81 @@ it("incluye jornadas sin resultados del calendario activo y conserva el historia
   ]);
   expect(rankingRounds([], calendar, "global")).toEqual([]);
 });
+
+it("elige la jornada en juego antes que la siguiente, incluso sin partidos futuros en esa jornada", async () => {
+  const { currentRankingRound } = await import("../src/lib/rankings");
+  const now = Date.parse("2026-10-23T20:00:00Z");
+  const base: Match = {
+    id: "1",
+    competition: "PD",
+    seasonId: "PD-2026",
+    roundId: r1,
+    matchday: 1,
+    stage: "REGULAR_SEASON",
+    utcDate: "2026-10-23T19:00:00Z",
+    status: "IN_PLAY",
+    home: "A",
+    away: "B",
+    homeScore: null,
+    awayScore: null,
+  };
+  const next = {
+    ...base,
+    id: "2",
+    roundId: r2,
+    utcDate: "2026-10-30T19:00:00Z",
+    status: "TIMED",
+  };
+  expect(currentRankingRound([next, base], [r1, r2], now)).toBe(r1);
+  expect(
+    currentRankingRound([next, { ...base, status: "FINISHED" }], [r1, r2], now),
+  ).toBe(r2);
+  expect(
+    currentRankingRound([{ ...base, status: "TIMED" }, next], [r1, r2], now),
+  ).toBe(r1);
+});
+it("usa el último resultado cuando acaba el calendario y omite rondas fuera de la competición", async () => {
+  const { currentRankingRound } = await import("../src/lib/rankings");
+  const base: Match = {
+    id: "1",
+    competition: "PD",
+    seasonId: "PD-2026",
+    roundId: r1,
+    matchday: 1,
+    stage: "REGULAR_SEASON",
+    utcDate: "2026-10-01T19:00:00Z",
+    status: "FINISHED",
+    home: "A",
+    away: "B",
+    homeScore: 1,
+    awayScore: 0,
+  };
+  const newer = {
+    ...base,
+    id: "2",
+    roundId: r2,
+    utcDate: "2026-10-08T19:00:00Z",
+  };
+  const cl = {
+    ...base,
+    id: "3",
+    roundId: clRound,
+    status: "IN_PLAY",
+    utcDate: "2026-10-09T19:00:00Z",
+  };
+  expect(
+    currentRankingRound(
+      [base, newer, cl],
+      [r1, r2],
+      Date.parse("2026-10-10T19:00:00Z"),
+    ),
+  ).toBe(r2);
+  expect(
+    currentRankingRound(
+      [base, { ...newer, status: "POSTPONED" }],
+      [r1, r2],
+      Date.parse("2026-10-10T19:00:00Z"),
+    ),
+  ).toBe(r1);
+  expect(currentRankingRound([], [])).toBe("");
+});

@@ -1,10 +1,21 @@
 import type { User } from "firebase/auth";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import { Empty, PageTitle, PrivateGate, readableError } from "../components/ui";
-import { loadGroupRankings, type Group } from "../lib/data";
-import { preferredRound, type Match } from "../lib/domain";
-import { buildRanking, rankingRounds } from "../lib/rankings";
+import {
+  getCachedGroupRankings,
+  loadGroupRankings,
+  type Group,
+} from "../lib/data";
+import { type Match } from "../lib/domain";
+import CompetitionSwitch from "../components/CompetitionSwitch";
+import { privateCache } from "../lib/memoryCache";
+import { preferenceStore } from "../lib/preferences";
+import { useGroupSelection } from "../lib/useGroupSelection";
+import {
+  buildRanking,
+  rankingRounds,
+  currentRankingRound,
+} from "../lib/rankings";
 
 export default function StandingsPage({
   groups,
@@ -17,10 +28,14 @@ export default function StandingsPage({
   user: User | null;
   onLogin: () => void;
 }) {
-  const [params] = useSearchParams();
-  const [groupId, setGroupId] = useState(params.get("group") || "");
-  const [scope, setScope] = useState("global");
-  const [period, setPeriod] = useState<"all" | "round">("all");
+  const { groupId, selectGroup, preferences } = useGroupSelection(
+    user?.uid || "",
+    groups,
+  );
+  const competition = preferences.competition;
+  const [combined, setCombined] = useState(false);
+  const [period, setPeriod] = useState<"all" | "round">("round");
+  const scope = period === "all" && combined ? "global" : competition;
   const [round, setRound] = useState("");
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{
@@ -33,10 +48,12 @@ export default function StandingsPage({
   const loadKey =
     user && selectedGroup ? `${user.uid}:${groupId}:${membersKey}` : "";
 
+  const cached =
+    selectedGroup && user ? getCachedGroupRankings(selectedGroup) : undefined;
   useEffect(() => {
     if (!loadKey || !selectedGroup) return;
     let active = true;
-    setResult({ key: loadKey });
+    setResult({ key: loadKey, data: getCachedGroupRankings(selectedGroup) });
     loadGroupRankings(selectedGroup)
       .then((data) => {
         if (active) setResult({ key: loadKey, data });
@@ -50,16 +67,31 @@ export default function StandingsPage({
     // The key includes the signed-in user, group and current member IDs.
   }, [loadKey, retry]);
 
-  const data = result.key === loadKey ? result.data : undefined;
+  useEffect(() => {
+    const refresh = () => {
+      if (
+        document.visibilityState === "visible" &&
+        selectedGroup &&
+        !getCachedGroupRankings(selectedGroup)
+      )
+        setRetry((n) => n + 1);
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [loadKey]);
+  const data = result.key === loadKey ? result.data || cached : cached;
   const error = result.key === loadKey ? result.error : undefined;
   const rounds = rankingRounds(data?.seasons || [], matches, scope);
   const selectedRound = rounds.some((r) => r.id === round)
     ? round
-    : preferredRound(
-        matches.filter((m) => rounds.some((r) => r.id === m.roundId)),
-      ) ||
-      rounds.at(-1)?.id ||
-      "";
+    : currentRankingRound(
+        matches,
+        rounds.map((r) => r.id),
+      );
   const roundUnavailable = period === "round" && !selectedRound;
   const rows = buildRanking(
     data?.participants || [],
@@ -75,11 +107,7 @@ export default function StandingsPage({
 
   return (
     <>
-      <PageTitle
-        eyebrow="CADA ACIERTO SUMA"
-        title="La clasificación"
-        description="Jornada a jornada, se escribe la historia de vuestro grupo."
-      />
+      <PageTitle eyebrow="CADA ACIERTO SUMA" title="La clasificación" />
       {!user ? (
         <PrivateGate onLogin={onLogin} />
       ) : (
@@ -91,7 +119,7 @@ export default function StandingsPage({
                 aria-label="Grupo"
                 value={groupId}
                 onChange={(e) => {
-                  setGroupId(e.target.value);
+                  selectGroup(e.target.value);
                   setRound("");
                 }}
               >
@@ -103,34 +131,22 @@ export default function StandingsPage({
                 ))}
               </select>
             </label>
-            <label>
-              Competición
-              <select
-                aria-label="Competición de clasificación"
-                value={scope}
-                onChange={(e) => {
-                  setScope(e.target.value);
-                  setRound("");
-                }}
-              >
-                <option value="global">Global del grupo</option>
-                <option value="PD">LaLiga</option>
-                <option value="CL">Champions League</option>
-              </select>
-            </label>
           </div>
+          <CompetitionSwitch
+            value={competition}
+            combined={period === "all" && combined}
+            onChange={(value) => {
+              preferenceStore.update(user.uid, { competition: value });
+              setCombined(false);
+              setRound("");
+            }}
+          />
           <div
             className="standings-period"
+            data-period={period}
             role="group"
             aria-label="Periodo de clasificación"
           >
-            <button
-              type="button"
-              aria-pressed={period === "all"}
-              onClick={() => setPeriod("all")}
-            >
-              Todas las jornadas
-            </button>
             <button
               type="button"
               aria-pressed={period === "round"}
@@ -138,7 +154,24 @@ export default function StandingsPage({
             >
               Por jornada
             </button>
+            <button
+              type="button"
+              aria-pressed={period === "all"}
+              onClick={() => setPeriod("all")}
+            >
+              Todas las jornadas
+            </button>
           </div>
+          {period === "all" && (
+            <label className="standings-global-toggle">
+              <input
+                type="checkbox"
+                checked={combined}
+                onChange={(e) => setCombined(e.target.checked)}
+              />
+              <span>Sumar LaLiga y Champions</span>
+            </label>
+          )}
           {period === "round" && (
             <div className="filter-row standings-filters">
               <label>
@@ -176,17 +209,30 @@ export default function StandingsPage({
                 <p>{error}</p>
                 <button
                   className="button secondary"
-                  onClick={() => setRetry((n) => n + 1)}
+                  onClick={() => {
+                    privateCache.clear();
+                    setRetry((n) => n + 1);
+                  }}
                 >
                   Reintentar
                 </button>
               </div>
             ) : !data ? (
-              <Empty title="Cargando clasificación…">
-                Preparando los participantes y sus puntuaciones.
-              </Empty>
+              <div
+                className="standings-skeleton"
+                role="status"
+                aria-label="Cargando clasificación"
+              >
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
             ) : (
-              <>
+              <div
+                className="ranking-view"
+                key={`${groupId}:${scope}:${period}:${selectedRound}`}
+              >
                 <div className="standings-heading">
                   <div>
                     <h2>{selectedGroup.name}</h2>
@@ -262,7 +308,7 @@ export default function StandingsPage({
                     ))}
                   </tbody>
                 </table>
-              </>
+              </div>
             )}
           </div>
         </>
