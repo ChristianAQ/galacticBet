@@ -104,7 +104,8 @@ export default function ConfirmQuiniela({
         )}
         <p className="confirmation-privacy">
           <ShieldCheck size={16} />
-          Tus amigos solo verán cada pronóstico cuando empiece ese partido.
+          Solo compartirás tus pronósticos con los miembros que también hayan
+          completado y guardado esta jornada.
         </p>
         {demo && (
           <p className="setup-notice">

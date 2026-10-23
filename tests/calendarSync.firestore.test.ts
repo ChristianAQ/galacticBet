@@ -3,6 +3,7 @@ import {
   CollectionReference,
   Query,
   getFirestore,
+  Timestamp,
   type Firestore,
 } from "firebase-admin/firestore";
 import {
@@ -19,6 +20,7 @@ import { scoringCalendar, syncCalendars } from "../scripts/calendarSync";
 import { recompute } from "../scripts/recompute";
 import { normalize, type ApiMatch } from "../scripts/normalize";
 import { decodeCalendar } from "../src/lib/calendar";
+import { decodeDelivery, encodeDelivery } from "../src/lib/roundDelivery";
 
 const enabled = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 const raw = (id: number): ApiMatch => ({
@@ -218,6 +220,118 @@ describe.skipIf(!enabled)(
         "demasiado grande",
       );
       expect(batch).not.toHaveBeenCalled();
+    });
+    it("puntúa solo las entregas completas nuevas y usa la copia inmutable, no el borrador", async () => {
+      const policies = new Map<string, string>();
+      const cache = await syncCalendars(db, "PD", [finished(2, 1)], policies);
+      const rid = normalize(raw(1), "PD").roundId;
+      const season = db.doc("groups/g/gameSeasons/PD-2026");
+      await db.doc("groups/g").set({ memberIds: ["alice", "bob"] });
+      await season.set({
+        competition: "PD",
+        seasonId: "PD-2026",
+        mode: "classic",
+      });
+      for (const uid of ["alice", "bob"])
+        await season
+          .collection("predictions")
+          .doc(`${uid}_1`)
+          .set({ userId: uid, matchId: "1", roundId: rid, value: "2" });
+      await season
+        .collection("roundEntries")
+        .doc(rid)
+        .collection("players")
+        .doc("alice")
+        .set({
+          userId: "alice",
+          roundId: rid,
+          formatVersion: 2,
+          submittedAt: Timestamp.now(),
+          ...encodeDelivery("classic", ["1"], { "1": "1" }),
+        });
+      await recompute(db, cache, policies);
+      expect(
+        (await season.collection("standings").doc("alice").get()).data()
+          ?.points,
+      ).toBe(1);
+      expect(
+        (await season.collection("standings").doc("bob").get()).data()?.points,
+      ).toBe(0);
+    });
+    it("convierte cierres antiguos completos una sola vez y no publica los incompletos", async () => {
+      const cache = await syncCalendars(db, "PD", [raw(1), raw(2)]);
+      const rid = normalize(raw(1), "PD").roundId;
+      const season = db.doc("groups/g/gameSeasons/PD-2026");
+      await db.doc("groups/g").set({ memberIds: ["alice", "bob"] });
+      await season.set({
+        competition: "PD",
+        seasonId: "PD-2026",
+        mode: "classic",
+      });
+      for (const uid of ["alice", "bob"])
+        await season
+          .collection("submissions")
+          .doc(uid)
+          .collection("rounds")
+          .doc(rid)
+          .set({ userId: uid, roundId: rid, submittedAt: Timestamp.now() });
+      for (const [uid, ids] of [
+        ["alice", ["1", "2"]],
+        ["bob", ["1"]],
+      ] as const)
+        for (const matchId of ids)
+          await season
+            .collection("predictions")
+            .doc(`${uid}_${matchId}`)
+            .set({ userId: uid, matchId, roundId: rid, value: "X" });
+      await recompute(db, cache);
+      const entries = season
+        .collection("roundEntries")
+        .doc(rid)
+        .collection("players");
+      expect(
+        decodeDelivery((await entries.doc("alice").get()).data()!),
+      ).toEqual({ "1": "X", "2": "X" });
+      expect((await entries.doc("bob").get()).exists).toBe(false);
+      expect(
+        Object.keys(
+          (await season.collection("roundAttendance").doc(rid).get()).data()!
+            .members,
+        ),
+      ).toEqual(["alice"]);
+      const queries = vi.spyOn(Query.prototype, "get");
+      await recompute(db, cache);
+      expect(queries).toHaveBeenCalledTimes(2);
+    });
+    it("conserva la puntuación de jornadas que ya habían empezado al activar las nuevas entregas", async () => {
+      const policies = new Map<string, string>();
+      const cache = await syncCalendars(
+        db,
+        "PD",
+        [{ ...finished(2, 1), utcDate: "2026-01-01T19:00:00Z" }],
+        policies,
+      );
+      const season = db.doc("groups/g/gameSeasons/PD-2026");
+      await db.doc("groups/g").set({ memberIds: ["alice"] });
+      await season.set({
+        competition: "PD",
+        seasonId: "PD-2026",
+        mode: "classic",
+      });
+      await season
+        .collection("predictions")
+        .doc("alice_1")
+        .set({
+          userId: "alice",
+          matchId: "1",
+          roundId: normalize(raw(1), "PD").roundId,
+          value: "1",
+        });
+      await recompute(db, cache, policies);
+      expect(
+        (await season.collection("standings").doc("alice").get()).data()
+          ?.points,
+      ).toBe(1);
     });
   },
 );

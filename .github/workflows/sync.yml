@@ -1,5 +1,11 @@
 name: Synchronize football and standings
 on:
+  push:
+    branches: [master]
+    paths:
+      - "scripts/**"
+      - "src/lib/roundDelivery.ts"
+      - ".github/workflows/sync.yml"
   schedule:
     - cron: "17 */2 * * *"
   workflow_dispatch:

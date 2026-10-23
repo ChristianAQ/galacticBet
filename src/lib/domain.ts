@@ -115,7 +115,7 @@ export function preferredRound(matches: Match[]) {
   );
 }
 
-export function canRevealPredictions(
+export function hasMatchStarted(
   match: Pick<Match, "utcDate" | "status">,
   now: number,
 ) {

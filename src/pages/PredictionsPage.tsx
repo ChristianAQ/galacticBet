@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import CompetitionLogo from "../components/CompetitionLogo";
 import ConfirmQuiniela from "../components/ConfirmQuiniela";
+import RoundDeliveryStatus from "../components/RoundDeliveryStatus";
 import GroupPredictions from "../components/GroupPredictions";
 import {
   Badge,
@@ -33,6 +34,7 @@ import {
 import { db } from "../lib/firebase";
 import { preferenceStore } from "../lib/preferences";
 import { useGroupSelection } from "../lib/useGroupSelection";
+import { useRoundDelivery } from "../lib/useRoundDelivery";
 
 const demoPlayers: Participant[] = [
   { id: "demo-me", name: "Tú", avatar: null },
@@ -71,7 +73,11 @@ export default function PredictionsPage({
   const [clock, setClock] = useState(Date.now());
   const [loadingPredictions, setLoadingPredictions] = useState(!demo);
   const [loadingSeal, setLoadingSeal] = useState(!demo);
-  const [sealed, setSealed] = useState({ key: "", value: false });
+  const [sealed, setSealed] = useState({
+    key: "",
+    value: false,
+    sharing: false,
+  });
   const [demoSeals, setDemoSeals] = useState<Record<string, boolean>>({});
   const [confirm, setConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -97,19 +103,35 @@ export default function PredictionsPage({
   const isSealed = demo
     ? Boolean(demoSeals[selected])
     : sealed.key === sealKey && sealed.value;
+  const canShare = isSealed && (demo || sealed.sharing);
+  const delivery = useRoundDelivery({
+    groupId: group,
+    seasonId: season,
+    roundId: selected,
+    userId: uid,
+    matches: list,
+    demo,
+    demoSealed: isSealed,
+  });
+  const deadlineClosed =
+    delivery.deadline !== null && clock >= delivery.deadline;
+  const required = list.filter((match) =>
+    delivery.requiredIds.includes(match.id),
+  );
   const shownView = isSealed ? "group" : view;
   const pending =
     !demo &&
     (loadingPredictions ||
       loadingSeal ||
+      !delivery.prepared ||
       valuesKey !== predictionKey ||
       sealed.key !== sealKey);
-  const completed = list.filter((m) => values[m.id]).length;
-  const missingOpen = list.filter(
-    (m) => canPredict(m.utcDate, clock, m.status) && !values[m.id],
-  ).length;
+  const completed = required.filter((m) => values[m.id]).length;
+  const missingOpen = delivery.requiredIds.length - completed;
   const canSubmit =
-    list.length > 0 &&
+    delivery.requiredIds.length > 0 &&
+    delivery.deadline !== null &&
+    !deadlineClosed &&
     completed > 0 &&
     missingOpen === 0 &&
     !pending &&
@@ -184,7 +206,7 @@ export default function PredictionsPage({
     );
   }, [group, season, selected, uid, demo]);
   useEffect(() => {
-    setSealed({ key: sealKey, value: false });
+    setSealed({ key: sealKey, value: false, sharing: false });
     setConfirm(false);
     setSubmitError("");
     if (!db || !group || !season || !selected || !user || demo) {
@@ -207,7 +229,11 @@ export default function PredictionsPage({
       { includeMetadataChanges: true },
       (snap) => {
         if (!snap.metadata.hasPendingWrites)
-          setSealed({ key: sealKey, value: snap.exists() });
+          setSealed({
+            key: sealKey,
+            value: snap.exists(),
+            sharing: snap.data()?.formatVersion === 2,
+          });
         setLoadingSeal(snap.metadata.fromCache);
       },
       () => {
@@ -236,7 +262,7 @@ export default function PredictionsPage({
     };
   }, [selectedGroup, demo]);
   async function choose(match: Match, value: PredictionValue) {
-    if (isSealed || busy || pending || submitting) return;
+    if (isSealed || busy || pending || submitting || deadlineClosed) return;
     setBusy(match.id);
     setError("");
     try {
@@ -255,7 +281,9 @@ export default function PredictionsPage({
   async function finalize() {
     if (!canSubmit) {
       setSubmitError(
-        "Espera a que se comprueben tus elecciones antes de confirmar.",
+        deadlineClosed
+          ? "El plazo ha terminado: la jornada se cierra al inicio del primer partido."
+          : "Espera a que se comprueben tus elecciones antes de confirmar.",
       );
       return;
     }
@@ -270,10 +298,12 @@ export default function PredictionsPage({
           season,
           selected,
           Object.fromEntries(
-            list.filter((m) => values[m.id]).map((m) => [m.id, values[m.id]]),
+            required
+              .filter((m) => values[m.id])
+              .map((m) => [m.id, values[m.id]]),
           ),
         );
-        setSealed({ key: sealKey, value: true });
+        setSealed({ key: sealKey, value: true, sharing: true });
       }
       setConfirm(false);
     } catch (e) {
@@ -407,8 +437,38 @@ export default function PredictionsPage({
           {error}
         </p>
       )}
+      {delivery.error && (
+        <p className="error" role="alert">
+          {delivery.error}
+        </p>
+      )}
+      {!demo &&
+        !isSealed &&
+        !deadlineClosed &&
+        !delivery.prepared &&
+        !delivery.checking &&
+        !delivery.error && (
+          <p className="setup-notice">
+            Esta jornada aún no está preparada para recibir entregas. Inténtalo
+            más tarde.
+          </p>
+        )}
       {list.length ? (
         <>
+          <RoundDeliveryStatus
+            memberIds={
+              demo
+                ? demoPlayers.map((person) => person.id)
+                : selectedGroup?.memberIds || []
+            }
+            participants={demo ? demoPlayers : participants}
+            completedIds={delivery.completedIds}
+            ready={delivery.attendanceReady}
+            deadline={delivery.deadline}
+            clock={clock}
+            canShare={canShare}
+            sealed={isSealed}
+          />
           {!isSealed && (
             <section
               className="round-save-panel panel"
@@ -418,16 +478,18 @@ export default function PredictionsPage({
               <div className="round-save-progress">
                 <div className="round-progress-row">
                   <strong>
-                    {completed}/{list.length}
+                    {completed}/{delivery.requiredIds.length}
                   </strong>
                   <span>
-                    {pending
-                      ? "Comprobando…"
-                      : missingOpen > 0
-                        ? `${missingOpen} pendientes`
-                        : completed > 0
-                          ? "Lista para guardar"
-                          : "Sin pronósticos"}
+                    {deadlineClosed
+                      ? "Plazo cerrado"
+                      : pending
+                        ? "Comprobando…"
+                        : missingOpen > 0
+                          ? `${missingOpen} pendientes`
+                          : completed > 0
+                            ? "Lista para guardar"
+                            : "Sin pronósticos"}
                   </span>
                 </div>
                 <div
@@ -435,11 +497,13 @@ export default function PredictionsPage({
                   role="progressbar"
                   aria-label="Pronósticos completados"
                   aria-valuemin={0}
-                  aria-valuemax={list.length}
+                  aria-valuemax={delivery.requiredIds.length}
                   aria-valuenow={completed}
                 >
                   <span
-                    style={{ width: `${(completed / list.length) * 100}%` }}
+                    style={{
+                      width: `${delivery.requiredIds.length ? (completed / delivery.requiredIds.length) * 100 : 0}%`,
+                    }}
                   />
                 </div>
               </div>
@@ -513,7 +577,8 @@ export default function PredictionsPage({
               className="prediction-list"
             >
               {list.map((m) => {
-                const kickoffLocked = !canPredict(m.utcDate, clock, m.status);
+                const kickoffLocked =
+                  deadlineClosed || !canPredict(m.utcDate, clock, m.status);
                 const locked = isSealed || kickoffLocked;
                 return (
                   <div
@@ -531,10 +596,12 @@ export default function PredictionsPage({
                         ) : kickoffLocked ? (
                           <>
                             <LockKeyhole size={14} />
-                            Partido cerrado
+                            {deadlineClosed
+                              ? "Plazo cerrado"
+                              : "Partido cerrado"}
                           </>
                         ) : values[m.id] ? (
-                          "Guardado"
+                          "Elegido"
                         ) : (
                           "Tu pronóstico"
                         )}
@@ -583,6 +650,7 @@ export default function PredictionsPage({
                 </p>
               )}
               <GroupPredictions
+                key={`${uid}:${group}:${season}:${selected}`}
                 matches={list}
                 history={matches}
                 participants={demo ? demoPlayers : participants}
@@ -594,6 +662,9 @@ export default function PredictionsPage({
                 ownValues={values}
                 sealed={isSealed}
                 loadingOwn={!demo && loadingPredictions}
+                canShare={canShare}
+                roundId={selected}
+                completedIds={delivery.completedIds}
               />
             </div>
           )}
@@ -623,7 +694,7 @@ export default function PredictionsPage({
       )}
       {confirm && (
         <ConfirmQuiniela
-          matches={list}
+          matches={required}
           values={values}
           busy={submitting}
           demo={demo}

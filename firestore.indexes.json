@@ -18,6 +18,17 @@
     }
   ],
   "fieldOverrides": [
-    { "collectionGroup": "calendars", "fieldPath": "payload", "indexes": [] }
+    { "collectionGroup": "calendars", "fieldPath": "payload", "indexes": [] },
+    { "collectionGroup": "players", "fieldPath": "selections", "indexes": [] },
+    {
+      "collectionGroup": "roundAttendance",
+      "fieldPath": "members",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "rounds",
+      "fieldPath": "requiredMatchIds",
+      "indexes": []
+    }
   ]
 }

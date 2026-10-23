@@ -5,6 +5,11 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import { samePrediction, type PredictionValue } from "./domain";
+import {
+  DELIVERY_VERSION,
+  encodeDelivery,
+  validDeliveredPicks,
+} from "./roundDelivery";
 
 /** Confirm the exact selections the player reviewed, then seal the whole round. */
 export async function sealRound(
@@ -31,6 +36,22 @@ export async function sealRound(
   await runTransaction(store, async (transaction) => {
     if ((await transaction.get(ref)).exists())
       throw new Error("Esta quiniela ya está guardada y cerrada.");
+    const [round, game] = await Promise.all([
+      transaction.get(doc(store, "rounds", roundId)),
+      transaction.get(doc(store, "groups", groupId, "gameSeasons", seasonId)),
+    ]);
+    if (
+      !round.exists() ||
+      round.data().seasonId !== seasonId ||
+      !validDeliveredPicks(
+        game.data()?.mode,
+        round.data().requiredMatchIds || [],
+        expected,
+      )
+    )
+      throw new Error(
+        "Completa todos los partidos disponibles de esta jornada antes de guardar.",
+      );
     const entries = Object.entries(expected);
     const snapshots = await Promise.all(
       entries.map(([matchId]) =>
@@ -63,6 +84,46 @@ export async function sealRound(
       userId: uid,
       roundId,
       submittedAt: serverTimestamp(),
+      formatVersion: DELIVERY_VERSION,
     });
+    transaction.set(
+      doc(
+        store,
+        "groups",
+        groupId,
+        "gameSeasons",
+        seasonId,
+        "roundEntries",
+        roundId,
+        "players",
+        uid,
+      ),
+      {
+        userId: uid,
+        roundId,
+        submittedAt: serverTimestamp(),
+        formatVersion: DELIVERY_VERSION,
+        ...encodeDelivery(
+          game.data()!.mode,
+          round.data()!.requiredMatchIds,
+          expected,
+        ),
+      },
+    );
+    transaction.set(
+      doc(
+        store,
+        "groups",
+        groupId,
+        "gameSeasons",
+        seasonId,
+        "roundAttendance",
+        roundId,
+      ),
+      {
+        members: { [uid]: serverTimestamp() },
+      },
+      { merge: true },
+    );
   });
 }

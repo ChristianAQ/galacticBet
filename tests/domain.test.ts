@@ -1,4 +1,4 @@
-import { canRevealPredictions } from "../src/lib/domain";
+import { hasMatchStarted } from "../src/lib/domain";
 import { samePrediction, predictionSummary } from "../src/lib/domain";
 import { describe, expect, it } from "vitest";
 import { canPredict, score, validPrediction } from "../src/lib/domain";
@@ -44,14 +44,10 @@ it("compara marcadores sin depender del orden de campos y distingue cambios", ()
   expect(predictionSummary({ home: 2, away: 1 })).toBe("2 – 1");
 });
 
-it("no revela pronósticos de encuentros aplazados o cancelados con su fecha antigua", () => {
+it("no trata como iniciados los encuentros aplazados o cancelados con su fecha antigua", () => {
   const utcDate = "2026-10-01T19:00:00Z";
   const now = Date.parse(utcDate) + 1000;
-  expect(canRevealPredictions({ utcDate, status: "TIMED" }, now)).toBe(true);
-  expect(canRevealPredictions({ utcDate, status: "POSTPONED" }, now)).toBe(
-    false,
-  );
-  expect(canRevealPredictions({ utcDate, status: "CANCELLED" }, now)).toBe(
-    false,
-  );
+  expect(hasMatchStarted({ utcDate, status: "TIMED" }, now)).toBe(true);
+  expect(hasMatchStarted({ utcDate, status: "POSTPONED" }, now)).toBe(false);
+  expect(hasMatchStarted({ utcDate, status: "CANCELLED" }, now)).toBe(false);
 });

@@ -248,13 +248,15 @@ export default function ProfilePage({
                 </li>
                 <li>
                   Tus elecciones se conservan al aplicarlas. Puedes revisarlas
-                  hasta el inicio del partido o hasta pulsar Guardar quiniela y
-                  confirmar el cierre definitivo de toda la jornada.
+                  hasta el inicio del primer partido de la jornada o hasta
+                  pulsar Guardar quiniela y confirmar el cierre definitivo de
+                  toda la jornada.
                 </li>
                 <li>
                   Al guardar, la jornada pasa a El grupo y ya estás jugando. Tus
-                  pronósticos siguen visibles mientras esperas al inicio; los de
-                  tus compañeros se revelan cuando empieza cada partido.
+                  pronósticos siguen visibles. Solo los miembros que hayan
+                  completado y guardado la jornada podrán compartir sus
+                  elecciones entre sí, también antes del inicio.
                 </li>
                 <li>
                   Consulta los puntos de una jornada o el acumulado en

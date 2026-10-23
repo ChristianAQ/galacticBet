@@ -11,6 +11,31 @@ import {
 } from "../src/lib/calendar";
 import type { Match } from "../src/lib/domain";
 import { normalize, type ApiMatch } from "./normalize";
+import { roundRequirements, requiresDelivery } from "../src/lib/roundDelivery";
+
+function roundMetadata(fixtures: Match[], policyFrom: string) {
+  const rounds = new Map<string, Match[]>();
+  for (const m of fixtures)
+    rounds.set(m.roundId, [...(rounds.get(m.roundId) || []), m]);
+  return new Map(
+    [...rounds].map(([id, matches]) => {
+      const first = matches[0];
+      const { matchIds, deadline } = roundRequirements(matches);
+      return [
+        id,
+        {
+          seasonId: first.seasonId,
+          competition: first.competition,
+          stage: first.stage,
+          matchday: first.matchday,
+          requiredMatchIds: matchIds,
+          submissionDeadlineMillis: deadline,
+          requiresSubmission: requiresDelivery(matches, policyFrom),
+        },
+      ];
+    }),
+  );
+}
 
 function snapshotData(seasonId: string, matches: Match[]) {
   const payload = encodeCalendar(matches);
@@ -33,6 +58,7 @@ export async function syncCalendars(
   db: Firestore,
   code: "PD" | "CL",
   rawMatches: ApiMatch[],
+  policies = new Map<string, string>(),
 ) {
   const seasons = new Map<string, { raw: ApiMatch; match: Match }[]>();
   for (const raw of rawMatches) {
@@ -50,20 +76,23 @@ export async function syncCalendars(
     const ref = db.doc(`calendars/${seasonId}`);
     const previous = await ref.get();
     const previousData = previous.data();
+    const policyFrom: string =
+      previousData?.deliveryPolicyFrom || new Date().toISOString();
+    policies.set(seasonId, policyFrom);
     cache.set(seasonId, fixtures);
     if (
       previousData?.formatVersion === CALENDAR_FORMAT &&
-      previousData.payload === data.payload
+      previousData.payload === data.payload &&
+      previousData.deliverySchemaVersion === 2
     ) {
       console.log(
         `${seasonId}: sin cambios; 1 lectura de calendario, 0 escrituras de partidos.`,
       );
       continue;
     }
+    const oldFixtures = previous.exists ? decodeCalendar(previousData!) : [];
     const previousById = new Map(
-      previous.exists
-        ? decodeCalendar(previousData!).map((m) => [m.id, encodeCalendar([m])])
-        : [],
+      oldFixtures.map((m) => [m.id, encodeCalendar([m])]),
     );
     const changed = entries.filter(
       ({ match }) => previousById.get(match.id) !== encodeCalendar([match]),
@@ -86,12 +115,6 @@ export async function syncCalendars(
           endDate: raw.season.endDate,
           providerId: raw.season.id,
         });
-        metadata.set(`rounds/${m.roundId}`, {
-          seasonId,
-          competition: code,
-          stage: m.stage,
-          matchday: m.matchday,
-        });
         if (
           m.status === "FINISHED" &&
           (m.homeScore === null || m.awayScore === null)
@@ -104,7 +127,36 @@ export async function syncCalendars(
         batch.set(db.doc(path), value, { merge: true });
       await batch.commit();
     }
-    await ref.set(data);
+    const oldRounds = roundMetadata(oldFixtures, policyFrom);
+    const updates = [...roundMetadata(fixtures, policyFrom)].filter(
+      ([rid, value]) =>
+        previousData?.deliverySchemaVersion !== 2 ||
+        JSON.stringify(oldRounds.get(rid)) !== JSON.stringify(value),
+    );
+    for (let i = 0; i < updates.length; i += 400) {
+      const batch = db.batch();
+      for (const [rid, { submissionDeadlineMillis, ...value }] of updates.slice(
+        i,
+        i + 400,
+      ))
+        batch.set(
+          db.doc(`rounds/${rid}`),
+          {
+            ...value,
+            submissionDeadline:
+              submissionDeadlineMillis === null
+                ? null
+                : Timestamp.fromMillis(submissionDeadlineMillis),
+          },
+          { merge: true },
+        );
+      await batch.commit();
+    }
+    await ref.set({
+      ...data,
+      deliverySchemaVersion: 2,
+      deliveryPolicyFrom: policyFrom,
+    });
     console.log(
       `${seasonId}: ${fixtures.length} partidos disponibles, ${changed.length} modificados.`,
     );
@@ -116,13 +168,17 @@ export async function scoringCalendar(
   db: Firestore,
   seasonId: string,
   cache: Map<string, Match[]>,
+  policies = new Map<string, string>(),
 ) {
   if (cache.has(seasonId)) return cache.get(seasonId)!;
   const ref = db.doc(`calendars/${seasonId}`);
   const snapshot = await ref.get();
   let fixtures: Match[];
-  if (snapshot.exists) fixtures = decodeCalendar(snapshot.data()!);
-  else {
+  if (snapshot.exists) {
+    fixtures = decodeCalendar(snapshot.data()!);
+    if (snapshot.data()!.deliveryPolicyFrom)
+      policies.set(seasonId, snapshot.data()!.deliveryPolicyFrom);
+  } else {
     // One-time backfill for archived game seasons, which the provider no longer returns.
     const legacy = await db
       .collection("matches")

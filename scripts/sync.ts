@@ -54,6 +54,7 @@ async function api<T>(path: string): Promise<T> {
 }
 async function sync() {
   const cache = new Map<string, Match[]>();
+  const policies = new Map<string, string>();
   const available = await api<{
     competitions: {
       code: string;
@@ -82,12 +83,12 @@ async function sync() {
       },
       { merge: true },
     );
-    const normalized = await syncCalendars(db, code, matches);
+    const normalized = await syncCalendars(db, code, matches, policies);
     for (const [seasonId, fixtures] of normalized)
       cache.set(seasonId, fixtures);
     console.log(`${code}: ${matches.length} partidos sincronizados.`);
   }
-  await recompute(db, cache);
+  await recompute(db, cache, policies);
 }
 
 await sync();

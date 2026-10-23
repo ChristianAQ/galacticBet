@@ -4,14 +4,17 @@ import {
   gameSeasonId,
 } from "../src/lib/groupSetup";
 import { sealRound } from "../src/lib/roundSubmission";
+import { decodeDelivery } from "../src/lib/roundDelivery";
 import {
   assertFails,
   assertSucceeds,
   initializeTestEnvironment,
   type RulesTestEnvironment,
+  type RulesTestContext,
 } from "@firebase/rules-unit-testing";
 import {
   Timestamp,
+  documentId,
   collection,
   doc,
   deleteDoc,
@@ -54,7 +57,11 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
         mode: "classic",
       });
       for (const rid of ["r", "r2"])
-        await setDoc(doc(db, `rounds/${rid}`), { seasonId: "PD-2026" });
+        await setDoc(doc(db, `rounds/${rid}`), {
+          seasonId: "PD-2026",
+          requiredMatchIds: ["future"],
+          submissionDeadline: Timestamp.fromMillis(Date.now() + 3600000),
+        });
       for (const [id, offset] of [
         ["future", 3600000],
         ["future2", 7200000],
@@ -90,6 +97,41 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
     value: "1",
     updatedAt: serverTimestamp(),
   });
+  const deliver = (
+    db: ReturnType<RulesTestContext["firestore"]>,
+    uid: string,
+    picks: Record<string, unknown>,
+    rid = "r",
+    sid = "PD-2026",
+    encoded?: { mode: string; selections: string },
+  ) => {
+    const batch = writeBatch(db);
+    const base = `groups/g/gameSeasons/${sid}`;
+    batch.set(doc(db, `${base}/submissions/${uid}/rounds/${rid}`), {
+      userId: uid,
+      roundId: rid,
+      formatVersion: 2,
+      submittedAt: serverTimestamp(),
+    });
+    batch.set(doc(db, `${base}/roundEntries/${rid}/players/${uid}`), {
+      userId: uid,
+      roundId: rid,
+      formatVersion: 2,
+      submittedAt: serverTimestamp(),
+      mode: "classic",
+      matchIds: Object.keys(picks),
+      selections: Object.values(picks)
+        .map((v) => (typeof v === "string" ? v : "invalid"))
+        .join(""),
+      ...encoded,
+    });
+    batch.set(
+      doc(db, `${base}/roundAttendance/${rid}`),
+      { members: { [uid]: serverTimestamp() } },
+      { merge: true },
+    );
+    return batch.commit();
+  };
   it("permite guardar antes del inicio", async () => {
     const db = env.authenticatedContext("alice").firestore();
     await assertSucceeds(
@@ -153,16 +195,16 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
       ),
     );
   });
-  it("oculta ajenos hasta el inicio, incluso por lectura directa", async () => {
+  it("los borradores ajenos permanecen privados incluso tras el inicio", async () => {
     const db = env.authenticatedContext("alice").firestore();
     await assertFails(
       getDoc(doc(db, "groups/g/gameSeasons/PD-2026/predictions/bob_future")),
     );
-    await assertSucceeds(
+    await assertFails(
       getDoc(doc(db, "groups/g/gameSeasons/PD-2026/predictions/bob_closed")),
     );
     const ref = collection(db, "groups/g/gameSeasons/PD-2026/predictions");
-    await assertSucceeds(getDocs(query(ref, where("matchId", "==", "closed"))));
+    await assertFails(getDocs(query(ref, where("matchId", "==", "closed"))));
     await assertFails(getDocs(query(ref, where("matchId", "==", "future"))));
   });
   it("permite consultar los propios, impide listar todos los abiertos", async () => {
@@ -391,13 +433,9 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
   it("un cierre no puede borrarse ni modificarse, tampoco por el administrador", async () => {
     const db = env.authenticatedContext("bob").firestore();
     const path = "groups/g/gameSeasons/PD-2026/submissions/bob/rounds/r";
-    await assertSucceeds(
-      setDoc(doc(db, path), {
-        userId: "bob",
-        roundId: "r",
-        submittedAt: serverTimestamp(),
-      }),
-    );
+    await sealRound(doc(db, "groups/g").firestore, "bob", "g", "PD-2026", "r", {
+      future: "X",
+    });
     await assertFails(deleteDoc(doc(db, path)));
     await assertFails(
       updateDoc(doc(db, path), { submittedAt: serverTimestamp() }),
@@ -430,49 +468,71 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
       ),
     );
   });
-  it("una quiniela cerrada conserva la privacidad de los partidos futuros", async () => {
+  it("solo los miembros con entrega completa ven las entradas compartidas antes y después del inicio", async () => {
     const bob = env.authenticatedContext("bob").firestore();
-    await setDoc(
-      doc(bob, "groups/g/gameSeasons/PD-2026/submissions/bob/rounds/r"),
-      { userId: "bob", roundId: "r", submittedAt: serverTimestamp() },
+    await sealRound(
+      doc(bob, "groups/g").firestore,
+      "bob",
+      "g",
+      "PD-2026",
+      "r",
+      { future: "X" },
     );
     const alice = env.authenticatedContext("alice").firestore();
+    const peer = doc(
+      alice,
+      "groups/g/gameSeasons/PD-2026/roundEntries/r/players/bob",
+    );
+    await assertFails(getDoc(peer));
+    await assertFails(
+      getDoc(doc(alice, "groups/g/gameSeasons/PD-2026/predictions/bob_closed")),
+    );
+    await setDoc(
+      doc(alice, "groups/g/gameSeasons/PD-2026/predictions/alice_future"),
+      prediction("future"),
+    );
+    await sealRound(
+      doc(alice, "groups/g").firestore,
+      "alice",
+      "g",
+      "PD-2026",
+      "r",
+      { future: "1" },
+    );
+    expect(
+      decodeDelivery((await assertSucceeds(getDoc(peer))).data()!),
+    ).toEqual({
+      future: "X",
+    });
+    const shared = collection(
+      alice,
+      "groups/g/gameSeasons/PD-2026/roundEntries/r/players",
+    );
+    expect(
+      (
+        await assertSucceeds(
+          getDocs(query(shared, where(documentId(), "in", ["alice", "bob"]))),
+        )
+      ).size,
+    ).toBe(2);
     await assertFails(
       getDoc(doc(alice, "groups/g/gameSeasons/PD-2026/predictions/bob_future")),
     );
+    const outsider = env.authenticatedContext("outsider").firestore();
     await assertFails(
-      getDocs(
-        query(
-          collection(alice, "groups/g/gameSeasons/PD-2026/predictions"),
-          where("matchId", "==", "future"),
+      getDoc(
+        doc(
+          outsider,
+          "groups/g/gameSeasons/PD-2026/roundEntries/r/players/bob",
         ),
       ),
     );
-    await assertSucceeds(
-      getDocs(
-        query(
-          collection(alice, "groups/g/gameSeasons/PD-2026/predictions"),
-          where("matchId", "==", "closed"),
-        ),
-      ),
-    );
-    for (const status of ["POSTPONED", "CANCELLED"]) {
-      await env.withSecurityRulesDisabled((c) =>
-        updateDoc(doc(c.firestore(), "matches/closed"), { status }),
-      );
-      await assertFails(
-        getDoc(
-          doc(alice, "groups/g/gameSeasons/PD-2026/predictions/bob_closed"),
-        ),
-      );
-    }
   });
   it("no permite esquivar el cierre moviendo un pronóstico a otra ronda", async () => {
     const db = env.authenticatedContext("bob").firestore();
-    await setDoc(
-      doc(db, "groups/g/gameSeasons/PD-2026/submissions/bob/rounds/r"),
-      { userId: "bob", roundId: "r", submittedAt: serverTimestamp() },
-    );
+    await sealRound(doc(db, "groups/g").firestore, "bob", "g", "PD-2026", "r", {
+      future: "X",
+    });
     await env.withSecurityRulesDisabled((c) =>
       updateDoc(doc(c.firestore(), "matches/future"), { roundId: "r2" }),
     );
@@ -507,6 +567,154 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
       setDoc(doc(db, "groups/g/gameSeasons/PD-2026/predictions/alice_future"), {
         ...prediction("future"),
         value: { home: 2, away: 2 },
+      }),
+    );
+  });
+  it("exige todos los partidos y valores válidos aunque se escriba directamente desde el navegador", async () => {
+    await env.withSecurityRulesDisabled((c) =>
+      updateDoc(doc(c.firestore(), "rounds/r"), {
+        requiredMatchIds: ["future", "future2"],
+      }),
+    );
+    const db = env.authenticatedContext("alice").firestore();
+    for (const picks of [
+      { future: "1" },
+      { future: "1", future2: "bad" },
+      { future: "1", future2: "X", invented: "1" },
+      { future: { home: 2, away: 1 }, future2: "X" },
+    ])
+      await assertFails(deliver(db, "alice", picks));
+    await assertSucceeds(deliver(db, "alice", { future: "1", future2: "X" }));
+    expect(
+      (
+        await getDoc(doc(db, "groups/g/gameSeasons/PD-2026/roundAttendance/r"))
+      ).data()?.members.alice,
+    ).toBeTruthy();
+  });
+  it("el plazo del primer partido cierra también partidos posteriores y usa el reloj del servidor", async () => {
+    await env.withSecurityRulesDisabled((c) =>
+      updateDoc(doc(c.firestore(), "rounds/r"), {
+        submissionDeadline: Timestamp.fromMillis(1),
+      }),
+    );
+    const db = env.authenticatedContext("alice").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "groups/g/gameSeasons/PD-2026/predictions/alice_future2"),
+        prediction("future2"),
+      ),
+    );
+    await assertFails(deliver(db, "alice", { future: "1" }));
+  });
+  it("no permite fingir entregas, modificar las de otro ni reabrir una entrada completa", async () => {
+    const bob = env.authenticatedContext("bob").firestore();
+    const base = "groups/g/gameSeasons/PD-2026";
+    await assertFails(
+      setDoc(doc(bob, `${base}/roundAttendance/r`), {
+        members: { bob: serverTimestamp() },
+      }),
+    );
+    await assertFails(
+      setDoc(doc(bob, `${base}/submissions/bob/rounds/r`), {
+        userId: "bob",
+        roundId: "r",
+        submittedAt: serverTimestamp(),
+        formatVersion: 2,
+      }),
+    );
+    await deliver(bob, "bob", { future: "X" });
+    const alice = env.authenticatedContext("alice").firestore();
+    const status = await assertSucceeds(
+      getDoc(doc(alice, `${base}/roundAttendance/r`)),
+    );
+    expect(Object.keys(status.data()!)).toEqual(["members"]);
+    await assertFails(
+      updateDoc(doc(alice, `${base}/roundAttendance/r`), {
+        "members.bob": Timestamp.fromMillis(1),
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(bob, `${base}/roundEntries/r/players/bob`), {
+        picks: { future: "2" },
+      }),
+    );
+    await assertFails(
+      deleteDoc(doc(alice, `${base}/roundEntries/r/players/bob`)),
+    );
+  });
+  it("dejar un grupo revoca las lecturas y no expone las entradas de antiguos participantes", async () => {
+    const alice = env.authenticatedContext("alice").firestore(),
+      bob = env.authenticatedContext("bob").firestore();
+    await deliver(alice, "alice", { future: "1" });
+    await deliver(bob, "bob", { future: "X" });
+    await env.withSecurityRulesDisabled((c) =>
+      updateDoc(doc(c.firestore(), "groups/g"), { memberIds: ["alice"] }),
+    );
+    await assertFails(
+      getDoc(
+        doc(bob, "groups/g/gameSeasons/PD-2026/roundEntries/r/players/alice"),
+      ),
+    );
+    await assertFails(
+      getDoc(
+        doc(alice, "groups/g/gameSeasons/PD-2026/roundEntries/r/players/bob"),
+      ),
+    );
+  });
+  it("completa 32 marcadores exactos dentro de los límites de acceso y evaluación de reglas", async () => {
+    const ids = Array.from({ length: 32 }, (_, i) => `match${i}`);
+    const picks = Object.fromEntries(
+      ids.map((id) => [id, { home: 99, away: 0 }]),
+    );
+    await env.withSecurityRulesDisabled(async (c) => {
+      const db = c.firestore();
+      await updateDoc(doc(db, "groups/g/gameSeasons/PD-2026"), {
+        mode: "exact",
+      });
+      await updateDoc(doc(db, "rounds/r"), { requiredMatchIds: ids });
+      for (const id of ids)
+        await setDoc(
+          doc(db, `groups/g/gameSeasons/PD-2026/predictions/alice_${id}`),
+          { userId: "alice", matchId: id, roundId: "r", value: picks[id] },
+        );
+    });
+    const db = env.authenticatedContext("alice").firestore();
+    await assertSucceeds(
+      sealRound(
+        doc(db, "groups/g").firestore,
+        "alice",
+        "g",
+        "PD-2026",
+        "r",
+        picks,
+      ),
+    );
+  });
+  it("valida los marcadores exactos codificados en el servidor sin confiar en el cliente", async () => {
+    await env.withSecurityRulesDisabled((c) =>
+      updateDoc(doc(c.firestore(), "groups/g/gameSeasons/PD-2026"), {
+        mode: "exact",
+      }),
+    );
+    const db = env.authenticatedContext("alice").firestore();
+    for (const selections of [
+      "-1:0",
+      "100:0",
+      "1:100",
+      "1.5:0",
+      "1:0,2:1",
+      "1:",
+    ])
+      await assertFails(
+        deliver(db, "alice", { future: "1" }, "r", "PD-2026", {
+          mode: "exact",
+          selections,
+        }),
+      );
+    await assertSucceeds(
+      deliver(db, "alice", { future: "1" }, "r", "PD-2026", {
+        mode: "exact",
+        selections: "99:99",
       }),
     );
   });

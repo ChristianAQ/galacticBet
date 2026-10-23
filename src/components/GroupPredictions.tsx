@@ -1,8 +1,14 @@
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import {
+  collection,
+  documentId,
+  onSnapshot,
+  query,
+  where,
+} from "firebase/firestore";
 import { ChevronDown, ChevronUp, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
-  canRevealPredictions,
+  hasMatchStarted,
   matchStatusLabel,
   outcome,
   predictionSummary,
@@ -14,7 +20,9 @@ import { db } from "../lib/firebase";
 import { kickoffLabel } from "../lib/matchInsights";
 import { Team, readableError } from "./ui";
 import TeamForm from "./TeamForm";
+import { decodeDelivery } from "../lib/roundDelivery";
 
+type SharedEntries = Record<string, Record<string, PredictionValue>>;
 export default function GroupPredictions({
   matches,
   history,
@@ -22,11 +30,14 @@ export default function GroupPredictions({
   userId,
   groupId,
   seasonId,
+  roundId,
   clock,
   demo,
   ownValues,
   sealed = false,
   loadingOwn = false,
+  canShare,
+  completedIds,
 }: {
   matches: Match[];
   history: Match[];
@@ -34,12 +45,97 @@ export default function GroupPredictions({
   userId: string;
   groupId: string;
   seasonId: string;
+  roundId: string;
   clock: number;
   demo: boolean;
   ownValues: Record<string, PredictionValue>;
   sealed?: boolean;
   loadingOwn?: boolean;
+  canShare: boolean;
+  completedIds: string[];
 }) {
+  const [requested, setRequested] = useState(false);
+  const [entries, setEntries] = useState<SharedEntries>({});
+  const [pending, setPending] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  const membersKey = participants.map((p) => p.id).sort();
+  const membersQueryKey = JSON.stringify(membersKey);
+  useEffect(() => {
+    setEntries({});
+    setReady(false);
+    setError("");
+    setPending(false);
+    if (!requested || !canShare || membersQueryKey === "[]") return;
+    if (demo) {
+      setEntries(
+        Object.fromEntries(
+          completedIds
+            .filter((id) => id !== userId)
+            .map((id, i) => [
+              id,
+              Object.fromEntries(
+                matches.map((m) => [
+                  m.id,
+                  (["1", "X", "2"] as const)[(i + m.id.length) % 3],
+                ]),
+              ),
+            ]),
+        ),
+      );
+      setReady(true);
+      return;
+    }
+    if (!db) return;
+    setPending(true);
+    // One round listener shares each immutable entry across all fixture cards.
+    return onSnapshot(
+      query(
+        collection(
+          db,
+          "groups",
+          groupId,
+          "gameSeasons",
+          seasonId,
+          "roundEntries",
+          roundId,
+          "players",
+        ),
+        where(documentId(), "in", JSON.parse(membersQueryKey)),
+      ),
+      (snap) => {
+        try {
+          setEntries(
+            Object.fromEntries(
+              snap.docs.map((d) => [d.id, decodeDelivery(d.data())]),
+            ),
+          );
+          setError("");
+        } catch (e) {
+          setEntries({});
+          setError(readableError(e));
+        }
+        setPending(false);
+        setReady(true);
+      },
+      (e) => {
+        setError(readableError(e));
+        setPending(false);
+        setReady(true);
+      },
+    );
+  }, [
+    requested,
+    canShare,
+    membersQueryKey,
+    groupId,
+    seasonId,
+    roundId,
+    demo,
+    userId,
+    attempt,
+  ]);
   return (
     <section className="group-predictions" aria-label="Pronósticos del grupo">
       <div className="group-view-heading">
@@ -52,17 +148,22 @@ export default function GroupPredictions({
       </div>
       {matches.map((m) => (
         <RivalsCard
-          key={`${groupId}_${seasonId}_${m.id}`}
+          key={m.id}
           match={m}
           history={history}
           participants={participants}
           userId={userId}
-          groupId={groupId}
-          seasonId={seasonId}
-          revealed={canRevealPredictions(m, clock)}
-          demo={demo}
+          started={hasMatchStarted(m, clock)}
+          canShare={canShare}
           ownValue={ownValues[m.id]}
           loadingOwn={loadingOwn}
+          entries={canShare ? entries : {}}
+          pending={pending || !requested}
+          ready={ready}
+          error={error}
+          completedIds={completedIds}
+          onRequest={() => setRequested(true)}
+          onRetry={() => setAttempt((n) => n + 1)}
         />
       ))}
     </section>
@@ -73,95 +174,41 @@ function RivalsCard({
   history,
   participants,
   userId,
-  groupId,
-  seasonId,
-  revealed,
-  demo,
+  started,
+  canShare,
   ownValue,
   loadingOwn,
+  entries,
+  pending,
+  ready,
+  error,
+  completedIds,
+  onRequest,
+  onRetry,
 }: {
   match: Match;
   history: Match[];
   participants: Participant[];
   userId: string;
-  groupId: string;
-  seasonId: string;
-  revealed: boolean;
-  demo: boolean;
+  started: boolean;
+  canShare: boolean;
   ownValue?: PredictionValue;
   loadingOwn: boolean;
+  entries: SharedEntries;
+  pending: boolean;
+  ready: boolean;
+  error: string;
+  completedIds: string[];
+  onRequest: () => void;
+  onRetry: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState<Record<string, PredictionValue>>({});
-  const [pending, setPending] = useState(false);
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState("");
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    setRows({});
-    setReady(false);
-    setError("");
-    setPending(false);
-    if (!open || !revealed) return;
-    if (demo) {
-      setRows({
-        ...Object.fromEntries(
-          participants
-            .filter((p) => p.id !== userId)
-            .map((p, i) => [
-              p.id,
-              (["1", "X", "2"] as const)[
-                (i + Number(match.id.replace("demo-", ""))) % 3
-              ],
-            ]),
-        ),
-        ...(ownValue ? { [userId]: ownValue } : {}),
-      });
-      setReady(true);
-      return;
-    }
-    if (!db) return;
-    setPending(true);
-    return onSnapshot(
-      query(
-        collection(
-          db,
-          "groups",
-          groupId,
-          "gameSeasons",
-          seasonId,
-          "predictions",
-        ),
-        where("matchId", "==", match.id),
-      ),
-      (snap) => {
-        setRows(
-          Object.fromEntries(
-            snap.docs.map((d) => [d.data().userId, d.data().value]),
-          ),
-        );
-        setPending(false);
-        setReady(true);
-      },
-      (e) => {
-        setError(readableError(e));
-        setPending(false);
-        setReady(true);
-      },
-    );
-  }, [
-    open,
-    revealed,
-    demo,
-    groupId,
-    seasonId,
-    match.id,
-    participants,
-    userId,
-    ownValue,
-    attempt,
-  ]);
-  const available = participants.filter((p) => rows[p.id]).length;
+  const visible = participants.filter(
+    (p) => p.id !== userId && completedIds.includes(p.id),
+  );
+  const available = visible.filter(
+    (person) => entries[person.id]?.[match.id],
+  ).length;
   const hasScore =
     match.homeScore !== null &&
     match.awayScore !== null &&
@@ -175,7 +222,7 @@ function RivalsCard({
           className={`saved-match-status ${["IN_PLAY", "PAUSED"].includes(match.status) ? "is-live" : ""}`}
         >
           {scheduled
-            ? revealed
+            ? started
               ? "Pendiente de actualización"
               : "A la espera del inicio"
             : matchStatusLabel[match.status] || match.status}
@@ -206,7 +253,7 @@ function RivalsCard({
           <TeamForm match={match} side="away" matches={history} />
         </div>
       </div>
-      {(hasScore || revealed) && (
+      {(hasScore || (canShare && visible.length > 0)) && (
         <div className="saved-match-footer">
           {hasScore && (
             <div
@@ -222,11 +269,14 @@ function RivalsCard({
               </strong>
             </div>
           )}
-          {revealed && (
+          {canShare && visible.length > 0 && (
             <button
               className="rivals-toggle"
-              disabled={participants.length < 2}
-              onClick={() => setOpen((v) => !v)}
+              disabled={visible.length === 0}
+              onClick={() => {
+                setOpen((v) => !v);
+                onRequest();
+              }}
               aria-expanded={open}
               aria-label={
                 open
@@ -243,7 +293,7 @@ function RivalsCard({
           )}
         </div>
       )}
-      {revealed && open && (
+      {canShare && open && (
         <div className="rivals-content" aria-busy={pending || !ready}>
           {pending || !ready ? (
             <p className="rivals-loading" role="status">
@@ -252,36 +302,34 @@ function RivalsCard({
           ) : error ? (
             <div className="rivals-error">
               <p role="alert">{error}</p>
-              <button
-                className="button secondary"
-                onClick={() => setAttempt((v) => v + 1)}
-              >
+              <button className="button secondary" onClick={onRetry}>
                 Volver a intentar
               </button>
             </div>
           ) : (
             <>
               <div className="rivals-count">
-                {available}/{participants.length} pronósticos
+                {available}/{visible.length} pronósticos compartidos
               </div>
               <div className="rivals-grid">
-                {participants
-                  .filter((person) => person.id !== userId)
-                  .map((person) => (
-                    <div className="rival-player" key={person.id}>
-                      <div className="rival-person">
-                        <span className="rival-avatar">
-                          {person.avatar ? (
-                            <img src={person.avatar} alt="" />
-                          ) : (
-                            person.name.trim().charAt(0).toUpperCase()
-                          )}
-                        </span>
-                        <h3>{person.name}</h3>
-                      </div>
-                      <PickValue match={match} value={rows[person.id]} />
+                {visible.map((person) => (
+                  <div className="rival-player" key={person.id}>
+                    <div className="rival-person">
+                      <span className="rival-avatar">
+                        {person.avatar ? (
+                          <img src={person.avatar} alt="" />
+                        ) : (
+                          person.name.trim().charAt(0).toUpperCase()
+                        )}
+                      </span>
+                      <h3>{person.name}</h3>
                     </div>
-                  ))}
+                    <PickValue
+                      match={match}
+                      value={entries[person.id]?.[match.id]}
+                    />
+                  </div>
+                ))}
               </div>
             </>
           )}

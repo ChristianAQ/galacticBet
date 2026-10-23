@@ -1,6 +1,8 @@
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import type { Match, Mode } from "../src/lib/domain";
 import { scoringCalendar } from "./calendarSync";
+import { migrateSubmissions } from "./migrateSubmissions";
+import { decodeDelivery, requiresDelivery } from "../src/lib/roundDelivery";
 import {
   resultFingerprint,
   scoreRound,
@@ -8,7 +10,11 @@ import {
   type Standing,
   type StoredPrediction,
 } from "./standings";
-export async function recompute(db: Firestore, cache: Map<string, Match[]>) {
+export async function recompute(
+  db: Firestore,
+  cache: Map<string, Match[]>,
+  policies = new Map<string, string>(),
+) {
   // Current calendars come directly from the API; archived snapshots cost one read per season.
   const profiles = new Map<string, string>();
   const groups = await db.collection("groups").get();
@@ -20,7 +26,24 @@ export async function recompute(db: Firestore, cache: Map<string, Match[]>) {
       if (!["classic", "exact"].includes(mode))
         throw new Error("Modalidad no válida en backend.");
       const members = group.data().memberIds as string[];
-      const fixtures = await scoringCalendar(db, config.seasonId, cache);
+      const fixtures = await scoringCalendar(
+        db,
+        config.seasonId,
+        cache,
+        policies,
+      );
+      const migrated: string[] =
+        config.submissionMigrationVersion === 2
+          ? config.submissionMigratedMembers || []
+          : [];
+      const pendingMigration = members.filter((uid) => !migrated.includes(uid));
+      if (pendingMigration.length) {
+        await migrateSubmissions(season.ref, pendingMigration, fixtures, mode);
+        await season.ref.update({
+          submissionMigrationVersion: 2,
+          submissionMigratedMembers: [...new Set([...migrated, ...members])],
+        });
+      }
       const byRound = new Map<string, Match[]>();
       for (const match of fixtures) {
         const list = byRound.get(match.roundId) || [];
@@ -57,18 +80,32 @@ export async function recompute(db: Firestore, cache: Map<string, Match[]>) {
             m.homeScore !== null &&
             m.awayScore !== null,
         );
-        const predictions = finished.length
-          ? await season.ref
+        let predictions: StoredPrediction[] = [];
+        if (finished.length) {
+          if (requiresDelivery(games, policies.get(config.seasonId))) {
+            const entries = await season.ref
+              .collection("roundEntries")
+              .doc(rid)
+              .collection("players")
+              .get();
+            predictions = entries.docs.flatMap((entry) =>
+              Object.entries(decodeDelivery(entry.data())).map(
+                ([matchId, value]) =>
+                  ({ userId: entry.id, matchId, value }) as StoredPrediction,
+              ),
+            );
+          } else {
+            // Existing, already-started rounds retain their previous scoring contract.
+            const legacy = await season.ref
               .collection("predictions")
               .where("roundId", "==", rid)
-              .get()
-          : null;
-        const roundTotals = scoreRound(
-          mode,
-          games,
-          predictions?.docs.map((d) => d.data() as StoredPrediction) || [],
-          members,
-        );
+              .get();
+            predictions = legacy.docs.map(
+              (doc) => doc.data() as StoredPrediction,
+            );
+          }
+        }
+        const roundTotals = scoreRound(mode, games, predictions, members);
         for (const [uid, total] of totals) {
           total.rounds[rid] = roundTotals.get(uid) || { points: 0, hits: 0 };
         }

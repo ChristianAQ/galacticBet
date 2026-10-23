@@ -2412,7 +2412,85 @@ td {
   }
 }
 
-/* Round confirmation and the shared dressing room. */
+/* Round delivery, confirmation and shared predictions. */
+.delivery-panel {
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.delivery-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+}
+.delivery-heading h2 {
+  font-size: 13px;
+  letter-spacing: 0;
+  margin: 0;
+}
+.delivery-heading > span {
+  font-size: 10px;
+  color: var(--muted);
+}
+.delivery-deadline {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px 0;
+  margin: 0;
+  font-size: 12px;
+  color: #e1d3aa;
+  line-height: 1.6;
+}
+.delivery-deadline > svg {
+  margin-top: 3px;
+}
+.delivery-deadline small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+}
+.delivery-deadline.is-closed {
+  color: #ecb7a5;
+}
+.delivery-missing {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.delivery-missing summary {
+  cursor: pointer;
+  color: #c1ccc2;
+  font-size: 11px;
+  min-height: 30px;
+}
+.delivery-missing ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+  margin: 5px 0 0;
+}
+.delivery-missing li {
+  background: #111813;
+  border: 1px solid var(--border);
+  padding: 5px 9px;
+  border-radius: 7px;
+  font-size: 11px;
+  color: #bcc9be;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.delivery-all-done,
+.delivery-privacy {
+  font-size: 11px;
+  margin: 7px 0 0;
+  line-height: 1.6;
+}
+.delivery-all-done {
+  color: var(--green);
+}
 .round-save-panel {
   display: flex;
   align-items: center;
