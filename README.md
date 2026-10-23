@@ -98,7 +98,7 @@ La pestaña **El grupo** presenta las elecciones por encuentro y jugador, con av
 
 Firestore usa `request.time < kickoffAt`, no el reloj del navegador. Rechaza campos de puntos, identidades ajenas, marcadores inválidos, partidos de otra temporada, aplazados y cancelados. Calendarios, resultados y clasificaciones son de solo lectura para clientes. Solo Admin SDK, fuera de las reglas cliente, puede escribirlos. Revisa y prueba las reglas antes de desplegarlas; la configuración de Firebase en el frontend es pública por diseño.
 
-Puntuación: clásica = 1 o 0; exacta = 3 por marcador o 1 por signo, sin sumar ambos. Empates en puntos comparten posición (`1,1,3`) y se muestran como ganadores compartidos. La clasificación por jornada está en el selector de historial. Las posiciones no usan un desempate artificial.
+Puntuación: clásica = 1 o 0; exacta = 3 por marcador o 1 por signo, sin sumar ambos. Al seleccionar un grupo, la clasificación muestra todos los miembros actuales, incluso con 0 puntos y sin puntuaciones sincronizadas; los antiguos miembros quedan excluidos. Las vistas «Todas las jornadas» y «Por jornada» permiten consultar el acumulado o una jornada/ronda concreta, con filtro global, LaLiga o Champions. El selector incluye jornadas del calendario aunque todavía no hayan terminado, y distingue competición y temporada. Los puntos proceden exclusivamente de los totales calculados por el backend. Empates en puntos comparten posición (`1,1,3`), con orden alfabético visual entre empatados. Se muestran ganadores compartidos cuando hay puntos; una tabla inicial a cero no muestra trofeos.
 
 ## Pruebas
 

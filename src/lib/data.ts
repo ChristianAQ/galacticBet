@@ -20,6 +20,7 @@ import {
   type PredictionValue,
 } from "./domain";
 import { db } from "./firebase";
+import type { SeasonRanking } from "./rankings";
 export interface Group {
   id: string;
   name: string;
@@ -158,6 +159,33 @@ export async function loadParticipants(group: Group): Promise<Participant[]> {
       };
     }),
   );
+}
+
+export async function loadGroupRankings(group: Group) {
+  const store = database();
+  const [participants, configs] = await Promise.all([
+    loadParticipants(group),
+    getDocs(collection(store, "groups", group.id, "gameSeasons")),
+  ]);
+  const seasons: SeasonRanking[] = await Promise.all(
+    configs.docs.map(async (config) => {
+      const standings = await getDocs(collection(config.ref, "standings"));
+      return {
+        id: config.id,
+        competition: String(config.data().competition),
+        standings: standings.docs.map((doc) => {
+          const value = doc.data();
+          return {
+            id: doc.id,
+            points: value.points ?? 0,
+            hits: value.hits ?? 0,
+            rounds: value.rounds ?? {},
+          };
+        }),
+      };
+    }),
+  );
+  return { participants, seasons };
 }
 
 export function gameSeasonId(competition: string) {

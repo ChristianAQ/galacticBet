@@ -253,6 +253,7 @@ export default function App() {
                 element={
                   <StandingsPage
                     groups={groups}
+                    matches={matches}
                     user={user}
                     onLogin={() => setLogin(true)}
                   />

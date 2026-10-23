@@ -2891,3 +2891,151 @@ td {
     font-size: 12px;
   }
 }
+
+.standings-filters > label {
+  display: grid;
+  gap: 8px;
+  flex: 1 1 200px;
+  min-width: 0;
+  font-size: 12px;
+  color: #a6b49b;
+}
+.standings-filters select {
+  width: 100%;
+}
+.standings-period {
+  display: flex;
+  gap: 5px;
+  padding: 5px;
+  margin: 20px 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #11170e;
+  width: fit-content;
+  max-width: 100%;
+}
+.standings-period button {
+  padding: 12px 16px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #a6b49b;
+  font-size: 13px;
+}
+.standings-period button[aria-pressed="true"] {
+  background: #2a3b1d;
+  border-color: #5d7d3e;
+  color: var(--green);
+}
+.standings-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 22px 20px 15px;
+}
+.standings-heading h2 {
+  margin: 0 0 7px;
+  font-size: 18px;
+}
+.standings-heading p {
+  margin: 0;
+  font-size: 12px;
+  color: #a6b49b;
+}
+.standings-heading > span {
+  font-size: 11px;
+  color: #a6b49b;
+  white-space: nowrap;
+}
+.standings-note {
+  margin: 0 20px 15px;
+  padding: 12px;
+  border: 1px solid #3b4b30;
+  border-radius: 7px;
+  color: #a6b49b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.standings-table {
+  table-layout: fixed;
+}
+.standings-table th:first-child {
+  width: 15%;
+}
+.standings-table th:nth-child(2) {
+  width: 47%;
+}
+.standings-table th:nth-child(3),
+.standings-table th:nth-child(4) {
+  width: 19%;
+}
+.standings-table th,
+.standings-table td {
+  padding: 16px 12px;
+}
+.standings-table tbody th {
+  color: #d7e0cd;
+  font-size: 13px;
+  font-weight: 500;
+}
+.standings-table td:last-child,
+.standings-table thead th:last-child {
+  text-align: right;
+}
+.standings-me {
+  background: #25331c70;
+}
+.standings-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.standings-name {
+  overflow-wrap: anywhere;
+}
+.standings-name small {
+  color: var(--green);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.standings-table td strong {
+  color: var(--green);
+  font-size: 17px;
+}
+@media (max-width: 600px) {
+  .standings-filters > label {
+    flex-basis: 100%;
+  }
+  .standings-period {
+    width: 100%;
+  }
+  .standings-period button {
+    flex: 1;
+    padding: 12px 8px;
+    font-size: 12px;
+  }
+  .standings-heading {
+    flex-wrap: wrap;
+    padding: 18px 12px 12px;
+  }
+  .standings-note {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+  .standings-table th,
+  .standings-table td {
+    padding: 14px 8px;
+  }
+  .standings-table tbody th {
+    font-size: 12px;
+  }
+  .standings-player {
+    gap: 7px;
+  }
+  .standings-player .rival-avatar {
+    width: 27px;
+    height: 27px;
+  }
+}
