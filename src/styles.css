@@ -16,12 +16,26 @@
   --muted: #858e81;
   --border: #2a3027;
   --panel: #181d17;
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
 }
 * {
   box-sizing: border-box;
 }
+html {
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 body {
   margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+.app-shell {
+  min-height: 100dvh;
 }
 button,
 input,
@@ -101,7 +115,23 @@ button {
   padding: 33px 21px 0;
   display: flex;
   flex-direction: column;
-  z-index: 30;
+  z-index: 70;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sidebar-close {
+  display: none;
+}
+.sidebar-overlay {
+  display: none;
 }
 .brand {
   display: flex;
@@ -1735,15 +1765,47 @@ td {
     padding: 23px;
   }
 }
-@media (max-width: 760px) {
+@media (max-width: 760px),
+  (max-width: 1000px) and (max-height: 600px) and (hover: none) and (pointer: coarse) {
   .sidebar {
     transform: translateX(-100%);
-    width: 240px;
-    transition: transform 0.2s;
+    width: min(calc(310px + var(--safe-area-left)), calc(100vw - 52px));
+    padding: calc(var(--safe-area-top) + 16px) 20px
+      calc(var(--safe-area-bottom) + 8px) calc(var(--safe-area-left) + 20px);
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      transform 0.2s ease,
+      visibility 0s linear 0.2s;
     box-shadow: 20px 0 70px #0008;
   }
   .sidebar.open {
     transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+  }
+  .sidebar-close {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+  }
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: #030803ba;
+    backdrop-filter: blur(3px);
+    touch-action: none;
+  }
+  .sidebar-caption {
+    margin-top: 24px;
+  }
+  .sidebar-bottom {
+    padding-top: 24px;
   }
   .sidebar .brand {
     font-size: 23px;
@@ -1755,9 +1817,14 @@ td {
     margin-left: 0;
   }
   .topbar {
-    height: 65px;
-    padding: 0 20px;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    height: calc(65px + var(--safe-area-top) + 8px);
+    padding: calc(var(--safe-area-top) + 8px)
+      calc(20px + var(--safe-area-right)) 0 calc(20px + var(--safe-area-left));
     gap: 9px;
+    background: #101510;
   }
   .mobile-menu {
     display: inline-flex !important;
@@ -1780,7 +1847,8 @@ td {
     height: 30px;
   }
   main {
-    padding: 25px 20px 0;
+    padding: 25px calc(20px + var(--safe-area-right)) 0
+      calc(20px + var(--safe-area-left));
   }
   .page-heading {
     margin-bottom: 24px;
@@ -2035,7 +2103,7 @@ td {
   }
   .main-footer {
     margin-top: 12px;
-    padding: 17px 0 100px;
+    padding: 17px 0 calc(100px + var(--safe-area-bottom));
     font-size: 8px;
   }
   .bottom-nav {
@@ -2047,7 +2115,8 @@ td {
     background: #161d13f2;
     backdrop-filter: blur(15px);
     border-top: 1px solid #35402e;
-    padding: 13px 5px max(14px, env(safe-area-inset-bottom));
+    padding: 13px calc(5px + var(--safe-area-right))
+      calc(14px + var(--safe-area-bottom)) calc(5px + var(--safe-area-left));
   }
   .bottom-nav a {
     display: flex;
@@ -2272,4 +2341,59 @@ td {
 }
 .setup-notice a {
   text-decoration: underline;
+}
+
+/* The provider's dark Champions emblem needs a light surface in every location. */
+.competition-logo.champions {
+  height: 52px;
+  min-width: 84px;
+  padding: 5px 10px;
+  justify-content: center;
+  color: #172441;
+  background: #f5f7fc;
+  border: 1px solid #ffffff;
+  border-radius: 8px;
+}
+.champions .official-emblem {
+  width: 64px;
+  height: 40px;
+  max-height: 40px;
+  object-position: center;
+}
+.competition-logo.champions.small {
+  height: 34px;
+  min-width: 38px;
+  padding: 3px 6px;
+  border-radius: 6px;
+}
+.competition-card-top {
+  min-height: 52px;
+}
+@media (max-width: 760px),
+  (max-width: 1000px) and (max-height: 600px) and (hover: none) and (pointer: coarse) {
+  input,
+  select,
+  textarea,
+  .exact-input input,
+  .filter-row select,
+  label input,
+  label select {
+    font-size: 16px;
+  }
+  .mobile-menu,
+  .profile-button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .modal-backdrop {
+    padding: calc(16px + var(--safe-area-top))
+      calc(16px + var(--safe-area-right)) calc(16px + var(--safe-area-bottom))
+      calc(16px + var(--safe-area-left));
+  }
+  .modal {
+    max-height: calc(
+      100dvh - var(--safe-area-top) - var(--safe-area-bottom) - 32px
+    );
+    overscroll-behavior-y: contain;
+  }
 }

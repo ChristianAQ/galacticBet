@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { configured, emailLogin, googleLogin, logout } from "../lib/firebase";
 import { readableError } from "./ui";
+import { useBodyScrollLock } from "../lib/useBodyScrollLock";
 export default function LoginModal({
   close,
   user,
@@ -18,14 +19,12 @@ export default function LoginModal({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const dialog = useRef<HTMLElement>(null);
+  useBodyScrollLock(true);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     dialog.current?.querySelector<HTMLButtonElement>("button")?.focus();
     return () => {
-      document.body.style.overflow = overflow;
-      previous?.focus();
+      previous?.focus({ preventScroll: true });
     };
   }, []);
   function keyboard(e: React.KeyboardEvent<HTMLElement>) {

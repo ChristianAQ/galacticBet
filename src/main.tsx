@@ -2,7 +2,10 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { HashRouter } from "react-router-dom";
 import App from "./App";
+import { configureMobileViewport } from "./lib/mobileViewport";
 import "./styles.css";
+const resetMobileViewport = configureMobileViewport();
+if (import.meta.hot) import.meta.hot.dispose(resetMobileViewport);
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <HashRouter>

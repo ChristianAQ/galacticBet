@@ -4,7 +4,7 @@ Quinielas privadas de LaLiga y UEFA Champions League. React 19, TypeScript estri
 
 ## Arranque
 
-Requisitos: Node.js 24 y npm. Java 21 para las pruebas de Firestore. 
+Requisitos: Node.js 24 y npm. Java 21 para las pruebas de Firestore.
 
 ```sh
 npm ci
@@ -123,6 +123,8 @@ Se utiliza `BASE_PATH=/<nombre-repositorio>/` y `HashRouter`, por lo que las rec
 ## PWA
 
 En HTTPS, Android/Chrome puede instalar desde su menú; en iOS/Safari usa Compartir → Añadir a pantalla de inicio. Se incluyen iconos PNG de 192/512 y Apple Touch de 180, manifest con rutas relativas y modo standalone. El service worker muestra una respuesta de desconexión al navegar sin red. No mantiene caché persistente de pronósticos, perfiles ni respuestas Firebase. No ofrece edición offline: el backend tiene que confirmar el guardado antes del inicio. No se ha probado todavía la instalación en dispositivos físicos.
+
+La vista de iPhone respeta las zonas seguras de la barra de estado y del indicador inferior, también en horizontal. El panel lateral se cierra con su botón, al tocar el fondo, con Escape y al navegar; conserva el desplazamiento de la pantalla y devuelve el foco al control de apertura. Los gestos de ampliación están desactivados dentro de la aplicación y los campos usan 16 px para evitar el autozoom de Safari. El logo de Champions utiliza una placa clara para conservar el contraste. Estos ajustes se comprueban en emulación móvil; la instalación y los gestos nativos siguen pendientes de verificación en un iPhone físico.
 
 ## Organización
 

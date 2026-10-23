@@ -5,24 +5,23 @@ import {
   ArrowUpRight,
   CalendarDays,
   ChevronRight,
-  CircleHelp,
   Home,
   Menu,
-  Plus,
   ShieldCheck,
   Target,
   Trophy,
   Users,
   X,
-  Zap,
 } from "lucide-react";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Link, NavLink, Route, Routes } from "react-router-dom";
 import LoginModal from "./components/LoginModal";
+import Sidebar from "./components/Sidebar";
 import { Empty, PrivateGate, readableError } from "./components/ui";
 import { loadGroups, loadMatches, type Group } from "./lib/data";
 import { demoMatches } from "./lib/demo";
 import { type Match } from "./lib/domain";
+import { MOBILE_LAYOUT_QUERY } from "./lib/mobileViewport";
 import { auth, configured, db } from "./lib/firebase";
 const HomePage = lazy(() => import("./pages/HomePage"));
 const MatchesPage = lazy(() => import("./pages/MatchesPage"));
@@ -47,6 +46,20 @@ export default function App() {
   const [error, setError] = useState("");
   const [login, setLogin] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [mobile, setMobile] = useState(
+    () => window.matchMedia(MOBILE_LAYOUT_QUERY).matches,
+  );
+  const closeMenu = useCallback(() => setMenu(false), []);
+  const mobileMenuOpen = mobile && menu;
+  useEffect(() => {
+    const query = window.matchMedia(MOBILE_LAYOUT_QUERY);
+    const update = () => {
+      setMobile(query.matches);
+      if (!query.matches) setMenu(false);
+    };
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
   useEffect(
     () =>
       auth
@@ -111,65 +124,24 @@ export default function App() {
   const name = user?.displayName?.split(" ")[0] || "crack";
   return (
     <div className="app-shell">
-      <aside className={`sidebar ${menu ? "open" : ""}`}>
-        <Link className="brand" to="/">
-          <span className="brand-mark">
-            <Zap fill="currentColor" size={23} />
-          </span>
-          galactic<span>bet</span>
-          <span className="brand-dot">®</span>
-        </Link>
-        <div className="sidebar-caption">TU CENTRO DE JUEGO</div>
-        <nav>
-          {nav.map((n) => (
-            <NavLink
-              end={n.to === "/"}
-              to={n.to}
-              key={n.to}
-              onClick={() => setMenu(false)}
-            >
-              <n.icon size={20} />
-              {n.label}
-              {n.to === "/quiniela" && <span className="nav-dot" />}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="sidebar-competitions">
-          <span className="sidebar-caption">COMPETICIONES</span>
-          <Link to="/partidos?competition=PD">
-            <span className="tiny-league">LL</span>LaLiga EA Sports
-            <span className="live-dot" />
-          </Link>
-          <Link to="/partidos?competition=CL">
-            <span className="tiny-league">✦</span>Champions League
-            <span className="live-dot" />
-          </Link>
-        </div>
-        <div className="sidebar-bottom">
-          <div className="friend-card">
-            <Users size={22} />
-            <h4>El fútbol, con los tuyos.</h4>
-            <p>Crea una liga privada y demuestra quién sabe más.</p>
-            <Link to="/grupos">
-              Crear mi grupo <Plus size={15} />
-            </Link>
-          </div>
-          <Link to="/perfil" className="sidebar-help">
-            <CircleHelp size={18} />
-            Ayuda y cómo jugar
-            <ArrowUpRight size={14} />
-          </Link>
-          <div className="sidebar-footer">
-            HECHO PARA VIVIR EL FÚTBOL <span>⚽</span>
-          </div>
-        </div>
-      </aside>
-      <div className="main-shell">
+      <Sidebar
+        open={mobileMenuOpen}
+        mobile={mobile}
+        onClose={closeMenu}
+        items={nav}
+      />
+      <div
+        className="main-shell"
+        inert={mobileMenuOpen}
+        aria-hidden={mobileMenuOpen || undefined}
+      >
         <header className="topbar">
           <button
             className="mobile-menu icon-button"
-            aria-label="Abrir menú"
-            onClick={() => setMenu(!menu)}
+            aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="app-sidebar"
+            onClick={() => setMenu((value) => !value)}
           >
             <Menu />
           </button>
@@ -314,7 +286,12 @@ export default function App() {
           </footer>
         </main>
       </div>
-      <nav className="bottom-nav">
+      <nav
+        className="bottom-nav"
+        aria-label="Navegación inferior"
+        inert={mobileMenuOpen}
+        aria-hidden={mobileMenuOpen || undefined}
+      >
         {nav.map((n) => (
           <NavLink end={n.to === "/"} to={n.to} key={n.to}>
             <n.icon size={21} />

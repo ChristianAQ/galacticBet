@@ -11,6 +11,7 @@ export default function CompetitionLogo({
   return (
     <span
       className={`competition-logo ${code === "CL" ? "champions" : "laliga"} ${small ? "small" : ""}`}
+      role="img"
       aria-label={code === "CL" ? "UEFA Champions League" : "LaLiga"}
     >
       <img
