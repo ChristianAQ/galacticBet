@@ -10,7 +10,6 @@ import {
   setDoc,
   updateDoc,
   where,
-  writeBatch,
 } from "firebase/firestore";
 import {
   type Match,
@@ -21,6 +20,8 @@ import {
 } from "./domain";
 import { db } from "./firebase";
 import type { SeasonRanking } from "./rankings";
+import { createPrivateGroup, prepareGroupCompetitions } from "./groupSetup";
+export { gameSeasonId } from "./groupSetup";
 export interface Group {
   id: string;
   name: string;
@@ -46,37 +47,28 @@ export async function loadGroups(uid: string) {
   );
   return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as Group);
 }
-export async function createGroup(
-  uid: string,
-  name: string,
-  competition: string,
-  mode: Mode,
-) {
-  const store = database();
-  const group = doc(collection(store, "groups"));
-  const batch = writeBatch(store);
-  batch.set(group, {
-    name: name.trim(),
-    ownerId: uid,
-    memberIds: [uid],
-    createdAt: serverTimestamp(),
-  });
-  batch.set(doc(group, "members", uid), {
-    userId: uid,
-    joinedAt: serverTimestamp(),
-  });
-  batch.set(doc(group, "gameSeasons", gameSeasonId(competition)), {
-    competition,
-    seasonId: gameSeasonId(competition),
-    mode,
-    createdAt: serverTimestamp(),
-  });
-  await batch.commit();
-  return group.id;
+export function createGroup(uid: string, name: string, mode: Mode) {
+  return createPrivateGroup(database(), uid, name, mode);
+}
+export function ensureGroupCompetitions(uid: string, groupId: string) {
+  return prepareGroupCompetitions(database(), uid, groupId);
+}
+export async function loadGameSeasons(groupId: string) {
+  const list = await getDocs(
+    collection(database(), "groups", groupId, "gameSeasons"),
+  );
+  return list.docs.map((d) => ({
+    id: d.id,
+    competition: d.data().competition as string,
+    mode: d.data().mode as Mode,
+  }));
 }
 export async function joinGroup(uid: string, code: string) {
   const store = database();
-  const ref = doc(store, "groups", code.trim());
+  const cleaned = code.trim();
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(cleaned))
+    throw new Error("Introduce un código de invitación válido.");
+  const ref = doc(store, "groups", cleaned);
   await runTransaction(store, async (transaction) => {
     const snap = await transaction.get(ref);
     if (!snap.exists())
@@ -91,6 +83,7 @@ export async function joinGroup(uid: string, code: string) {
       joinedAt: serverTimestamp(),
     });
   });
+  return cleaned;
 }
 export async function leaveGroup(uid: string, group: Group) {
   const store = database();
@@ -188,24 +181,6 @@ export async function loadGroupRankings(group: Group) {
   return { participants, seasons };
 }
 
-export function gameSeasonId(competition: string) {
-  const now = new Date();
-  const year = now.getUTCFullYear() - (now.getUTCMonth() < 6 ? 1 : 0);
-  return `${competition}-${year}`;
-}
-export async function activateCompetition(
-  groupId: string,
-  competition: string,
-  mode: Mode,
-) {
-  const seasonId = gameSeasonId(competition);
-  await setDoc(doc(database(), "groups", groupId, "gameSeasons", seasonId), {
-    competition,
-    seasonId,
-    mode,
-    createdAt: serverTimestamp(),
-  });
-}
 export async function renameGroup(groupId: string, name: string) {
   await updateDoc(doc(database(), "groups", groupId), { name: name.trim() });
 }

@@ -1,3 +1,8 @@
+import {
+  createPrivateGroup,
+  prepareGroupCompetitions,
+  gameSeasonId,
+} from "../src/lib/groupSetup";
 import { sealRound } from "../src/lib/roundSubmission";
 import {
   assertFails,
@@ -164,26 +169,104 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
       getDocs(collection(db, "groups/g/gameSeasons/PD-2026/standings")),
     );
   });
-  it("permite crear grupo con membresía y temporada en un lote", async () => {
+  it("crea un grupo con membresía y ambas competiciones en el mismo lote", async () => {
     const db = env.authenticatedContext("charlie").firestore();
-    const b = writeBatch(db);
-    b.set(doc(db, "groups/new"), {
-      name: "Grupo nuevo",
-      ownerId: "charlie",
-      memberIds: ["charlie"],
-      createdAt: serverTimestamp(),
+    const id = await createPrivateGroup(
+      doc(db, "groups/g").firestore,
+      "charlie",
+      "  Grupo nuevo  ",
+      "exact",
+    );
+    expect((await getDoc(doc(db, `groups/${id}`))).data()?.name).toBe(
+      "Grupo nuevo",
+    );
+    expect(
+      (await getDoc(doc(db, `groups/${id}/members/charlie`))).exists(),
+    ).toBe(true);
+    for (const competition of ["PD", "CL"]) {
+      const season = await getDoc(
+        doc(db, `groups/${id}/gameSeasons/${gameSeasonId(competition)}`),
+      );
+      expect(season.data()).toMatchObject({
+        competition,
+        seasonId: gameSeasonId(competition),
+        mode: "exact",
+      });
+    }
+  });
+  it("prepara grupos antiguos de forma idempotente sin modificar modalidades fijadas", async () => {
+    const sid = gameSeasonId("PD");
+    await env.withSecurityRulesDisabled((c) =>
+      setDoc(doc(c.firestore(), `groups/g/gameSeasons/${sid}`), {
+        competition: "PD",
+        seasonId: sid,
+        mode: "exact",
+      }),
+    );
+    const db = env.authenticatedContext("alice").firestore();
+    const store = doc(db, "groups/g").firestore;
+    await prepareGroupCompetitions(store, "alice", "g");
+    const path = `groups/g/gameSeasons/${gameSeasonId("CL")}`;
+    const first = (await getDoc(doc(db, path))).data();
+    expect(first?.mode).toBe("exact");
+    await prepareGroupCompetitions(store, "alice", "g");
+    expect((await getDoc(doc(db, path))).data()).toEqual(first);
+    expect(
+      (await getDoc(doc(db, `groups/g/gameSeasons/${sid}`))).data()?.mode,
+    ).toBe("exact");
+  });
+  it("conserva modalidades distintas ya existentes y no permite preparar grupos ajenos", async () => {
+    const pd = gameSeasonId("PD"),
+      cl = gameSeasonId("CL");
+    await env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), `groups/g/gameSeasons/${pd}`), {
+        competition: "PD",
+        seasonId: pd,
+        mode: "classic",
+      });
+      await setDoc(doc(c.firestore(), `groups/g/gameSeasons/${cl}`), {
+        competition: "CL",
+        seasonId: cl,
+        mode: "exact",
+      });
     });
-    b.set(doc(db, "groups/new/members/charlie"), {
-      userId: "charlie",
-      joinedAt: serverTimestamp(),
-    });
-    b.set(doc(db, "groups/new/gameSeasons/PD-2026"), {
-      competition: "PD",
-      seasonId: "PD-2026",
-      mode: "exact",
-      createdAt: serverTimestamp(),
-    });
-    await assertSucceeds(b.commit());
+    const db = env.authenticatedContext("alice").firestore();
+    await prepareGroupCompetitions(doc(db, "groups/g").firestore, "alice", "g");
+    expect(
+      (await getDoc(doc(db, `groups/g/gameSeasons/${pd}`))).data()?.mode,
+    ).toBe("classic");
+    expect(
+      (await getDoc(doc(db, `groups/g/gameSeasons/${cl}`))).data()?.mode,
+    ).toBe("exact");
+    const bob = env.authenticatedContext("bob").firestore();
+    await expect(
+      prepareGroupCompetitions(doc(bob, "groups/g").firestore, "bob", "g"),
+    ).rejects.toThrow("Solo el administrador");
+    await assertFails(
+      setDoc(doc(bob, "groups/g/gameSeasons/CL-2099"), {
+        competition: "CL",
+        seasonId: "CL-2099",
+        mode: "exact",
+        createdAt: serverTimestamp(),
+      }),
+    );
+  });
+  it("permite guardar el nombre propio pero nunca editar el perfil de otro usuario", async () => {
+    const db = env.authenticatedContext("alice").firestore();
+    await assertSucceeds(
+      setDoc(doc(db, "users/alice"), {
+        name: "Ana",
+        avatar: null,
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(
+      setDoc(doc(db, "users/bob"), {
+        name: "Nombre suplantado",
+        avatar: null,
+        updatedAt: serverTimestamp(),
+      }),
+    );
   });
   it("solo permite añadirse a sí mismo sin promover a nadie", async () => {
     const db = env.authenticatedContext("charlie").firestore();

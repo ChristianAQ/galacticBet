@@ -259,7 +259,7 @@ export default function HomePage({
             <div>
               <h4>Dos formas de jugar</h4>
               <p>El clásico 1X2 o afina tu instinto con el marcador exacto.</p>
-              <Link to="/perfil">
+              <Link to="/perfil?tab=play">
                 Así se juega <ArrowRight size={13} />
               </Link>
             </div>

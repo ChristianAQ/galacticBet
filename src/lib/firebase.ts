@@ -50,3 +50,23 @@ export async function emailLogin(
 export async function logout() {
   if (auth) await signOut(auth);
 }
+export async function saveDisplayName(value: string) {
+  if (!auth?.currentUser || !db)
+    throw new Error("Inicia sesión para editar tu perfil.");
+  const name = value.trim();
+  if (!name || name.length > 100)
+    throw new Error("Escribe un nombre de entre 1 y 100 caracteres.");
+  const user = auth.currentUser;
+  await updateProfile(user, { displayName: name });
+  try {
+    await setDoc(
+      doc(db, "users", user.uid),
+      { name, avatar: user.photoURL || null, updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+  } catch {
+    throw new Error(
+      "El nombre se ha actualizado en tu cuenta, pero no se ha podido actualizar en tus grupos. Pulsa Guardar nombre para reintentar.",
+    );
+  }
+}

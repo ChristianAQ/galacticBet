@@ -20,8 +20,8 @@ Sin configuración de Firebase la aplicación arranca y muestra estados vacíos 
 | Fase                   | Archivos principales                                                                                 | Implementado                                                                                                                                                       | Validación / pendiente                                                               |
 | ---------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
 | 1. Base y arquitectura | `src/main.tsx`, `App.tsx`, `components/`, `pages/`, `lib/domain.ts`, `styles.css`, Vite y TypeScript | Navegación, diseño móvil y escritorio, estados vacíos, carga, errores y demo explícita; rutas cargadas bajo demanda                                                | Compilación y navegación en Chromium comprobadas                                     |
-| 2. Firebase            | `src/lib/firebase.ts`, `components/LoginModal.tsx`, `.env.example`                                   | Google, registro/correo, sesión persistente del SDK, logout y perfil básico                                                                                        | Falta un proyecto Firebase para verificar proveedores reales                         |
-| 3. Grupos              | `src/lib/data.ts`, `pages/GroupsPage.tsx`, `firestore.rules`                                         | Crear, invitar por enlace/código, unirse mediante transacción, consultar miembros, abandonar, renombrar como admin, activar competiciones y modalidades inmutables | Flujo remoto pendiente de configuración Firebase y de validar los servicios reales   |
+| 2. Firebase            | `src/lib/firebase.ts`, `components/LoginModal.tsx`, `.env.example`                                   | Google, registro/correo, sesión persistente del SDK, logout solo desde el perfil, nombre editable y pestañas de grupos y ayuda                                                                                        | Falta un proyecto Firebase para verificar proveedores reales                         |
+| 3. Grupos              | `src/lib/data.ts`, `pages/GroupsPage.tsx`, `firestore.rules`                                         | Lista con nombres de miembros, detalles al pulsar, crear/unirse en modales, ambas competiciones incluidas, invitaciones, abandono y nombre administrable | Flujo remoto pendiente de configuración Firebase y de validar los servicios reales   |
 | 4. Calendario          | `scripts/normalize.ts`, `scripts/sync.ts`, `pages/MatchesPage.tsx`                                   | API v4 PD/CL, fases y jornadas, partidos normalizados, escudos, resultados y estados                                                                               | Requiere token Football-Data y permisos de Firestore; no se ha llamado a la API real |
 | 5. Pronósticos         | `pages/PredictionsPage.tsx`, `lib/domain.ts`, `firestore.rules`                                      | 1X2/exacto, cierre definitivo con confirmación, consulta propia, cierre por partido y tarjetas de compañeros tras el inicio                                        | Validación unitaria local; reglas verificadas en emulador                            |
 | 6. Puntuación          | `scripts/standings.ts`, `scripts/sync.ts`, `pages/StandingsPage.tsx`                                 | Cálculo confiable, idempotencia, correcciones, clasificación general, por competición y jornada, empates y ganadores                                               | Funciones probadas; ejecución administrativa real pendiente                          |
@@ -40,6 +40,14 @@ npx firebase deploy --only firestore:rules,firestore:indexes --project TU_PROJEC
 ```
 
 El login es para tu máquina con tu propia cuenta. En automatización usa credenciales protegidas y permisos mínimos; no inicies sesión ni copies credenciales de otra identidad del entorno. No hay credenciales reales en este repositorio.
+
+## Perfil y grupos
+
+El icono de usuario abre directamente `/perfil`. «Mi perfil» permite cambiar el nombre en Authentication y en el documento público de perfil; el correo es informativo. «Mis grupos» muestra los grupos con los nombres de sus miembros y enlaza a sus detalles. «Cómo jugar» explica modalidades, cierre y clasificaciones. El único botón de cerrar sesión está al final del perfil, con estilo discreto.
+
+En `/grupos` aparecen primero las tarjetas con los participantes; al pulsar se muestran invitación, modalidades, accesos a quiniela y clasificación, y acciones según permisos. Crear y unirse se abren desde los botones inferiores en modales con foco controlado y bloqueo del fondo para iPhone. La creación guarda el grupo, su membresía y las dos competiciones (PD y CL) en un lote; se elige una modalidad común inicial, fija toda la temporada. Cuando entra el administrador de un grupo antiguo, una transacción añade solo las competiciones de la temporada actual que falten, copiando la modalidad existente o usando clásica si no hay ninguna. Nunca modifica temporadas, modalidades ni pronósticos existentes. Los miembros no pueden activar competiciones por su cuenta.
+
+En Mi quiniela se elige la competición pulsando su logo; la modalidad se muestra debajo. Solo aparece un selector de temporada separado si hay varias temporadas de la misma competición, con años legibles.
 
 ## Sincronización de partidos y clasificaciones
 
@@ -84,7 +92,7 @@ groups/{groupId}                    ownerId inmutable, memberIds, nombre
     standings/{uid}                puntos, aciertos y desglose por ronda
 ```
 
-`memberIds` es una mejora deliberada para consultar los grupos del usuario sin leer todos los grupos. Las reglas solo permiten añadirse o quitarse a uno mismo; el propietario no puede borrarse ni transferirse desde el navegador. El subdocumento `members` permite listar participantes y se escribe junto con el grupo. Un administrador puede renombrar y activar una competición nueva; no puede cambiar una modalidad existente ni borrar temporadas para reiniciarlas.
+`memberIds` es una mejora deliberada para consultar los grupos del usuario sin leer todos los grupos. Las reglas solo permiten añadirse o quitarse a uno mismo; el propietario no puede borrarse ni transferirse desde el navegador. El subdocumento `members` permite listar participantes y se escribe junto con el grupo. Un administrador puede renombrar y preparar las competiciones que falten; no puede cambiar una modalidad existente ni borrar temporadas para reiniciarlas.
 
 El `groupId` aleatorio de Firestore es la invitación inicial. Un usuario autenticado con ese código puede consultar los metadatos del grupo y unirse; no puede listar grupos ajenos ni leer sus quinielas. Comparte enlaces solo con los invitados. Esta primera versión no incluye caducidad/revocación de invitaciones, expulsión ni transferencia de propietario.
 
@@ -116,7 +124,7 @@ En este entorno, para evitar escribir la configuración de la CLI en un director
 XDG_CONFIG_HOME=/tmp/galacticbet-cli-config npm run test:rules
 ```
 
-Validación actual: 19 pruebas unitarias y 16 pruebas de Firestore aprobadas, estas últimas ejecutadas contra el emulador con un proyecto demo aislado. Se comprueban el cierre irreversible, la privacidad, la protección frente a suplantación, la comparación con un resumen antiguo y ambos modos de pronóstico. También se ha probado en Chromium móvil y escritorio el resumen, la cancelación y confirmación del cierre, los campos bloqueados, la ocultación antes del inicio y la comparación visual tras comenzar. La compilación usa el prefijo `/galacticBet/`. No se han ejecutado publicaciones administrativas contra un proyecto Firebase real desde esta máquina.
+Validación actual: 24 pruebas unitarias y 19 pruebas de Firestore aprobadas, estas últimas ejecutadas contra el emulador con un proyecto demo aislado. Se comprueban el cierre irreversible, la privacidad, la protección frente a suplantación, la comparación con un resumen antiguo y ambos modos de pronóstico. También se ha probado en Chromium móvil y escritorio el resumen, la cancelación y confirmación del cierre, los campos bloqueados, la ocultación antes del inicio y la comparación visual tras comenzar. La compilación usa el prefijo `/galacticBet/`. No se han ejecutado publicaciones administrativas contra un proyecto Firebase real desde esta máquina.
 
 ## GitHub Pages
 

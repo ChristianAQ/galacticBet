@@ -14,11 +14,16 @@ import {
   X,
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
-import { Link, NavLink, Route, Routes } from "react-router-dom";
+import { Link, NavLink, Route, Routes, useNavigate } from "react-router-dom";
 import LoginModal from "./components/LoginModal";
 import Sidebar from "./components/Sidebar";
 import { Empty, PrivateGate, readableError } from "./components/ui";
-import { loadGroups, loadMatches, type Group } from "./lib/data";
+import {
+  loadGroups,
+  loadMatches,
+  ensureGroupCompetitions,
+  type Group,
+} from "./lib/data";
 import { demoMatches } from "./lib/demo";
 import { type Match } from "./lib/domain";
 import { MOBILE_LAYOUT_QUERY } from "./lib/mobileViewport";
@@ -37,6 +42,8 @@ const nav = [
   { to: "/clasificacion", label: "Clasificación", icon: Trophy },
 ];
 export default function App() {
+  const navigate = useNavigate();
+  const [, setProfileVersion] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(!auth);
   const [demo, setDemo] = useState(false);
@@ -65,6 +72,7 @@ export default function App() {
       auth
         ? onAuthStateChanged(auth, (u) => {
             setUser(u);
+            if (u) setLogin(false);
             setAuthReady(true);
             if (u && db)
               void setDoc(
@@ -89,6 +97,20 @@ export default function App() {
     if (user) {
       try {
         const next = await loadGroups(user.uid);
+        const setup = await Promise.allSettled(
+          next
+            .filter((g) => g.ownerId === user.uid)
+            .map((g) => ensureGroupCompetitions(user.uid, g.id)),
+        );
+        const failed = setup.find((r) => r.status === "rejected");
+        if (
+          failed?.status === "rejected" &&
+          auth?.currentUser?.uid === user.uid
+        )
+          setError(
+            "No se pudieron preparar las dos competiciones: " +
+              readableError(failed.reason),
+          );
         if (auth?.currentUser?.uid === user.uid) setGroups(next);
       } catch (e) {
         setError(readableError(e));
@@ -154,9 +176,9 @@ export default function App() {
               <ShieldCheck size={15} /> Ligas privadas, rivalidad real
             </span>
             <button
-              aria-label={user ? "Abrir perfil" : "Acceder"}
+              aria-label="Ver perfil"
               className="profile-button"
-              onClick={() => setLogin(true)}
+              onClick={() => navigate("/perfil")}
             >
               <span className="avatar">
                 {user?.photoURL ? (
@@ -165,7 +187,7 @@ export default function App() {
                   user?.displayName?.charAt(0) || "G"
                 )}
               </span>
-              <span>{user?.displayName || "Acceder"}</span>
+              <span>{user?.displayName || "Mi perfil"}</span>
               <ChevronRight size={14} />
             </button>
           </div>
@@ -262,7 +284,12 @@ export default function App() {
               <Route
                 path="/perfil"
                 element={
-                  <ProfilePage user={user} onLogin={() => setLogin(true)} />
+                  <ProfilePage
+                    user={user}
+                    groups={groups}
+                    onLogin={() => setLogin(true)}
+                    onUpdated={() => setProfileVersion((v) => v + 1)}
+                  />
                 }
               />
               <Route
@@ -281,7 +308,7 @@ export default function App() {
               Fútbol real. Rivalidad sana.{" "}
               <span className="green-text">Siempre entre amigos.</span>
             </span>
-            <Link to="/perfil">
+            <Link to="/perfil?tab=play">
               Cómo jugar <ArrowUpRight size={13} />
             </Link>
           </footer>
@@ -300,7 +327,7 @@ export default function App() {
           </NavLink>
         ))}
       </nav>
-      {login && <LoginModal close={() => setLogin(false)} user={user} />}
+      {login && <LoginModal close={() => setLogin(false)} />}
     </div>
   );
 }

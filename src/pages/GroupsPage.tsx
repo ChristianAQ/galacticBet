@@ -1,19 +1,23 @@
 import type { User } from "firebase/auth";
-import { collection, doc, getDoc, getDocs } from "firebase/firestore";
-import { ArrowRight, Copy, LockKeyhole, Users } from "lucide-react";
+import { ArrowRight, Copy, LockKeyhole, Plus, UserPlus } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import CompetitionLogo from "../components/CompetitionLogo";
+import GroupList from "../components/GroupList";
+import Modal from "../components/Modal";
 import { Empty, PageTitle, PrivateGate, readableError } from "../components/ui";
 import {
-  activateCompetition,
   createGroup,
   joinGroup,
   leaveGroup,
+  loadGameSeasons,
   renameGroup,
+  gameSeasonId,
   type Group,
+  type Participant,
 } from "../lib/data";
-import { type Mode } from "../lib/domain";
-import { db } from "../lib/firebase";
+import type { Mode } from "../lib/domain";
+
 export default function GroupsPage({
   user,
   groups,
@@ -25,340 +29,447 @@ export default function GroupsPage({
   refresh: () => Promise<void>;
   onLogin: () => void;
 }) {
-  const [params] = useSearchParams();
-  const [tab, setTab] = useState(params.has("join") ? "join" : "create");
-  const [name, setName] = useState("");
-  const [code, setCode] = useState(params.get("code") || "");
-  const [competition, setCompetition] = useState("PD");
-  const [mode, setMode] = useState<Mode>("classic");
-  const [busy, setBusy] = useState(false);
+  const [params, setParams] = useSearchParams();
   const [message, setMessage] = useState("");
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    if (!user) return;
-    setBusy(true);
-    try {
-      if (tab === "create")
-        await createGroup(user.uid, name, competition, mode);
-      else await joinGroup(user.uid, code);
-      await refresh();
-      setMessage(
-        tab === "create"
-          ? "¡Grupo creado! Comparte el código con tus amigos."
-          : "¡Ya estás dentro del grupo!",
-      );
-      setName("");
-    } catch (e) {
-      setMessage(readableError(e));
-    } finally {
-      setBusy(false);
-    }
+  const modal =
+    params.has("join") || params.get("action") === "join"
+      ? "join"
+      : params.get("action") === "create"
+        ? "create"
+        : null;
+  const selected = params.get("group") || "";
+  function open(action: string) {
+    const next = new URLSearchParams(params);
+    next.set("action", action);
+    next.delete("join");
+    next.delete("code");
+    setParams(next);
+  }
+  function close() {
+    const next = new URLSearchParams(params);
+    next.delete("action");
+    next.delete("join");
+    next.delete("code");
+    setParams(next, { replace: true });
   }
   return (
     <>
       <PageTitle
         eyebrow="TU GENTE, TU LIGA"
         title="Mis grupos"
-        description="La mejor rivalidad es la que se comparte. Crea vuestro próximo desafío."
+        description="Tus amigos, vuestras quinielas. Toda la rivalidad en un mismo sitio."
       />
       {!user ? (
         <PrivateGate onLogin={onLogin} />
       ) : (
-        <div className="groups-layout">
-          <section>
-            {groups.length ? (
-              groups.map((g) => (
-                <GroupCard
-                  key={g.id}
-                  group={g}
+        <>
+          {message && (
+            <p className="form-message" role="status">
+              {message}
+            </p>
+          )}
+          {groups.length ? (
+            <GroupList
+              groups={groups}
+              uid={user.uid}
+              selected={selected}
+              onSelect={(id) => {
+                const next = new URLSearchParams(params);
+                if (id) next.set("group", id);
+                else next.delete("group");
+                setParams(next, { replace: true });
+              }}
+              details={(group, people) => (
+                <GroupDetails
+                  group={group}
+                  people={people}
                   user={user}
                   refresh={refresh}
                   notify={setMessage}
                 />
-              ))
-            ) : (
-              <Empty title="Tu vestuario está vacío">
-                Crea tu primer grupo o entra con el código de tus amigos.
+              )}
+            />
+          ) : (
+            <div className="panel">
+              <Empty title="Aquí empieza vuestro grupo">
+                Todavía no perteneces a ningún grupo. Crea uno o únete con una
+                invitación.
               </Empty>
-            )}
-          </section>
-          <form className="panel form-panel" onSubmit={submit}>
-            <div className="tabs compact">
-              <button
-                type="button"
-                className={tab === "create" ? "selected" : ""}
-                onClick={() => setTab("create")}
-              >
-                Crear grupo
-              </button>
-              <button
-                type="button"
-                className={tab === "join" ? "selected" : ""}
-                onClick={() => setTab("join")}
-              >
-                Unirme
-              </button>
             </div>
-            {tab === "create" ? (
-              <>
-                <h2>Empieza vuestra liga</h2>
-                <label>
-                  Nombre del grupo
-                  <input
-                    required
-                    minLength={3}
-                    maxLength={60}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Los del tercer tiempo"
-                  />
-                </label>
-                <label>
-                  Competición
-                  <select
-                    value={competition}
-                    onChange={(e) => setCompetition(e.target.value)}
-                  >
-                    <option value="PD">LaLiga EA Sports</option>
-                    <option value="CL">Champions League</option>
-                  </select>
-                </label>
-                <label>
-                  Modalidad de la temporada
-                  <select
-                    value={mode}
-                    onChange={(e) => setMode(e.target.value as Mode)}
-                  >
-                    <option value="classic">Clásica 1X2 · 1 punto</option>
-                    <option value="exact">
-                      Marcador exacto · hasta 3 puntos
-                    </option>
-                  </select>
-                </label>
-                <p className="muted footnote">
-                  <LockKeyhole size={13} />
-                  La modalidad queda fija durante toda la temporada.
-                </p>
-              </>
-            ) : (
-              <>
-                <h2>Entra en el grupo</h2>
-                <label>
-                  Código de invitación
-                  <input
-                    required
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    placeholder="Pega el código de tu grupo"
-                  />
-                </label>
-              </>
-            )}
-            <button className="button primary full" disabled={busy}>
-              {busy
-                ? "Guardando…"
-                : tab === "create"
-                  ? "Crear grupo"
-                  : "Unirme al grupo"}
-              <ArrowRight size={17} />
+          )}
+          <div className="group-bottom-actions">
+            <button className="button primary" onClick={() => open("create")}>
+              <Plus size={18} />
+              Crear grupo
             </button>
-            {message && (
-              <p role="status" className="form-message">
-                {message}
-              </p>
-            )}
-          </form>
-        </div>
+            <button className="button secondary" onClick={() => open("join")}>
+              <UserPlus size={18} />
+              Unirme a un grupo
+            </button>
+          </div>
+          {modal && (
+            <GroupForm
+              key={modal}
+              kind={modal}
+              initialCode={params.get("code") || ""}
+              user={user}
+              onClose={close}
+              onComplete={async (id) => {
+                await refresh();
+                setParams({ group: id }, { replace: true });
+                setMessage(
+                  modal === "create"
+                    ? "¡Grupo creado! Ya podéis jugar a LaLiga y Champions."
+                    : "¡Ya estás dentro del grupo!",
+                );
+              }}
+            />
+          )}
+        </>
       )}
     </>
   );
 }
 
-function GroupCard({
-  group: g,
+function GroupForm({
+  kind,
+  initialCode,
+  user,
+  onClose,
+  onComplete,
+}: {
+  kind: "create" | "join";
+  initialCode: string;
+  user: User;
+  onClose: () => void;
+  onComplete: (id: string) => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [code, setCode] = useState(initialCode);
+  const [mode, setMode] = useState<Mode>("classic");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const id =
+        kind === "create"
+          ? await createGroup(user.uid, name, mode)
+          : await joinGroup(user.uid, code);
+      await onComplete(id);
+    } catch (e) {
+      setError(readableError(e));
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal
+      title={kind === "create" ? "Crea vuestro grupo" : "Únete a tus amigos"}
+      busy={busy}
+      onClose={onClose}
+    >
+      <form onSubmit={submit}>
+        {kind === "create" ? (
+          <>
+            <p className="muted">
+              Un grupo privado para jugar juntos a las dos competiciones.
+            </p>
+            <div className="included-competitions">
+              <span>
+                <CompetitionLogo code="PD" small />
+                LaLiga
+              </span>
+              <span>
+                <CompetitionLogo code="CL" small />
+                Champions
+              </span>
+            </div>
+            <label>
+              Nombre del grupo
+              <input
+                required
+                minLength={3}
+                maxLength={60}
+                autoComplete="off"
+                value={name}
+                disabled={busy}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Los del tercer tiempo"
+              />
+            </label>
+            <label>
+              Modalidad de juego
+              <select
+                value={mode}
+                disabled={busy}
+                onChange={(e) => setMode(e.target.value as Mode)}
+              >
+                <option value="classic">Clásica · 1X2</option>
+                <option value="exact">Marcador exacto</option>
+              </select>
+            </label>
+            <p className="footnote muted">
+              <LockKeyhole size={13} />
+              La modalidad se aplica a las dos competiciones y queda fija
+              durante la temporada.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="muted">
+              Pide el código de invitación al administrador de tu grupo.
+            </p>
+            <label>
+              Código de invitación
+              <input
+                required
+                maxLength={128}
+                autoCapitalize="none"
+                autoCorrect="off"
+                autoComplete="off"
+                spellCheck={false}
+                value={code}
+                disabled={busy}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="Pega aquí el código"
+              />
+            </label>
+          </>
+        )}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        <button className="button primary full" disabled={busy}>
+          {busy
+            ? "Guardando…"
+            : kind === "create"
+              ? "Crear grupo"
+              : "Unirme al grupo"}
+          <ArrowRight size={17} />
+        </button>
+      </form>
+    </Modal>
+  );
+}
+
+function GroupDetails({
+  group,
+  people,
   user,
   refresh,
   notify,
 }: {
   group: Group;
+  people: Participant[];
   user: User;
   refresh: () => Promise<void>;
-  notify: (message: string) => void;
+  notify: (value: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const [people, setPeople] = useState<{ id: string; name: string }[]>([]);
   const [seasons, setSeasons] = useState<
-    { id: string; competition: string; mode: Mode }[]
+    Awaited<ReturnType<typeof loadGameSeasons>>
   >([]);
-  const [name, setName] = useState(g.name);
-  const [competition, setCompetition] = useState("PD");
-  const [mode, setMode] = useState<Mode>("classic");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
+  const [name, setName] = useState(group.name);
   const [busy, setBusy] = useState(false);
-  async function details() {
-    if (!db) return;
-    try {
-      const store = db;
-      const members = await getDocs(
-        collection(store, "groups", g.id, "members"),
-      );
-      const profiles = await Promise.all(
-        members.docs.map(async (m) => {
-          const profile = await getDoc(doc(store, "users", m.id));
-          return { id: m.id, name: profile.data()?.name || "Jugador" };
-        }),
-      );
-      setPeople(profiles);
-      const list = await getDocs(
-        collection(store, "groups", g.id, "gameSeasons"),
-      );
-      setSeasons(
-        list.docs.map(
-          (d) =>
-            ({ id: d.id, ...d.data() }) as {
-              id: string;
-              competition: string;
-              mode: Mode;
-            },
-        ),
-      );
-    } catch (e) {
-      notify(readableError(e));
-    }
-  }
+  const [leaving, setLeaving] = useState(false);
   useEffect(() => {
-    if (expanded) void details();
-  }, [expanded, g.id]);
-  async function act(action: () => Promise<void>) {
+    setName(group.name);
+  }, [group.name]);
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    loadGameSeasons(group.id)
+      .then((s) => {
+        if (active) setSeasons(s);
+      })
+      .catch((e) => {
+        if (active) setError(readableError(e));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [group.id, retry]);
+  async function rename(e: FormEvent) {
+    e.preventDefault();
     setBusy(true);
+    setError("");
     try {
-      await action();
-      await details();
+      await renameGroup(group.id, name);
       await refresh();
-      notify("Grupo actualizado.");
+      notify("Nombre del grupo actualizado.");
     } catch (e) {
-      notify(readableError(e));
+      setError(readableError(e));
     } finally {
       setBusy(false);
     }
   }
+  async function leave() {
+    setBusy(true);
+    setError("");
+    try {
+      await leaveGroup(user.uid, group);
+      await refresh();
+      notify("Has salido del grupo.");
+    } catch (e) {
+      setError(readableError(e));
+      setBusy(false);
+    }
+  }
   return (
-    <div className="panel group-card">
-      <div className="group-avatar">
-        <Users />
+    <div className="group-detail-content">
+      <div className="group-detail-links">
+        <Link
+          className="button primary"
+          to={`/quiniela?group=${encodeURIComponent(group.id)}`}
+        >
+          Hacer quiniela
+          <ArrowRight size={16} />
+        </Link>
+        <Link
+          className="button secondary"
+          to={`/clasificacion?group=${encodeURIComponent(group.id)}`}
+        >
+          Ver clasificación
+        </Link>
       </div>
-      <h3>{g.name}</h3>
-      <p>
-        {g.memberIds.length} participantes ·{" "}
-        {g.ownerId === user.uid ? "Administrador" : "Miembro"}
-      </p>
+      <h3>Participantes</h3>
+      <ul className="members-list">
+        {people.map((p) => (
+          <li key={p.id}>
+            <span className="rival-avatar">
+              {p.avatar ? <img src={p.avatar} alt="" /> : p.name.charAt(0)}
+            </span>
+            <span>
+              {p.name}
+              {p.id === user.uid ? " (tú)" : ""}
+            </span>
+            {p.id === group.ownerId && <small>Administrador</small>}
+          </li>
+        ))}
+      </ul>
+      <h3>Competiciones de esta temporada</h3>
+      {loading ? (
+        <p className="muted">Cargando modalidades…</p>
+      ) : (
+        <div className="group-competition-rules">
+          {["PD", "CL"].map((code) => {
+            const season = seasons.find((s) => s.id === gameSeasonId(code));
+            return (
+              <div key={code}>
+                <CompetitionLogo code={code} small />
+                <span>
+                  <strong>
+                    {code === "PD" ? "LaLiga EA Sports" : "Champions League"}
+                  </strong>
+                  <small>
+                    {season
+                      ? season.mode === "classic"
+                        ? "Clásica · 1X2"
+                        : "Marcador exacto"
+                      : "Pendiente de preparar por el administrador"}
+                  </small>
+                </span>
+                <LockKeyhole size={14} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <h3>Invita a tus amigos</h3>
       <div className="invite-code">
-        <code>{g.id}</code>
+        <code>{group.id}</code>
         <button
-          aria-label="Copiar enlace de invitación"
           className="icon-button"
+          aria-label="Copiar enlace de invitación"
           onClick={() => {
             void navigator.clipboard
               .writeText(
-                `${location.origin}${location.pathname}#/grupos?join=1&code=${g.id}`,
+                `${location.origin}${location.pathname}#/grupos?join=1&code=${encodeURIComponent(group.id)}`,
               )
-              .then(() => notify("Enlace copiado."))
-              .catch(() => notify("Comparte el código manualmente."));
+              .then(() => notify("Enlace de invitación copiado."))
+              .catch(() =>
+                notify(
+                  "No se pudo copiar. Comparte el código que aparece en el grupo.",
+                ),
+              );
           }}
         >
           <Copy size={16} />
         </button>
       </div>
-      <Link className="button secondary" to="/quiniela">
-        Hacer quiniela <ArrowRight size={16} />
-      </Link>
-      <button className="text-button" onClick={() => setExpanded(!expanded)}>
-        {expanded ? "Cerrar detalles" : "Participantes y reglas"}
-      </button>
-      {expanded && (
-        <div className="group-settings">
-          <h4>El vestuario</h4>
-          <ul className="members-list">
-            {people.map((p) => (
-              <li key={p.id}>
-                <Users size={13} />
-                {p.name}
-                <span>{g.ownerId === p.id ? "Administrador" : ""}</span>
-              </li>
-            ))}
-          </ul>
-          <h4>Competiciones activas</h4>
-          {seasons.map((s) => (
-            <p key={s.id}>
-              {s.id} ·{" "}
-              {s.mode === "classic" ? "Clásica 1X2" : "Marcador exacto"} · Fija
-              toda la temporada
-            </p>
-          ))}
-          {g.ownerId === user.uid ? (
-            <>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void act(() => renameGroup(g.id, name));
-                }}
-              >
-                <label>
-                  Nombre del grupo
-                  <input
-                    required
-                    minLength={3}
-                    maxLength={60}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </label>
-                <button disabled={busy} className="button secondary">
-                  Guardar nombre
-                </button>
-              </form>
-              <h4>Activar competición esta temporada</h4>
-              <div className="form-row">
-                <select
-                  aria-label="Activar competición"
-                  value={competition}
-                  onChange={(e) => setCompetition(e.target.value)}
-                >
-                  <option value="PD">LaLiga</option>
-                  <option value="CL">Champions</option>
-                </select>
-                <select
-                  aria-label="Modalidad nueva competición"
-                  value={mode}
-                  onChange={(e) => setMode(e.target.value as Mode)}
-                >
-                  <option value="classic">Clásica 1X2</option>
-                  <option value="exact">Marcador exacto</option>
-                </select>
-              </div>
-              <button
-                className="button secondary"
-                disabled={busy}
-                onClick={() =>
-                  void act(() => activateCompetition(g.id, competition, mode))
-                }
-              >
-                Activar competición
-              </button>
-              <p className="footnote">
-                Una competición ya iniciada no se puede reiniciar ni cambiar de
-                modalidad.
-              </p>
-            </>
-          ) : (
-            <button
-              disabled={busy}
-              className="text-button"
-              onClick={() => void act(() => leaveGroup(user.uid, g))}
-            >
-              Abandonar grupo
-            </button>
-          )}
+      {error && (
+        <div className="error" role="alert">
+          {error}
+          <button
+            className="text-button"
+            onClick={() => setRetry((n) => n + 1)}
+          >
+            Reintentar
+          </button>
         </div>
+      )}
+      {group.ownerId === user.uid ? (
+        <form className="group-rename-form" onSubmit={rename}>
+          <label>
+            Nombre del grupo
+            <input
+              required
+              minLength={3}
+              maxLength={60}
+              value={name}
+              disabled={busy}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+          <button
+            className="button secondary"
+            disabled={busy || name.trim() === group.name}
+          >
+            {busy ? "Guardando…" : "Guardar nombre"}
+          </button>
+          <p className="muted footnote">
+            Las modalidades no cambian durante la temporada.
+          </p>
+        </form>
+      ) : leaving ? (
+        <div className="group-leave-confirm">
+          <p>
+            ¿Quieres abandonar {group.name}? Necesitarás el código para volver a
+            entrar.
+          </p>
+          <button
+            className="button secondary"
+            disabled={busy}
+            onClick={() => setLeaving(false)}
+          >
+            Quedarme
+          </button>
+          <button
+            className="text-button"
+            disabled={busy}
+            onClick={() => void leave()}
+          >
+            {busy ? "Saliendo…" : "Sí, abandonar grupo"}
+          </button>
+        </div>
+      ) : (
+        <button
+          className="text-button group-leave"
+          onClick={() => setLeaving(true)}
+        >
+          Abandonar grupo
+        </button>
       )}
     </div>
   );

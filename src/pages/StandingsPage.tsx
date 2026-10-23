@@ -1,5 +1,6 @@
 import type { User } from "firebase/auth";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Empty, PageTitle, PrivateGate, readableError } from "../components/ui";
 import { loadGroupRankings, type Group } from "../lib/data";
 import { preferredRound, type Match } from "../lib/domain";
@@ -16,7 +17,8 @@ export default function StandingsPage({
   user: User | null;
   onLogin: () => void;
 }) {
-  const [groupId, setGroupId] = useState("");
+  const [params] = useSearchParams();
+  const [groupId, setGroupId] = useState(params.get("group") || "");
   const [scope, setScope] = useState("global");
   const [period, setPeriod] = useState<"all" | "round">("all");
   const [round, setRound] = useState("");

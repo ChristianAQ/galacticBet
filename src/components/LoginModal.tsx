@@ -1,17 +1,9 @@
-import type { User } from "firebase/auth";
 import { ArrowRight, ArrowUpRight, X, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { configured, emailLogin, googleLogin, logout } from "../lib/firebase";
+import { configured, emailLogin, googleLogin } from "../lib/firebase";
 import { readableError } from "./ui";
 import { useBodyScrollLock } from "../lib/useBodyScrollLock";
-export default function LoginModal({
-  close,
-  user,
-}: {
-  close: () => void;
-  user: User | null;
-}) {
+export default function LoginModal({ close }: { close: () => void }) {
   const [register, setRegister] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -77,101 +69,78 @@ export default function LoginModal({
         <span className="brand-mark">
           <Zap fill="currentColor" />
         </span>
-        <h2>
-          {user
-            ? "Tu perfil"
-            : register
-              ? "Únete al vestuario"
-              : "Bienvenido al vestuario"}
-        </h2>
-        {user ? (
-          <>
-            <p>
-              {user.displayName} · {user.email}
+        <h2>{register ? "Únete al vestuario" : "Bienvenido al vestuario"}</h2>
+        <>
+          {!configured && (
+            <p className="setup-notice">
+              El acceso estará disponible al conectar Firebase. Mientras tanto,
+              puedes explorar el modo demo desde el inicio.
             </p>
-            <Link className="button primary" to="/perfil" onClick={close}>
-              Ver perfil
-            </Link>
-            <button
-              className="button secondary"
-              onClick={() => void run(logout)}
-            >
-              Cerrar sesión
-            </button>
-          </>
-        ) : (
-          <>
-            {!configured && (
-              <p className="setup-notice">
-                El acceso estará disponible al conectar Firebase. Mientras
-                tanto, puedes explorar el modo demo desde el inicio.
-              </p>
+          )}
+          <button
+            className="button secondary full"
+            disabled={!configured || busy}
+            onClick={() => void run(googleLogin)}
+          >
+            Continuar con Google <ArrowUpRight size={16} />
+          </button>
+          <div className="divider">o con tu correo</div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void run(() =>
+                emailLogin(email, password, register ? name : undefined),
+              );
+            }}
+          >
+            {register && (
+              <label>
+                Nombre
+                <input
+                  autoComplete="name"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </label>
             )}
+            <label>
+              Correo electrónico
+              <input
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="tu@correo.com"
+              />
+            </label>
+            <label>
+              Contraseña
+              <input
+                type="password"
+                autoComplete={register ? "new-password" : "current-password"}
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
             <button
-              className="button secondary full"
+              className="button primary full"
               disabled={!configured || busy}
-              onClick={() => void run(googleLogin)}
             >
-              Continuar con Google <ArrowUpRight size={16} />
+              {busy ? "Entrando…" : register ? "Crear cuenta" : "Entrar"}
+              <ArrowRight size={17} />
             </button>
-            <div className="divider">o con tu correo</div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void run(() =>
-                  emailLogin(email, password, register ? name : undefined),
-                );
-              }}
-            >
-              {register && (
-                <label>
-                  Nombre
-                  <input
-                    autoComplete="name"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </label>
-              )}
-              <label>
-                Correo electrónico
-                <input
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@correo.com"
-                />
-              </label>
-              <label>
-                Contraseña
-                <input
-                  type="password"
-                  autoComplete={register ? "new-password" : "current-password"}
-                  required
-                  minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </label>
-              <button
-                className="button primary full"
-                disabled={!configured || busy}
-              >
-                {busy ? "Entrando…" : register ? "Crear cuenta" : "Entrar"}
-                <ArrowRight size={17} />
-              </button>
-            </form>
-            <button
-              className="text-button register-toggle"
-              onClick={() => setRegister(!register)}
-            >
-              {register ? "Ya tengo cuenta" : "¿Primera vez? Crea tu cuenta"}
-            </button>
-          </>
-        )}
+          </form>
+          <button
+            className="text-button register-toggle"
+            onClick={() => setRegister(!register)}
+          >
+            {register ? "Ya tengo cuenta" : "¿Primera vez? Crea tu cuenta"}
+          </button>
+        </>
         {error && (
           <p className="error" role="alert">
             {error}

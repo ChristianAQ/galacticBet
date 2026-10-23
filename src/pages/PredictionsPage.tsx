@@ -17,7 +17,8 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import CompetitionLogo from "../components/CompetitionLogo";
 import ConfirmQuiniela from "../components/ConfirmQuiniela";
 import GroupPredictions from "../components/GroupPredictions";
 import {
@@ -62,7 +63,9 @@ export default function PredictionsPage({
   user: User | null;
   demo: boolean;
 }) {
-  const [group, setGroup] = useState("");
+  const [params] = useSearchParams();
+  const [group, setGroup] = useState(params.get("group") || "");
+  const [demoCompetition, setDemoCompetition] = useState("PD");
   const [season, setSeason] = useState("");
   const [seasons, setSeasons] = useState<
     { id: string; mode: Mode; competition: string }[]
@@ -86,9 +89,10 @@ export default function PredictionsPage({
   const selectedGroup = groups.find((g) => g.id === group);
   const active = seasons.find((s) => s.id === season);
   const mode: Mode = demo ? "classic" : active?.mode || "classic";
-  const filtered = matches.filter(
-    (m) =>
-      demo || (m.competition === active?.competition && m.seasonId === season),
+  const filtered = matches.filter((m) =>
+    demo
+      ? m.competition === demoCompetition
+      : m.competition === active?.competition && m.seasonId === season,
   );
   const rounds = [...new Set(filtered.map((m) => m.roundId))];
   const selected = rounds.includes(round) ? round : preferredRound(filtered);
@@ -116,7 +120,7 @@ export default function PredictionsPage({
     return () => clearInterval(id);
   }, []);
   useEffect(() => {
-    if (!demo && !groups.some((g) => g.id === group))
+    if (!demo && groups.length && !groups.some((g) => g.id === group))
       setGroup(groups[0]?.id || "");
   }, [groups, group, demo]);
   useEffect(() => {
@@ -135,6 +139,11 @@ export default function PredictionsPage({
               mode: Mode;
               competition: string;
             },
+        );
+        next.sort(
+          (a, b) =>
+            Number(b.competition === "PD") - Number(a.competition === "PD") ||
+            b.id.localeCompare(a.id, "es", { numeric: true }),
         );
         setSeasons(next);
         setSeason(next[0]?.id || "");
@@ -232,7 +241,7 @@ export default function PredictionsPage({
     try {
       if (!demo) {
         if (!user || !group || !season)
-          throw new Error("Selecciona un grupo y una temporada.");
+          throw new Error("Selecciona un grupo y una competición.");
         await savePrediction(uid, group, season, match, value);
       }
       setValues((v) => ({ ...v, [match.id]: value }));
@@ -299,20 +308,70 @@ export default function PredictionsPage({
               </option>
             ))}
           </select>
-          <select
-            aria-label="Temporada"
-            value={season}
-            disabled={selectorsDisabled}
-            onChange={(e) => setSeason(e.target.value)}
-          >
-            {seasons.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.id} · {s.mode === "classic" ? "1X2" : "Marcador exacto"}
-              </option>
-            ))}
-          </select>
         </div>
       )}
+      <div
+        className="competition-picker"
+        role="group"
+        aria-label="Elegir competición de la quiniela"
+      >
+        {["PD", "CL"].map((code) => (
+          <button
+            key={code}
+            type="button"
+            aria-label={
+              code === "PD" ? "Elegir LaLiga" : "Elegir Champions League"
+            }
+            aria-pressed={
+              (demo ? demoCompetition : active?.competition) === code
+            }
+            disabled={
+              selectorsDisabled ||
+              (!demo && !seasons.some((s) => s.competition === code))
+            }
+            onClick={() => {
+              if (demo) setDemoCompetition(code);
+              else
+                setSeason(
+                  seasons.find((s) => s.competition === code)?.id || "",
+                );
+              setRound("");
+            }}
+          >
+            <CompetitionLogo code={code} />
+            <span>
+              {code === "PD" ? "LaLiga EA Sports" : "Champions League"}
+            </span>
+          </button>
+        ))}
+      </div>
+      {!demo &&
+        seasons.filter((s) => s.competition === active?.competition).length >
+          1 && (
+          <label className="prediction-season-history">
+            Temporada
+            <select
+              aria-label="Temporada de la competición"
+              value={season}
+              disabled={selectorsDisabled}
+              onChange={(e) => {
+                setSeason(e.target.value);
+                setRound("");
+              }}
+            >
+              {seasons
+                .filter((s) => s.competition === active?.competition)
+                .map((s) => {
+                  const year = Number(s.id.split("-")[1]);
+                  return (
+                    <option key={s.id} value={s.id}>
+                      {year} / {year + 1}
+                    </option>
+                  );
+                })}
+            </select>
+          </label>
+        )}
       <div className="filter-row">
         <Badge>
           {mode === "classic" ? "QUINIELA CLÁSICA · 1X2" : "MARCADOR EXACTO"}
@@ -574,14 +633,24 @@ export default function PredictionsPage({
       ) : (
         <Empty
           title={
-            groups.length
-              ? "Selecciona una competición"
-              : "Primero, reúne a tu equipo"
+            demo || active
+              ? "Aún no hay partidos disponibles"
+              : groups.length
+                ? "Elige tu competición"
+                : "Primero, reúne a tu equipo"
           }
         >
-          <Link to="/grupos">
-            Crea un grupo o únete con un código de invitación.
-          </Link>
+          {demo ? (
+            "La demo contiene únicamente una jornada de LaLiga."
+          ) : active ? (
+            "Los partidos aparecerán cuando se sincronice el calendario de esta competición."
+          ) : (
+            <>
+              <Link to="/grupos">
+                Crea un grupo o únete con un código de invitación.
+              </Link>
+            </>
+          )}
         </Empty>
       )}
       <p className="muted footnote">

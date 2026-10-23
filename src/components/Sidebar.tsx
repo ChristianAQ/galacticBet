@@ -134,11 +134,11 @@ export default function Sidebar({
             <Users size={22} />
             <h4>El fútbol, con los tuyos.</h4>
             <p>Crea una liga privada y demuestra quién sabe más.</p>
-            <Link to="/grupos">
+            <Link to="/grupos?action=create">
               Crear mi grupo <Plus size={15} />
             </Link>
           </div>
-          <Link to="/perfil" className="sidebar-help">
+          <Link to="/perfil?tab=play" className="sidebar-help">
             <CircleHelp size={18} />
             Ayuda y cómo jugar
             <ArrowUpRight size={14} />
