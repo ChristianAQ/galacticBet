@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { FormGuide } from "../components/TeamForm";
 import CompetitionLogo from "../components/CompetitionLogo";
 import ConfirmQuiniela from "../components/ConfirmQuiniela";
 import GroupPredictions from "../components/GroupPredictions";
@@ -389,6 +390,7 @@ export default function PredictionsPage({
           ))}
         </select>
       </div>
+      <FormGuide />
       {error && (
         <p className="error" role="alert">
           {error}
@@ -545,7 +547,7 @@ export default function PredictionsPage({
                     className={`panel prediction-card ${locked ? "prediction-locked" : ""}`}
                     key={m.id}
                   >
-                    <MatchRow match={m} />
+                    <MatchRow match={m} history={matches} />
                     <div className="prediction-actions">
                       <span>
                         {isSealed ? (
@@ -618,6 +620,7 @@ export default function PredictionsPage({
               ) : (
                 <GroupPredictions
                   matches={list}
+                  history={matches}
                   participants={demo ? demoPlayers : participants}
                   userId={uid}
                   groupId={group}

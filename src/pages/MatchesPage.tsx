@@ -1,5 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { ArrowUpRight } from "lucide-react";
+import MatchDetails from "../components/MatchDetails";
+import { FormGuide } from "../components/TeamForm";
+import { knockoutContext } from "../lib/matchInsights";
 import CompetitionLogo from "../components/CompetitionLogo";
 import { Empty, MatchRow, PageTitle } from "../components/ui";
 import { preferredRound, roundLabel, type Match } from "../lib/domain";
@@ -17,9 +21,14 @@ export default function MatchesPage({
   const [params, setParams] = useSearchParams();
   const competition = params.get("competition") === "CL" ? "CL" : "PD";
   const [round, setRound] = useState("");
+  const [detailId, setDetailId] = useState("");
+  const detail = matches.find((m) => m.id === detailId);
   const filtered = matches.filter((m) => m.competition === competition);
   const rounds = [...new Set(filtered.map((m) => m.roundId))];
   const selected = rounds.includes(round) ? round : preferredRound(filtered);
+  useEffect(() => {
+    if (selected && round !== selected) setRound(selected);
+  }, [selected, round]);
   return (
     <>
       <PageTitle
@@ -30,6 +39,8 @@ export default function MatchesPage({
       <div className="tabs">
         {["PD", "CL"].map((c) => (
           <button
+            aria-label={c === "PD" ? "LaLiga" : "Champions League"}
+            aria-pressed={competition === c}
             className={competition === c ? "selected" : ""}
             onClick={() => {
               setParams({ competition: c });
@@ -65,13 +76,40 @@ export default function MatchesPage({
           )}
         </select>
       </div>
-      <div className="panel">
+      <FormGuide />
+      <p className="match-data-note">
+        Horarios en la hora de tu dispositivo. Resultados a 90 minutos, sin
+        prórroga ni penaltis. Los datos pueden tener retraso.
+      </p>
+      <div className="match-calendar-list">
         {loading ? (
           <Empty title="Cargando partidos…">Consultando Firestore.</Empty>
         ) : filtered.length ? (
           filtered
             .filter((m) => m.roundId === selected)
-            .map((m) => <MatchRow key={m.id} match={m} />)
+            .map((m) => {
+              const tie = knockoutContext(m, matches);
+              return (
+                <button
+                  key={m.id}
+                  className="panel fixture-card-button"
+                  aria-label={`Ver ficha de ${m.home} contra ${m.away}`}
+                  onClick={() => setDetailId(m.id)}
+                >
+                  <span className="fixture-card-heading">
+                    <span>{roundLabel(m)}</span>
+                    {tie?.leg && (
+                      <span>{tie.leg === 1 ? "Ida" : "Vuelta"}</span>
+                    )}
+                  </span>
+                  <MatchRow match={m} history={matches} as="span" />
+                  <span className="fixture-card-footer">
+                    Ver ficha del partido
+                    <ArrowUpRight size={15} />
+                  </span>
+                </button>
+              );
+            })
         ) : (
           <Empty title="Aún no hay partidos disponibles">
             {demo
@@ -84,6 +122,13 @@ export default function MatchesPage({
           </Empty>
         )}
       </div>
+      {detail && (
+        <MatchDetails
+          match={detail}
+          matches={matches}
+          onClose={() => setDetailId("")}
+        />
+      )}
     </>
   );
 }

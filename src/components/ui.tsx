@@ -1,6 +1,8 @@
 import { ArrowRight, Flag, Target } from "lucide-react";
 import type { ReactNode } from "react";
 import { matchStatusLabel, type Match } from "../lib/domain";
+import { kickoffLabel } from "../lib/matchInsights";
+import TeamForm from "./TeamForm";
 export function Empty({
   title,
   children,
@@ -79,27 +81,45 @@ export function Team({ name, crest }: { name: string; crest?: string }) {
     </span>
   );
 }
-export function MatchRow({ match: m }: { match: Match }) {
+export function MatchRow({
+  match: m,
+  history,
+  as: Container = "div",
+}: {
+  match: Match;
+  history?: Match[];
+  as?: "div" | "span";
+}) {
   return (
-    <div className="match-row">
-      <span className="match-date">
-        {new Intl.DateTimeFormat("es", {
-          day: "2-digit",
-          month: "short",
-          hour: "2-digit",
-          minute: "2-digit",
-          timeZone: "Europe/Madrid",
-        }).format(new Date(m.utcDate))}
-      </span>
-      <Team name={m.home} crest={m.homeCrest} />
+    <Container className={`match-row ${history ? "with-form" : ""}`}>
+      <span className="match-date">{kickoffLabel(m.utcDate)}</span>
+      {history ? (
+        <span className="match-team-block home-team">
+          <Team name={m.home} crest={m.homeCrest} />
+          <TeamForm match={m} side="home" matches={history} />
+        </span>
+      ) : (
+        <Team name={m.home} crest={m.homeCrest} />
+      )}
       <span className="match-score">
-        {m.homeScore !== null ? `${m.homeScore} : ${m.awayScore}` : "vs"}
+        {m.homeScore !== null && m.awayScore !== null
+          ? `${m.homeScore} : ${m.awayScore}`
+          : m.status === "FINISHED"
+            ? "—"
+            : "vs"}
       </span>
-      <Team name={m.away} crest={m.awayCrest} />
+      {history ? (
+        <span className="match-team-block away-team">
+          <Team name={m.away} crest={m.awayCrest} />
+          <TeamForm match={m} side="away" matches={history} />
+        </span>
+      ) : (
+        <Team name={m.away} crest={m.awayCrest} />
+      )}
       <span className="match-status">
         {matchStatusLabel[m.status] || m.status}
       </span>
-    </div>
+    </Container>
   );
 }
 export function PrivateGate({

@@ -8,11 +8,13 @@ export default function Modal({
   busy = false,
   onClose,
   children,
+  className = "",
 }: {
   title: string;
   busy?: boolean;
   onClose: () => void;
   children: ReactNode;
+  className?: string;
 }) {
   const panel = useRef<HTMLElement>(null);
   const titleId = useId();
@@ -42,7 +44,7 @@ export default function Modal({
       <section
         ref={panel}
         tabIndex={-1}
-        className="modal panel group-form-modal"
+        className={`modal panel group-form-modal ${className}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

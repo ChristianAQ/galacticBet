@@ -7,8 +7,18 @@ export interface ApiMatch {
   stage: string;
   group?: string | null;
   season: { id: number; startDate: string; endDate: string };
-  homeTeam: { name: string; shortName?: string; crest?: string };
-  awayTeam: { name: string; shortName?: string; crest?: string };
+  homeTeam: {
+    id?: number | null;
+    name: string;
+    shortName?: string;
+    crest?: string;
+  };
+  awayTeam: {
+    id?: number | null;
+    name: string;
+    shortName?: string;
+    crest?: string;
+  };
   score: {
     duration: string;
     fullTime: { home: number | null; away: number | null };
@@ -33,6 +43,9 @@ export function normalize(m: ApiMatch, competition: "PD" | "CL"): Match {
     status: m.status,
     home: m.homeTeam.shortName || m.homeTeam.name,
     away: m.awayTeam.shortName || m.awayTeam.name,
+    homeTeamId: m.homeTeam.id ?? null,
+    awayTeamId: m.awayTeam.id ?? null,
+    scoreDuration: m.score.duration,
     homeCrest: m.homeTeam.crest || "",
     awayCrest: m.awayTeam.crest || "",
     homeScore: regulation?.home ?? null,

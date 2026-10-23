@@ -20,6 +20,7 @@ import { MatchRow, readableError } from "./ui";
 
 export default function GroupPredictions({
   matches,
+  history,
   participants,
   userId,
   groupId,
@@ -29,6 +30,7 @@ export default function GroupPredictions({
   ownValues,
 }: {
   matches: Match[];
+  history: Match[];
   participants: Participant[];
   userId: string;
   groupId: string;
@@ -60,6 +62,7 @@ export default function GroupPredictions({
         <RivalsCard
           key={`${groupId}_${seasonId}_${m.id}`}
           match={m}
+          history={history}
           participants={participants}
           userId={userId}
           groupId={groupId}
@@ -74,6 +77,7 @@ export default function GroupPredictions({
 }
 function RivalsCard({
   match,
+  history,
   participants,
   userId,
   groupId,
@@ -83,6 +87,7 @@ function RivalsCard({
   ownValue,
 }: {
   match: Match;
+  history: Match[];
   participants: Participant[];
   userId: string;
   groupId: string;
@@ -164,7 +169,7 @@ function RivalsCard({
   const available = participants.filter((p) => rows[p.id]).length;
   return (
     <article className="panel group-match-card">
-      <MatchRow match={match} />
+      <MatchRow match={match} history={history} />
       {!revealed ? (
         <div className="rivals-hidden">
           <span className="rivals-lock">

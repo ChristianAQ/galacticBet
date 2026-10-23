@@ -41,6 +41,14 @@ npx firebase deploy --only firestore:rules,firestore:indexes --project TU_PROJEC
 
 El login es para tu máquina con tu propia cuenta. En automatización usa credenciales protegidas y permisos mínimos; no inicies sesión ni copies credenciales de otra identidad del entorno. No hay credenciales reales en este repositorio.
 
+## Información de partidos
+
+«Partidos» presenta tarjetas con horario local (Hoy/Mañana), estado y forma de ambos equipos. Al pulsarlas se abre una ficha con rendimiento de temporada (partidos, victorias, empates, derrotas y goles), enfrentamientos anteriores y contexto de ida/vuelta de Champions cuando el calendario permite identificar el cruce. El global se orienta hacia los equipos local y visitante del partido abierto y se calcula solo con marcadores reglamentarios finalizados y fiables; se distingue de la clasificación oficial tras prórroga o penaltis.
+
+Los cinco puntos de forma se muestran también en ambas vistas de la quiniela: verde = victoria, gris = empate, rojo = derrota; hueco = historial no disponible. No contienen letras y tienen descripciones accesibles. Se ordenan de antiguo a reciente (el último está a la derecha), combinando resultados anteriores disponibles de PD y CL. Para partidos pasados se corta el historial antes de su inicio, evitando incluir resultados posteriores; las estadísticas de temporada se limitan a su competición y temporada. Todo se calcula a 90 minutos sobre los partidos ya descargados, sin nuevas llamadas a Football-Data, nuevas credenciales ni librerías.
+
+La normalización conserva los IDs de los equipos y la duración del partido desde la próxima sincronización. Los documentos anteriores siguen funcionando por coincidencia de nombre cuando no hay IDs. No se inventan datos ausentes ni se ofrecen estadísticas de otras competiciones no sincronizadas; la actualización de resultados sigue dependiendo de las tareas programadas y del retraso del proveedor. La demo conserva sus cinco partidos ficticios, sin añadir resultados pasados inventados para rellenar los indicadores.
+
 ## Perfil y grupos
 
 El icono de usuario abre directamente `/perfil`. «Mi perfil» permite cambiar el nombre en Authentication y en el documento público de perfil; el correo es informativo. «Mis grupos» muestra los grupos con los nombres de sus miembros y enlaza a sus detalles. «Cómo jugar» explica modalidades, cierre y clasificaciones. El único botón de cerrar sesión está al final del perfil, con estilo discreto.
@@ -124,7 +132,7 @@ En este entorno, para evitar escribir la configuración de la CLI en un director
 XDG_CONFIG_HOME=/tmp/galacticbet-cli-config npm run test:rules
 ```
 
-Validación actual: 24 pruebas unitarias y 19 pruebas de Firestore aprobadas, estas últimas ejecutadas contra el emulador con un proyecto demo aislado. Se comprueban el cierre irreversible, la privacidad, la protección frente a suplantación, la comparación con un resumen antiguo y ambos modos de pronóstico. También se ha probado en Chromium móvil y escritorio el resumen, la cancelación y confirmación del cierre, los campos bloqueados, la ocultación antes del inicio y la comparación visual tras comenzar. La compilación usa el prefijo `/galacticBet/`. No se han ejecutado publicaciones administrativas contra un proyecto Firebase real desde esta máquina.
+Validación actual: 35 pruebas unitarias aprobadas; las 19 pruebas de Firestore se aprobaron en la revisión de grupos y perfil, estas últimas ejecutadas contra el emulador con un proyecto demo aislado. Se comprueban el cierre irreversible, la privacidad, la protección frente a suplantación, la comparación con un resumen antiguo y ambos modos de pronóstico. También se ha probado en Chromium móvil y escritorio el resumen, la cancelación y confirmación del cierre, los campos bloqueados, la ocultación antes del inicio y la comparación visual tras comenzar. La compilación usa el prefijo `/galacticBet/`. No se han ejecutado publicaciones administrativas contra un proyecto Firebase real desde esta máquina.
 
 ## GitHub Pages
 

@@ -33,3 +33,21 @@ it("diferencia fases con igual jornada", () =>
   ));
 it("mantiene identidad estable al reejecutar", () =>
   expect(normalize(fixture, "CL")).toEqual(normalize(fixture, "CL")));
+it("conserva los identificadores de equipo y la duración sin alterar el resultado a 90 minutos", () => {
+  const m = normalize(
+    {
+      ...fixture,
+      homeTeam: { id: 86, name: "Nombre completo", shortName: "Local" },
+      awayTeam: { id: 81, name: "Visitante" },
+    },
+    "CL",
+  );
+  expect(m).toMatchObject({
+    homeTeamId: 86,
+    awayTeamId: 81,
+    scoreDuration: "EXTRA_TIME",
+    homeScore: 1,
+    awayScore: 1,
+  });
+  expect(normalize(fixture, "CL").homeTeamId).toBeNull();
+});

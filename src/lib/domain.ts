@@ -25,6 +25,9 @@ export interface Match {
   status: string;
   home: string;
   away: string;
+  homeTeamId?: number | null;
+  awayTeamId?: number | null;
+  scoreDuration?: string;
   homeCrest?: string;
   awayCrest?: string;
   homeScore: number | null;
