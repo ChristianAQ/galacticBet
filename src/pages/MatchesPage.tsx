@@ -19,15 +19,24 @@ export default function MatchesPage({
 }) {
   const [params, setParams] = useSearchParams();
   const competition = params.get("competition") === "CL" ? "CL" : "PD";
-  const [round, setRound] = useState("");
+  const round = params.get("round") || "";
   const [detailId, setDetailId] = useState("");
   const detail = matches.find((m) => m.id === detailId);
   const filtered = matches.filter((m) => m.competition === competition);
   const rounds = [...new Set(filtered.map((m) => m.roundId))];
   const selected = rounds.includes(round) ? round : preferredRound(filtered);
   useEffect(() => {
-    if (selected && round !== selected) setRound(selected);
-  }, [selected, round]);
+    if (selected && round !== selected) {
+      setParams(
+        (previous) => {
+          const next = new URLSearchParams(previous);
+          next.set("round", selected);
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [selected, round, setParams]);
   return (
     <>
       <PageTitle
@@ -42,7 +51,6 @@ export default function MatchesPage({
             className={competition === c ? "selected" : ""}
             onClick={() => {
               setParams({ competition: c });
-              setRound("");
             }}
             key={c}
           >
@@ -58,7 +66,13 @@ export default function MatchesPage({
         <select
           aria-label="Seleccionar jornada o ronda"
           value={selected || ""}
-          onChange={(e) => setRound(e.target.value)}
+          onChange={(e) => {
+            setParams((previous) => {
+              const next = new URLSearchParams(previous);
+              next.set("round", e.target.value);
+              return next;
+            });
+          }}
         >
           {rounds.length ? (
             rounds.map((r) => {

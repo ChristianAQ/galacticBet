@@ -328,8 +328,21 @@ export default function PredictionsPage({
   return (
     <>
       <PageTitle
-        eyebrow="QUINIELAS"
-        title={isSealed ? "Ya estás jugando" : "Mi quiniela"}
+        eyebrow={`QUINIELA${list[0] ? (list[0].competition === "PD" ? " · LALIGA" : " · CHAMPIONS LEAGUE") : ""}`}
+        title={list[0] ? roundLabel(list[0]) : "Mi quiniela"}
+        description={
+          !list.length
+            ? "Selecciona tu grupo y la competición para ver tu quiniela."
+            : pending
+              ? "Comprobando tu pronóstico…"
+              : isSealed
+                ? "Pronóstico guardado · Tu apuesta está confirmada."
+                : deadlineClosed
+                  ? "Plazo cerrado · No has guardado tu pronóstico."
+                  : completed > 0
+                    ? "Pronóstico en curso · Completa y guarda tu quiniela."
+                    : "Jornada abierta · Haz tu pronóstico antes del primer partido."
+        }
       />
       {!demo && (
         <div className="filter-row">

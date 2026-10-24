@@ -1,19 +1,19 @@
 import {
   ArrowRight,
-  ArrowUpRight,
   CalendarDays,
   Plus,
   ShieldCheck,
-  Target,
-  Trophy,
   Users,
   Zap,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import CompetitionLogo from "../components/CompetitionLogo";
-import { Badge, Empty, MatchRow } from "../components/ui";
+import UpcomingSchedule from "../components/UpcomingSchedule";
+import { Empty, MatchRow } from "../components/ui";
 import type { Group } from "../lib/data";
-import { canPredict, type Match } from "../lib/domain";
+import type { Match } from "../lib/domain";
+import { upcomingMatches } from "../lib/schedule";
+
 export default function HomePage({
   name,
   groups,
@@ -27,20 +27,28 @@ export default function HomePage({
   loading: boolean;
   onDemo: () => void;
 }) {
-  const upcoming = matches.filter((m) =>
-    canPredict(m.utcDate, Date.now(), m.status),
-  );
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const refresh = () => {
+      if (!document.hidden) setNow(Date.now());
+    };
+    const interval = window.setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
+  const upcoming = upcomingMatches(matches, now);
   return (
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">
-            <span className="live-dot" /> EL PARTIDO EMPIEZA AQUÍ
-          </div>
-          <h1>
-            ¡Qué pasa, {name}! <span className="wave">✌</span>
-          </h1>
-          <p>Una nueva jornada. Otra oportunidad para llevarte la gloria.</p>
+          <div className="eyebrow">FÚTBOL ENTRE AMIGOS</div>
+          <h1>Hola, {name}</h1>
+          <p>Tus competiciones, tus jornadas y tu próxima quiniela.</p>
         </div>
         <div className="today">
           <CalendarDays size={17} />
@@ -49,150 +57,18 @@ export default function HomePage({
             month: "long",
             year: "numeric",
             timeZone: "Europe/Madrid",
-          }).format(new Date())}
+          }).format(new Date(now))}
         </div>
       </div>
-      <section className="hero">
-        <div className="hero-content">
-          <Badge>EL FÚTBOL SE JUEGA ENTRE AMIGOS</Badge>
-          <h2>
-            Tu intuición.
-            <br />
-            Tu equipo.
-            <br />
-            <em>Tu próxima victoria.</em>
-          </h2>
-          <p>
-            LaLiga y Champions. Todos los partidos, tus pronósticos
-            <br className="desktop-break" /> y una sola pregunta: ¿quién manda
-            en el grupo?
-          </p>
-          <Link className="button primary" to="/quiniela">
-            Hacer mi quiniela
-            <ArrowRight size={18} />
-          </Link>
-          <div className="hero-note">
-            <ShieldCheck size={14} />
-            Sin apuestas de dinero. Solo fútbol y orgullo.
-          </div>
-        </div>
-        <div className="hero-art" aria-hidden="true">
-          <div className="pitch-circle" />
-          <div className="orbit orbit-one" />
-          <div className="orbit orbit-two" />
-          <div className="ball">
-            <div className="ball-panel center" />
-            <div className="ball-panel p1" />
-            <div className="ball-panel p2" />
-            <div className="ball-panel p3" />
-            <div className="ball-panel p4" />
-            <div className="ball-panel p5" />
-          </div>
-          <div className="floating-score">
-            <span>LA MEJOR JUGADA</span>
-            <strong>
-              Jugar con los tuyos <Zap size={17} />
-            </strong>
-          </div>
-          <span className="art-star star-one">✦</span>
-          <span className="art-star star-two">+</span>
-        </div>
-      </section>
-      <section className="stat-grid">
-        <div className="stat-card">
-          <span className="stat-icon">
-            <Users />
-          </span>
-          <div>
-            <span>Mis grupos</span>
-            <strong>
-              {groups.length.toString().padStart(2, "0")}
-              <small> ligas privadas</small>
-            </strong>
-          </div>
-          <Link to="/grupos" aria-label="Ver grupos">
-            <ArrowUpRight size={19} />
-          </Link>
-        </div>
-        <div className="stat-card">
-          <span className="stat-icon">
-            <Target />
-          </span>
-          <div>
-            <span>Próximos partidos</span>
-            <strong>
-              {matches
-                .filter((m) => canPredict(m.utcDate, Date.now(), m.status))
-                .length.toString()
-                .padStart(2, "0")}
-              <small> tu próxima jugada</small>
-            </strong>
-          </div>
-          <Link to="/quiniela" aria-label="Ver quiniela">
-            <ArrowUpRight size={19} />
-          </Link>
-        </div>
-        <div className="stat-card">
-          <span className="stat-icon">
-            <Trophy />
-          </span>
-          <div>
-            <span>La gloria te espera</span>
-            <strong>
-              Todo<small> empieza en tu grupo</small>
-            </strong>
-          </div>
-          <Link to="/clasificacion" aria-label="Ver clasificación">
-            <ArrowUpRight size={19} />
-          </Link>
-        </div>
-      </section>
+      <UpcomingSchedule
+        matches={matches}
+        upcoming={upcoming}
+        now={now}
+        loading={loading}
+      />
       <div className="dashboard-columns">
         <section>
           <div className="section-heading">
-            <h2>
-              Elige tu competición <span>02</span>
-            </h2>
-            <Link to="/partidos">
-              Ver calendario <ArrowRight size={15} />
-            </Link>
-          </div>
-          <div className="competition-grid">
-            {["PD", "CL"].map((code) => (
-              <Link
-                key={code}
-                className={`competition-card ${code === "CL" ? "blue" : ""}`}
-                to={`/partidos?competition=${code}`}
-              >
-                <div className="competition-card-top">
-                  <CompetitionLogo code={code} />
-                  <span className="competition-arrow">
-                    <ArrowUpRight size={18} />
-                  </span>
-                </div>
-                <div className="competition-subtitle">
-                  {code === "PD"
-                    ? "EL FÚTBOL DE CADA FIN DE SEMANA"
-                    : "LAS NOCHES QUE LO CAMBIAN TODO"}
-                </div>
-                <h3>
-                  {code === "PD" ? "LaLiga EA Sports" : "UEFA Champions League"}
-                </h3>
-                <div className="competition-card-bottom">
-                  <span>
-                    <span className="live-dot" />
-                    Temporada 2026 / 27
-                  </span>
-                  <span>
-                    {code === "PD"
-                      ? "38 jornadas"
-                      : "Fase liga + eliminatorias"}
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-          <div className="section-heading upcoming-heading">
             <h2>Próximos encuentros</h2>
             <Link to="/partidos">
               Ver todos <ArrowRight size={15} />
@@ -211,15 +87,22 @@ export default function HomePage({
                   <CalendarDays size={25} />
                 </span>
                 <div>
-                  <h3>El calendario está por llegar</h3>
+                  <h3>
+                    {matches.length
+                      ? "Sin próximos encuentros"
+                      : "El calendario está por llegar"}
+                  </h3>
                   <p>
-                    Los partidos reales aparecerán al conectar y sincronizar la
-                    competición.
+                    {matches.length
+                      ? "Los encuentros disponibles ya han comenzado. Puedes consultar el calendario y sus resultados."
+                      : "Los partidos reales aparecerán al conectar y sincronizar la competición."}
                   </p>
                 </div>
-                <button className="text-button" onClick={onDemo}>
-                  Explorar demo <ArrowRight size={15} />
-                </button>
+                {!matches.length && (
+                  <button className="text-button" onClick={onDemo}>
+                    Explorar demo <ArrowRight size={15} />
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -246,7 +129,7 @@ export default function HomePage({
             </p>
             <Link className="button primary full" to="/grupos">
               <Plus size={17} />
-              Crear un grupo
+              {groups.length ? "Ir a mis grupos" : "Crear un grupo"}
             </Link>
             <Link className="join-link" to="/grupos?join=1">
               Tengo un código de invitación <ArrowRight size={14} />

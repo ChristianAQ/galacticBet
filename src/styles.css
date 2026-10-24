@@ -388,11 +388,6 @@ main {
   margin-bottom: 0;
   color: #8f9986;
 }
-.wave {
-  font-size: 28px;
-  display: inline-block;
-  margin-left: 5px;
-}
 .today {
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -407,26 +402,6 @@ main {
 .today svg {
   color: #839475;
 }
-.hero {
-  position: relative;
-  overflow: hidden;
-  background: radial-gradient(
-    ellipse at 85% 50%,
-    #526829 0%,
-    #283b1b 30%,
-    #1c2818 58%,
-    #1a2417 100%
-  );
-  border: 1px solid #394a2c;
-  border-radius: 12px;
-  min-height: 354px;
-}
-.hero-content {
-  position: relative;
-  z-index: 2;
-  padding: 31px 32px 24px;
-  width: 61%;
-}
 .badge {
   display: inline-flex;
   align-items: center;
@@ -439,23 +414,6 @@ main {
   font-weight: 650;
   letter-spacing: 1.2px;
   line-height: 1.5;
-}
-.hero h2 {
-  font-size: 42px;
-  line-height: 1.06;
-  letter-spacing: -1.7px;
-  margin: 18px 0 14px;
-  font-weight: 750;
-}
-.hero h2 em {
-  font-style: normal;
-  color: var(--green);
-}
-.hero p {
-  font-size: 11px;
-  line-height: 1.8;
-  color: #a0af91;
-  margin-bottom: 22px;
 }
 .button {
   display: inline-flex;
@@ -494,239 +452,205 @@ main {
 .button.full {
   width: 100%;
 }
-.hero-note {
-  font-size: 8px;
-  color: #869e73;
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  margin-top: 13px;
+/* Upcoming fixtures use the public calendar already loaded by the app. */
+.schedule-board {
+  margin-bottom: 28px;
 }
-.hero-art {
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: 100%;
-  width: 48%;
-  overflow: hidden;
-  background: repeating-linear-gradient(
-    115deg,
-    transparent 0 52px,
-    #c5f56b04 52px 105px
-  );
-}
-.pitch-circle {
-  position: absolute;
-  width: 450px;
-  height: 450px;
-  border-radius: 50%;
-  border: 1px solid #c5ed8f12;
-  top: -30px;
-  right: -60px;
-}
-.pitch-circle:before {
-  content: "";
-  position: absolute;
-  inset: 55px;
-  border: 1px solid #c5ed8f18;
-  border-radius: 50%;
-}
-.pitch-circle:after {
-  content: "";
-  position: absolute;
-  inset: 110px;
-  border: 1px solid #c5ed8f20;
-  border-radius: 50%;
-}
-.orbit {
-  position: absolute;
-  border: 1px solid #d2ff9340;
-  border-radius: 50%;
-  height: 230px;
-  width: 430px;
-  transform: rotate(-32deg);
-  top: 60px;
-  right: -10px;
-}
-.orbit-two {
-  transform: rotate(35deg);
-  width: 380px;
-  top: 57px;
-  border-color: #c4f67d20;
-}
-.ball {
-  position: absolute;
-  width: 205px;
-  height: 205px;
-  border-radius: 50%;
-  right: 85px;
-  top: 70px;
-  background: radial-gradient(
-    circle at 30% 20%,
-    #e6f5b5,
-    #c3d98c 40%,
-    #7d984d 73%,
-    #324926
-  );
-  box-shadow:
-    19px 30px 45px #020e0bd0,
-    inset -15px -22px 26px #233519a6;
-  transform: rotate(-20deg);
-  overflow: hidden;
-  border: 1px solid #b0cd7c;
-}
-.ball-panel {
-  position: absolute;
-  background: #20301c;
-  clip-path: polygon(50% 0, 100% 38%, 80% 100%, 20% 100%, 0 38%);
-}
-.ball-panel.center {
-  width: 70px;
-  height: 65px;
-  left: 63px;
-  top: 62px;
-  transform: rotate(12deg);
-}
-.ball-panel.p1 {
-  width: 70px;
-  height: 65px;
-  left: 63px;
-  top: -30px;
-}
-.ball-panel.p2 {
-  width: 70px;
-  height: 65px;
-  left: -30px;
-  top: 45px;
-  transform: rotate(-50deg);
-}
-.ball-panel.p3 {
-  width: 70px;
-  height: 65px;
-  right: -30px;
-  top: 45px;
-  transform: rotate(60deg);
-}
-.ball-panel.p4 {
-  width: 70px;
-  height: 65px;
-  left: 0;
-  bottom: -10px;
-  transform: rotate(150deg);
-}
-.ball-panel.p5 {
-  width: 70px;
-  height: 65px;
-  right: 0;
-  bottom: -10px;
-  transform: rotate(200deg);
-}
-.ball:after {
-  content: "";
-  position: absolute;
-  inset: 13px;
-  border: 1px solid #34472250;
-  transform: rotate(30deg);
-  clip-path: polygon(50% 0, 100% 38%, 80% 100%, 20% 100%, 0 38%);
-  background: repeating-conic-gradient(
-    from 40deg,
-    #2b3e221a 0 2deg,
-    transparent 2deg 60deg
-  );
-}
-.floating-score {
-  position: absolute;
-  bottom: 33px;
-  right: 42px;
-  transform: rotate(-6deg);
-  background: #15200ecf;
-  backdrop-filter: blur(8px);
-  border: 1px solid #9db87642;
-  border-radius: 7px;
-  padding: 13px 19px;
-  box-shadow: 0 9px 20px #0003;
-}
-.floating-score > span {
-  font-size: 7px;
-  letter-spacing: 1.3px;
-  color: #8eaa76;
-}
-.floating-score strong {
-  font-size: 12px;
+.schedule-board-heading {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
-  margin-top: 5px;
-  font-weight: 550;
+  margin-bottom: 16px;
 }
-.floating-score svg {
+.schedule-board-heading .eyebrow {
+  margin-bottom: 7px;
+  color: #c5d7cc;
+}
+.schedule-board-heading h2 {
+  margin: 0;
+  font-size: 21px;
+  letter-spacing: -0.5px;
+}
+.schedule-board-heading > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  font-size: 11px;
   color: var(--green);
+  flex-shrink: 0;
 }
-.art-star {
-  position: absolute;
-  color: var(--green);
-}
-.star-one {
-  font-size: 27px;
-  top: 30px;
-  right: 57px;
-}
-.star-two {
-  font-size: 28px;
-  bottom: 80px;
-  left: 34px;
-}
-.stat-grid {
+.schedule-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-  margin: 21px 0 33px;
 }
-.stat-card {
+.schedule-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid #31483e;
+  border-radius: 12px;
+  background: #17221e;
+  overflow: hidden;
+}
+.schedule-competition {
+  min-height: 60px;
   display: flex;
   align-items: center;
-  gap: 13px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 18px 17px;
-  background: #171c15;
+  gap: 10px;
+  padding: 12px 18px;
+  background: #193d30;
+  border-bottom: 1px solid #315243;
 }
-.stat-icon {
-  width: 40px;
-  height: 42px;
+.schedule-competition h3 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0;
+}
+.schedule-competition .competition-logo.small {
+  flex-shrink: 0;
+}
+.schedule-round {
   display: grid;
-  place-items: center;
-  background: #252f1e;
-  color: #b9d990;
-  border-radius: 6px;
+  gap: 4px;
+  padding: 15px 18px 0;
 }
-.stat-icon svg {
-  width: 20px;
+.schedule-round > strong {
+  font-size: 21px;
+  line-height: 1.3;
+  letter-spacing: -0.4px;
+  overflow-wrap: anywhere;
 }
-.stat-card > div > span {
+.schedule-round > span {
   font-size: 10px;
-  color: #8e9a82;
+  color: var(--muted);
 }
-.stat-card strong {
-  display: block;
-  font-size: 24px;
+.schedule-kickoff {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 18px 0;
+  font-size: 10px;
+}
+.schedule-kickoff > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #f0d58c;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.schedule-kickoff > time {
+  color: #d5e0d8;
+  font-variant-numeric: tabular-nums;
+}
+.schedule-fixture {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 18px;
+  flex: 1;
+}
+.schedule-fixture .team {
+  flex-direction: column;
+  text-align: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 550;
   line-height: 1.4;
-  margin-top: 2px;
-  font-weight: 650;
-  letter-spacing: -0.7px;
+  min-width: 0;
 }
-.stat-card strong small {
-  font-weight: 400;
-  font-size: 9px;
-  color: #77866b;
-  letter-spacing: 0;
-  margin-left: 5px;
+.schedule-fixture .team > span {
+  overflow-wrap: anywhere;
 }
-.stat-card > a {
-  margin-left: auto;
-  color: #748766;
-  align-self: flex-start;
-  margin-top: 2px;
+.schedule-fixture .team img,
+.schedule-fixture .team > svg {
+  width: 27px;
+  height: 29px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.schedule-versus {
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+}
+.schedule-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 18px;
+  min-height: 44px;
+  margin-top: auto;
+  border-top: 1px solid #31483e;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 600;
+  transition: background 160ms ease;
+}
+.schedule-action:hover {
+  background: #ffffff08;
+}
+.schedule-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 18px;
+  min-height: 182px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.schedule-empty strong {
+  color: #d5e0d8;
+  font-weight: 500;
+}
+.schedule-provisional {
+  color: var(--muted);
+  font-size: 10px;
+  margin: -5px 18px 12px;
+}
+@media (max-width: 760px) {
+  .schedule-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .schedule-board-heading {
+    gap: 8px;
+  }
+  .schedule-board-heading h2 {
+    font-size: 19px;
+  }
+  .schedule-board-heading > a {
+    font-size: 10px;
+  }
+  .schedule-competition,
+  .schedule-action {
+    padding: 10px 14px;
+  }
+  .schedule-competition {
+    min-height: 54px;
+  }
+  .schedule-round {
+    padding: 12px 14px 0;
+  }
+  .schedule-kickoff {
+    padding: 10px 14px 0;
+  }
+  .schedule-fixture {
+    padding: 14px;
+  }
+  .schedule-fixture .team {
+    font-size: 11px;
+  }
 }
 .dashboard-columns {
   display: grid;
@@ -1474,31 +1398,6 @@ td {
   main {
     padding-top: 42px;
   }
-  .hero {
-    min-height: 390px;
-  }
-  .hero-content {
-    padding: 36px 40px;
-  }
-  .hero h2 {
-    font-size: 48px;
-  }
-  .hero p {
-    font-size: 13px;
-  }
-  .ball {
-    width: 240px;
-    height: 240px;
-    right: 100px;
-    top: 60px;
-  }
-  .ball-panel.center {
-    left: 80px;
-    top: 80px;
-  }
-  .ball-panel.p1 {
-    left: 85px;
-  }
   .dashboard-columns {
     grid-template-columns: minmax(0, 1fr) 300px;
   }
@@ -1550,25 +1449,6 @@ td {
     grid-template-columns: minmax(0, 1fr) 225px;
     gap: 16px;
   }
-  .hero h2 {
-    font-size: 36px;
-  }
-  .hero-content {
-    padding-left: 25px;
-  }
-  .ball {
-    right: 40px;
-    width: 185px;
-    height: 185px;
-    top: 85px;
-  }
-  .ball-panel.center {
-    left: 55px;
-    top: 55px;
-  }
-  .floating-score {
-    right: 20px;
-  }
   .competition-card {
     padding: 18px 14px 0;
   }
@@ -1580,27 +1460,6 @@ td {
   }
   .competition-card-bottom {
     flex-wrap: wrap;
-  }
-  .stat-card {
-    gap: 10px;
-    padding: 15px 11px;
-  }
-  .stat-card strong small {
-    display: block;
-    font-size: 8px;
-    margin: 0;
-  }
-  .stat-card strong {
-    line-height: 1.2;
-    font-size: 22px;
-    margin-top: 4px;
-  }
-  .stat-icon {
-    width: 34px;
-    height: 36px;
-  }
-  .stat-card > a {
-    display: none;
   }
   .locker-card {
     padding: 23px 16px;
@@ -1717,47 +1576,6 @@ td {
   }
   .page-heading .today {
     display: none;
-  }
-  .hero h2 {
-    font-size: 33px;
-  }
-  .hero-content {
-    width: 65%;
-    padding: 26px 20px;
-  }
-  .hero p {
-    font-size: 10px;
-  }
-  .hero {
-    min-height: 330px;
-  }
-  .hero-art {
-    width: 46%;
-  }
-  .ball {
-    width: 150px;
-    height: 150px;
-    right: 14px;
-    top: 100px;
-  }
-  .ball-panel.center {
-    width: 55px;
-    height: 50px;
-    left: 46px;
-    top: 48px;
-  }
-  .floating-score {
-    right: 8px;
-    bottom: 35px;
-    padding: 10px;
-  }
-  .floating-score strong {
-    font-size: 10px;
-    gap: 8px;
-  }
-  .star-one {
-    right: 25px;
-    top: 42px;
   }
   .groups-layout {
     grid-template-columns: 1fr;
@@ -1879,114 +1697,6 @@ td {
   .eyebrow {
     font-size: 8px;
     margin-bottom: 11px;
-  }
-  .wave {
-    font-size: 23px;
-  }
-  .hero {
-    min-height: 340px;
-  }
-  .hero-content {
-    width: 72%;
-    padding: 25px 22px;
-  }
-  .hero h2 {
-    font-size: 35px;
-    letter-spacing: -1.2px;
-    margin-top: 20px;
-  }
-  .hero p {
-    font-size: 10px;
-    max-width: 230px;
-  }
-  .hero .badge {
-    font-size: 6px;
-    letter-spacing: 1px;
-    padding: 5px 6px;
-  }
-  .hero-art {
-    width: 40%;
-    opacity: 0.95;
-  }
-  .ball {
-    right: -50px;
-    top: 115px;
-    width: 170px;
-    height: 170px;
-  }
-  .ball-panel.center {
-    left: 55px;
-    top: 55px;
-  }
-  .floating-score {
-    display: none;
-  }
-  .orbit {
-    width: 270px;
-    height: 180px;
-    right: -125px;
-    top: 100px;
-  }
-  .orbit-two {
-    right: -135px;
-  }
-  .pitch-circle {
-    width: 350px;
-    height: 350px;
-    right: -230px;
-    top: 30px;
-  }
-  .star-one {
-    right: 18px;
-    top: 50px;
-    font-size: 22px;
-  }
-  .star-two {
-    left: 20px;
-    bottom: 45px;
-  }
-  .hero-note {
-    font-size: 7px;
-    max-width: 220px;
-  }
-  .hero .button {
-    font-size: 10px;
-    padding: 12px 14px;
-    gap: 10px;
-  }
-  .stat-grid {
-    gap: 8px;
-    margin: 14px 0 27px;
-  }
-  .stat-card {
-    display: block;
-    padding: 12px 9px;
-    position: relative;
-    min-height: 107px;
-  }
-  .stat-icon {
-    width: 27px;
-    height: 27px;
-    border-radius: 5px;
-    margin-bottom: 10px;
-  }
-  .stat-icon svg {
-    width: 15px;
-    height: 15px;
-  }
-  .stat-card > div > span {
-    font-size: 8px;
-    line-height: 1.4;
-    display: block;
-    min-height: 12px;
-  }
-  .stat-card strong {
-    font-size: 20px;
-    margin-top: 7px;
-  }
-  .stat-card strong small {
-    font-size: 7px;
-    margin-top: 3px;
   }
   .section-heading h2 {
     font-size: 15px;
@@ -2200,7 +1910,7 @@ td {
     width: 23px;
     height: 25px;
   }
-  .team:last-of-type {
+  .match-row .team:last-of-type {
     flex-direction: row-reverse;
     text-align: right;
   }
