@@ -28,6 +28,9 @@ export interface Match {
   homeTeamId?: number | null;
   awayTeamId?: number | null;
   scoreDuration?: string;
+  halfTimeHomeScore?: number | null;
+  halfTimeAwayScore?: number | null;
+  winner?: Outcome | null;
   homeCrest?: string;
   awayCrest?: string;
   homeScore: number | null;

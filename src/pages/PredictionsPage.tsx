@@ -8,6 +8,7 @@ import FilterPanel, { FilterField } from "../components/FilterPanel";
 import ConfirmQuiniela from "../components/ConfirmQuiniela";
 import RoundDeliveryStatus from "../components/RoundDeliveryStatus";
 import GroupPredictions from "../components/GroupPredictions";
+import MatchResult from "../components/MatchResult";
 import { Empty, MatchRow, PageTitle, readableError } from "../components/ui";
 import {
   loadGameSeasons,
@@ -635,6 +636,7 @@ export default function PredictionsPage({
                         />
                       )}
                     </div>
+                    {m.status === "FINISHED" && <MatchResult match={m} />}
                   </div>
                 );
               })}

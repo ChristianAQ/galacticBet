@@ -289,9 +289,16 @@ export default function ProfilePage({
                 reglamentario puede diferir del que decide la clasificación.
               </p>
               <p>
-                Las estadísticas se limitan a la temporada y competición del
-                encuentro. Al consultar un partido pasado, solo se consideran
-                resultados anteriores a su inicio.
+                Las estadísticas previas de temporada se limitan a la
+                competición del encuentro. Al consultar un partido pasado, solo
+                se consideran resultados anteriores a su inicio.
+              </p>
+              <p>
+                En un partido finalizado puedes consultar los goles, el descanso
+                y la segunda parte cuando hay datos disponibles. El ganador
+                oficial se muestra por separado del marcador a 90 minutos si
+                hubo prórroga o penaltis. La quiniela siempre puntúa a 90
+                minutos.
               </p>
               <p>
                 Los horarios usan la hora de tu dispositivo. Los resultados se

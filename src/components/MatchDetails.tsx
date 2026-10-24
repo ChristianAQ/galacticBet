@@ -8,6 +8,7 @@ import {
 } from "../lib/matchInsights";
 import CompetitionLogo from "./CompetitionLogo";
 import Modal from "./Modal";
+import MatchResult from "./MatchResult";
 import TeamForm from "./TeamForm";
 import { Team } from "./ui";
 
@@ -98,9 +99,7 @@ export default function MatchDetails({
           Marcador mostrado a 90 minutos.
         </p>
       )}
-      {match.status === "FINISHED" && !resultKnown && (
-        <p className="match-context-note">Marcador reglamentario pendiente.</p>
-      )}
+      {match.status === "FINISHED" && <MatchResult match={match} />}
       {context && (
         <section className="match-insight-section">
           <h3>

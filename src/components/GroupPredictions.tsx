@@ -5,7 +5,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { Users } from "lucide-react";
+import { ChevronDown, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   hasMatchStarted,
@@ -20,6 +20,7 @@ import { db } from "../lib/firebase";
 import { kickoffLabel } from "../lib/matchInsights";
 import { Team, readableError } from "./ui";
 import TeamForm from "./TeamForm";
+import MatchResult from "./MatchResult";
 import { decodeDelivery } from "../lib/roundDelivery";
 
 type SharedEntries = Record<string, Record<string, PredictionValue>>;
@@ -54,6 +55,7 @@ export default function GroupPredictions({
   canShare: boolean;
   completedIds: string[];
 }) {
+  const [requested, setRequested] = useState(false);
   const [entries, setEntries] = useState<SharedEntries>({});
   const [pending, setPending] = useState(false);
   const [ready, setReady] = useState(false);
@@ -66,7 +68,7 @@ export default function GroupPredictions({
     setReady(false);
     setError("");
     setPending(false);
-    if (!canShare || membersQueryKey === "[]") return;
+    if (!requested || !canShare || membersQueryKey === "[]") return;
     if (demo) {
       setEntries(
         Object.fromEntries(
@@ -125,6 +127,7 @@ export default function GroupPredictions({
       },
     );
   }, [
+    requested,
     canShare,
     membersQueryKey,
     groupId,
@@ -160,6 +163,7 @@ export default function GroupPredictions({
           ready={ready}
           error={error}
           completedIds={completedIds}
+          onRequest={() => setRequested(true)}
           onRetry={() => setAttempt((n) => n + 1)}
         />
       ))}
@@ -180,6 +184,7 @@ function RivalsCard({
   ready,
   error,
   completedIds,
+  onRequest,
   onRetry,
 }: {
   match: Match;
@@ -195,6 +200,7 @@ function RivalsCard({
   ready: boolean;
   error: string;
   completedIds: string[];
+  onRequest: () => void;
   onRetry: () => void;
 }) {
   const visible = participants.filter(
@@ -247,15 +253,14 @@ function RivalsCard({
           <TeamForm match={match} side="away" matches={history} />
         </div>
       </div>
-      {hasScore && (
+      {match.status === "FINISHED" && <MatchResult match={match} />}
+      {hasScore && match.status !== "FINISHED" && (
         <div className="saved-match-footer">
           <div
             className="saved-match-result"
             aria-label="Resultado real a 90 minutos"
           >
-            <span>
-              {match.status === "FINISHED" ? "Resultado" : "Marcador"} · 90 min
-            </span>
+            <span>Marcador · 90 min</span>
             <strong>
               {match.homeScore} – {match.awayScore}
             </strong>
@@ -263,57 +268,73 @@ function RivalsCard({
         </div>
       )}
       {canShare && (
-        <div className="rivals-content" aria-busy={pending || !ready}>
-          {pending || !ready ? (
-            <p className="rivals-loading" role="status">
-              Cargando pronósticos…
-            </p>
-          ) : error ? (
-            <div className="rivals-error">
-              <p role="alert">{error}</p>
-              <button className="button secondary" onClick={onRetry}>
-                Volver a intentar
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="rivals-count">
-                <span>
-                  <Users size={13} /> Compañeros
-                </span>
-                <span>
-                  {available}/{visible.length}
-                </span>
+        <details
+          className="shared-predictions"
+          onToggle={(event) => {
+            if (event.currentTarget.open) onRequest();
+          }}
+        >
+          <summary>
+            <span>
+              <Users size={14} /> Pronósticos compartidos
+            </span>
+            <span className="shared-predictions-count">
+              {visible.length}
+              <ChevronDown size={15} />
+            </span>
+          </summary>
+          <div className="rivals-content" aria-busy={pending || !ready}>
+            {pending || !ready ? (
+              <p className="rivals-loading" role="status">
+                Cargando pronósticos…
+              </p>
+            ) : error ? (
+              <div className="rivals-error">
+                <p role="alert">{error}</p>
+                <button className="button secondary" onClick={onRetry}>
+                  Volver a intentar
+                </button>
               </div>
-              {visible.length === 0 && (
-                <p className="rivals-empty">
-                  Aquí aparecerán cuando guarden su quiniela.
-                </p>
-              )}
-              <div className="rivals-grid">
-                {visible.map((person) => (
-                  <div className="rival-player" key={person.id}>
-                    <div className="rival-person">
-                      <span className="rival-avatar">
-                        {person.avatar ? (
-                          <img src={person.avatar} alt="" />
-                        ) : (
-                          person.name.trim().charAt(0).toUpperCase()
-                        )}
-                      </span>
-                      <h3 title={person.name}>{person.name}</h3>
+            ) : (
+              <>
+                <div className="rivals-count">
+                  <span>
+                    <Users size={13} /> Compañeros
+                  </span>
+                  <span>
+                    {available}/{visible.length}
+                  </span>
+                </div>
+                {visible.length === 0 && (
+                  <p className="rivals-empty">
+                    Aquí aparecerán cuando guarden su quiniela.
+                  </p>
+                )}
+                <div className="rivals-grid">
+                  {visible.map((person) => (
+                    <div className="rival-player" key={person.id}>
+                      <div className="rival-person">
+                        <span className="rival-avatar">
+                          {person.avatar ? (
+                            <img src={person.avatar} alt="" />
+                          ) : (
+                            person.name.trim().charAt(0).toUpperCase()
+                          )}
+                        </span>
+                        <h3 title={person.name}>{person.name}</h3>
+                      </div>
+                      <PickValue
+                        match={match}
+                        value={entries[person.id]?.[match.id]}
+                        condensed
+                      />
                     </div>
-                    <PickValue
-                      match={match}
-                      value={entries[person.id]?.[match.id]}
-                      condensed
-                    />
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </details>
       )}
     </article>
   );

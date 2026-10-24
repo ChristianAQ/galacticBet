@@ -131,3 +131,23 @@ it("limita la persistencia sin perder el calendario disponible en memoria", asyn
   await load();
   expect(fetch).toHaveBeenCalledTimes(1);
 });
+
+it("admite calendarios antiguos y rechaza estadísticas nuevas mal formadas", () => {
+  const read = (extra: object) =>
+    decodeCalendar({
+      formatVersion: CALENDAR_FORMAT,
+      seasonId: match.seasonId,
+      payload: JSON.stringify([{ ...match, ...extra }]),
+    });
+  expect(read({})).toHaveLength(1);
+  for (const extra of [
+    { winner: "HOME_TEAM" },
+    { winner: 1 },
+    { halfTimeHomeScore: -1 },
+    { halfTimeAwayScore: "0" },
+  ])
+    expect(() => read(extra)).toThrow();
+  expect(
+    read({ winner: "2", halfTimeHomeScore: 0, halfTimeAwayScore: 1 })[0],
+  ).toMatchObject({ winner: "2", halfTimeHomeScore: 0, halfTimeAwayScore: 1 });
+});

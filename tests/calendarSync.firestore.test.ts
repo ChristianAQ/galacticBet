@@ -86,6 +86,34 @@ describe.skipIf(!enabled)(
         (await db.doc("rounds/PD-2026-REGULAR_SEASON-38").get()).exists,
       ).toBe(true);
     });
+    it("publica descanso y ganador oficial, sin alterar el resultado a 90 minutos ni repetir escrituras", async () => {
+      const source: ApiMatch = {
+        ...finished(1, 1),
+        score: {
+          duration: "PENALTY_SHOOTOUT",
+          winner: "AWAY_TEAM",
+          halfTime: { home: 0, away: 1 },
+          regularTime: { home: 1, away: 1 },
+          fullTime: { home: 4, away: 5 },
+        },
+      };
+      await syncCalendars(db, "CL", [source]);
+      const persisted = (await db.doc("matches/1").get()).data()!;
+      const published = decodeCalendar(
+        (await db.doc("calendars/CL-2026").get()).data()!,
+      )[0];
+      for (const match of [persisted, published])
+        expect(match).toMatchObject({
+          homeScore: 1,
+          awayScore: 1,
+          winner: "2",
+          halfTimeHomeScore: 0,
+          halfTimeAwayScore: 1,
+        });
+      const batches = vi.spyOn(db, "batch");
+      await syncCalendars(db, "CL", [source]);
+      expect(batches).not.toHaveBeenCalled();
+    });
     it("una reejecución idéntica no reescribe partidos ni calendario aunque cambie el orden de la API", async () => {
       await syncCalendars(db, "PD", [raw(1), raw(2)]);
       const fixture = await db.doc("matches/1").get();

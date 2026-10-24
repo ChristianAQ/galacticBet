@@ -74,3 +74,49 @@ it("conserva las eliminatorias reales con equipos aún por determinar sin romper
     }),
   ).toEqual([m]);
 });
+
+it("conserva descanso y ganador oficial sin cambiar los goles reglamentarios", () => {
+  const match = normalize(
+    {
+      ...fixture,
+      score: {
+        ...fixture.score,
+        halfTime: { home: 0, away: 1 },
+        winner: "HOME_TEAM",
+      },
+    },
+    "CL",
+  );
+  expect(match).toMatchObject({
+    winner: "1",
+    halfTimeHomeScore: 0,
+    halfTimeAwayScore: 1,
+    homeScore: 1,
+    awayScore: 1,
+  });
+  expect(
+    decodeCalendar({
+      formatVersion: 1,
+      seasonId: match.seasonId,
+      payload: encodeCalendar([match]),
+    }),
+  ).toEqual([match]);
+});
+it("no inventa descanso o ganador ausentes ni acepta goles de descanso inválidos", () => {
+  expect(normalize(fixture, "CL").halfTimeHomeScore).toBeUndefined();
+  expect(normalize(fixture, "CL").winner).toBeUndefined();
+  const match = normalize(
+    {
+      ...fixture,
+      score: {
+        ...fixture.score,
+        halfTime: { home: -1, away: 1.5 },
+        winner: "UNKNOWN",
+      },
+    },
+    "CL",
+  );
+  expect(match.halfTimeHomeScore).toBeUndefined();
+  expect(match.halfTimeAwayScore).toBeUndefined();
+  expect(match.winner).toBeUndefined();
+});

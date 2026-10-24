@@ -1,6 +1,7 @@
 import { ArrowRight, Flag, Target } from "lucide-react";
 import type { ReactNode } from "react";
 import { matchStatusLabel, type Match } from "../lib/domain";
+import { finishedMatchResult } from "../lib/matchResult";
 import { kickoffLabel } from "../lib/matchInsights";
 import TeamForm from "./TeamForm";
 export function Empty({
@@ -90,6 +91,7 @@ export function MatchRow({
   history?: Match[];
   as?: "div" | "span";
 }) {
+  const result = finishedMatchResult(m);
   return (
     <Container className={`match-row ${history ? "with-form" : ""}`}>
       <span className="match-date">{kickoffLabel(m.utcDate)}</span>
@@ -116,8 +118,23 @@ export function MatchRow({
       ) : (
         <Team name={m.away} crest={m.awayCrest} />
       )}
-      <span className="match-status">
-        {matchStatusLabel[m.status] || m.status}
+      <span
+        className={`match-status ${result?.winnerName ? "match-status-winner" : ""}`}
+      >
+        {result ? (
+          <>
+            <span>
+              {result.winnerName
+                ? `Ganó ${result.winnerName}`
+                : result.winner === "X"
+                  ? "Empate"
+                  : "Finalizado · Ganador pendiente"}
+            </span>
+            <small>{result.decision}</small>
+          </>
+        ) : (
+          matchStatusLabel[m.status] || m.status
+        )}
       </span>
     </Container>
   );

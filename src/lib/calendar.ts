@@ -19,6 +19,9 @@ export function calendarMatch(m: Match): Match {
     homeTeamId: m.homeTeamId,
     awayTeamId: m.awayTeamId,
     scoreDuration: m.scoreDuration,
+    halfTimeHomeScore: m.halfTimeHomeScore,
+    halfTimeAwayScore: m.halfTimeAwayScore,
+    winner: m.winner,
     homeCrest: m.homeCrest,
     awayCrest: m.awayCrest,
     homeScore: m.homeScore,
@@ -57,6 +60,17 @@ export function validCalendarMatch(value: unknown): value is Match {
     [m.homeCrest, m.awayCrest, m.scoreDuration].every(
       (text) => text === undefined || typeof text === "string",
     ) &&
+    [m.halfTimeHomeScore, m.halfTimeAwayScore].every(
+      (score) =>
+        score === undefined ||
+        score === null ||
+        (Number.isInteger(score) && Number(score) >= 0),
+    ) &&
+    (m.winner === undefined ||
+      m.winner === null ||
+      m.winner === "1" ||
+      m.winner === "X" ||
+      m.winner === "2") &&
     [m.homeScore, m.awayScore].every(
       (score) =>
         score === null || (Number.isInteger(score) && Number(score) >= 0),
