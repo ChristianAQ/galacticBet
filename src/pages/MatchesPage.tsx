@@ -3,7 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import MatchDetails from "../components/MatchDetails";
 import { knockoutContext } from "../lib/matchInsights";
-import CompetitionLogo from "../components/CompetitionLogo";
+import CompetitionSwitch from "../components/CompetitionSwitch";
+import FilterPanel, { FilterField } from "../components/FilterPanel";
 import { Empty, MatchRow, PageTitle } from "../components/ui";
 import { preferredRound, roundLabel, type Match } from "../lib/domain";
 export default function MatchesPage({
@@ -43,51 +44,45 @@ export default function MatchesPage({
         eyebrow="CADA PARTIDO CUENTA"
         title="El calendario del fútbol"
       />
-      <div className="tabs">
-        {["PD", "CL"].map((c) => (
-          <button
-            aria-label={c === "PD" ? "LaLiga" : "Champions League"}
-            aria-pressed={competition === c}
-            className={competition === c ? "selected" : ""}
-            onClick={() => {
-              setParams({ competition: c });
+      <FilterPanel
+        title={competition === "PD" ? "LaLiga EA Sports" : "Champions League"}
+        summary={
+          filtered.find((m) => m.roundId === selected)
+            ? roundLabel(filtered.find((m) => m.roundId === selected)!)
+            : "Sin jornadas disponibles"
+        }
+        competition={competition}
+        applyLabel="Ver partidos"
+      >
+        <CompetitionSwitch
+          value={competition}
+          onChange={(code) => setParams({ competition: code })}
+        />
+        <FilterField label="Jornada o ronda">
+          <select
+            aria-label="Seleccionar jornada o ronda"
+            value={selected || ""}
+            disabled={!rounds.length}
+            onChange={(e) => {
+              setParams((previous) => {
+                const next = new URLSearchParams(previous);
+                next.set("round", e.target.value);
+                return next;
+              });
             }}
-            key={c}
           >
-            <CompetitionLogo code={c} small />
-            {c === "PD" ? "LaLiga" : "Champions League"}
-          </button>
-        ))}
-      </div>
-      <div className="filter-row">
-        <h2>
-          {competition === "PD" ? "LaLiga EA Sports" : "UEFA Champions League"}
-        </h2>
-        <select
-          aria-label="Seleccionar jornada o ronda"
-          value={selected || ""}
-          onChange={(e) => {
-            setParams((previous) => {
-              const next = new URLSearchParams(previous);
-              next.set("round", e.target.value);
-              return next;
-            });
-          }}
-        >
-          {rounds.length ? (
-            rounds.map((r) => {
-              const m = filtered.find((m) => m.roundId === r)!;
-              return (
+            {rounds.length ? (
+              rounds.map((r) => (
                 <option key={r} value={r}>
-                  {roundLabel(m)}
+                  {roundLabel(filtered.find((m) => m.roundId === r)!)}
                 </option>
-              );
-            })
-          ) : (
-            <option>Sin jornadas sincronizadas</option>
-          )}
-        </select>
-      </div>
+              ))
+            ) : (
+              <option value="">Sin jornadas sincronizadas</option>
+            )}
+          </select>
+        </FilterField>
+      </FilterPanel>
       <div className="match-calendar-list">
         {loading ? (
           <Empty title="Cargando partidos…">Consultando Firestore.</Empty>

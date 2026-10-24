@@ -4,10 +4,14 @@ export default function CompetitionSwitch({
   value,
   onChange,
   combined = false,
+  disabled = false,
+  available = ["PD", "CL"],
 }: {
   value: CompetitionCode;
   onChange: (value: CompetitionCode) => void;
   combined?: boolean;
+  disabled?: boolean;
+  available?: CompetitionCode[];
 }) {
   return (
     <div
@@ -15,7 +19,7 @@ export default function CompetitionSwitch({
       data-competition={value}
       data-combined={combined}
       role="group"
-      aria-label="Competición de clasificación"
+      aria-label="Elegir competición"
     >
       {(["PD", "CL"] as const).map((code) => (
         <button
@@ -23,6 +27,7 @@ export default function CompetitionSwitch({
           type="button"
           aria-label={code === "PD" ? "LaLiga" : "Champions League"}
           aria-pressed={!combined && value === code}
+          disabled={disabled || !available.includes(code)}
           onClick={() => onChange(code)}
         >
           <CompetitionLogo code={code} small />

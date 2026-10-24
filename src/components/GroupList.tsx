@@ -66,7 +66,10 @@ export default function GroupList({
                 {g.memberIds.length} participantes ·{" "}
                 {g.ownerId === uid ? "Administrador" : "Miembro"}
               </span>
-              <span className="group-member-preview">
+              <span
+                className="group-member-preview"
+                title={people?.map((person) => person.name).join(" · ")}
+              >
                 {people
                   ? people
                       .map((p) => (p.id === uid ? `${p.name} (tú)` : p.name))

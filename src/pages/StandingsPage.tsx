@@ -8,6 +8,7 @@ import {
 } from "../lib/data";
 import { type Match } from "../lib/domain";
 import CompetitionSwitch from "../components/CompetitionSwitch";
+import FilterPanel, { FilterField } from "../components/FilterPanel";
 import { privateCache } from "../lib/memoryCache";
 import { preferenceStore } from "../lib/preferences";
 import { useGroupSelection } from "../lib/useGroupSelection";
@@ -112,9 +113,17 @@ export default function StandingsPage({
         <PrivateGate onLogin={onLogin} />
       ) : (
         <>
-          <div className="filter-row standings-filters">
-            <label>
-              Grupo
+          <FilterPanel
+            title={selectedGroup?.name || "Selecciona un grupo"}
+            summary={
+              period === "round" && selectedRound
+                ? title
+                : `${scope === "global" ? "LaLiga + Champions" : competition === "PD" ? "LaLiga" : "Champions"} · ${title}`
+            }
+            competition={scope === "global" ? "global" : competition}
+            applyLabel="Ver clasificación"
+          >
+            <FilterField label="Grupo">
               <select
                 aria-label="Grupo"
                 value={groupId}
@@ -130,52 +139,49 @@ export default function StandingsPage({
                   </option>
                 ))}
               </select>
-            </label>
-          </div>
-          <CompetitionSwitch
-            value={competition}
-            combined={period === "all" && combined}
-            onChange={(value) => {
-              preferenceStore.update(user.uid, { competition: value });
-              setCombined(false);
-              setRound("");
-            }}
-          />
-          <div
-            className="standings-period"
-            data-period={period}
-            role="group"
-            aria-label="Periodo de clasificación"
-          >
-            <button
-              type="button"
-              aria-pressed={period === "round"}
-              onClick={() => setPeriod("round")}
+            </FilterField>
+            <CompetitionSwitch
+              value={competition}
+              combined={period === "all" && combined}
+              onChange={(value) => {
+                preferenceStore.update(user.uid, { competition: value });
+                setCombined(false);
+                setRound("");
+              }}
+            />
+            <div
+              className="standings-period"
+              data-period={period}
+              role="group"
+              aria-label="Periodo de clasificación"
             >
-              Por jornada
-            </button>
-            <button
-              type="button"
-              aria-pressed={period === "all"}
-              onClick={() => setPeriod("all")}
-            >
-              Todas las jornadas
-            </button>
-          </div>
-          {period === "all" && (
-            <label className="standings-global-toggle">
-              <input
-                type="checkbox"
-                checked={combined}
-                onChange={(e) => setCombined(e.target.checked)}
-              />
-              <span>Sumar LaLiga y Champions</span>
-            </label>
-          )}
-          {period === "round" && (
-            <div className="filter-row standings-filters">
-              <label>
-                Jornada o ronda
+              <button
+                type="button"
+                aria-pressed={period === "round"}
+                onClick={() => setPeriod("round")}
+              >
+                Por jornada
+              </button>
+              <button
+                type="button"
+                aria-pressed={period === "all"}
+                onClick={() => setPeriod("all")}
+              >
+                Todas las jornadas
+              </button>
+            </div>
+            {period === "all" && (
+              <label className="standings-global-toggle">
+                <input
+                  type="checkbox"
+                  checked={combined}
+                  onChange={(e) => setCombined(e.target.checked)}
+                />
+                <span>Sumar LaLiga y Champions</span>
+              </label>
+            )}
+            {period === "round" && (
+              <FilterField label="Jornada o ronda">
                 <select
                   aria-label="Jornada de clasificación"
                   value={selectedRound}
@@ -191,9 +197,9 @@ export default function StandingsPage({
                     </option>
                   ))}
                 </select>
-              </label>
-            </div>
-          )}
+              </FilterField>
+            )}
+          </FilterPanel>
           <div
             className="panel standings-panel"
             aria-busy={Boolean(loadKey && !data && !error)}

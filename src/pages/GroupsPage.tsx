@@ -17,7 +17,6 @@ import {
   type Participant,
 } from "../lib/data";
 import { preferenceStore } from "../lib/preferences";
-import { usePreferences } from "../lib/useGroupSelection";
 import type { Mode } from "../lib/domain";
 
 export default function GroupsPage({
@@ -32,8 +31,7 @@ export default function GroupsPage({
   onLogin: () => void;
 }) {
   const [params, setParams] = useSearchParams();
-  const preferences = usePreferences(user?.uid || "");
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(!params.get("group"));
   const [message, setMessage] = useState("");
   const modal =
     params.has("join") || params.get("action") === "join"
@@ -44,7 +42,7 @@ export default function GroupsPage({
   const requested = params.get("group");
   const selected = collapsed
     ? ""
-    : groups.find((g) => g.id === (requested || preferences.groupId))?.id || "";
+    : groups.find((g) => g.id === requested)?.id || "";
   useEffect(() => {
     if (user && selected)
       preferenceStore.update(user.uid, { groupId: selected });

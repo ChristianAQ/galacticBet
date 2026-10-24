@@ -3,17 +3,12 @@ import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 import { LockKeyhole, Save, Target, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import CompetitionLogo from "../components/CompetitionLogo";
+import CompetitionSwitch from "../components/CompetitionSwitch";
+import FilterPanel, { FilterField } from "../components/FilterPanel";
 import ConfirmQuiniela from "../components/ConfirmQuiniela";
 import RoundDeliveryStatus from "../components/RoundDeliveryStatus";
 import GroupPredictions from "../components/GroupPredictions";
-import {
-  Badge,
-  Empty,
-  MatchRow,
-  PageTitle,
-  readableError,
-} from "../components/ui";
+import { Empty, MatchRow, PageTitle, readableError } from "../components/ui";
 import {
   loadGameSeasons,
   loadParticipants,
@@ -344,107 +339,102 @@ export default function PredictionsPage({
                     : "Jornada abierta · Haz tu pronóstico antes del primer partido."
         }
       />
-      {!demo && (
-        <div className="filter-row">
+      <FilterPanel
+        title={
+          demo
+            ? "Grupo de demostración"
+            : selectedGroup?.name || "Selecciona tu grupo"
+        }
+        summary={`${(demo ? demoCompetition : active?.competition) === "CL" ? "Champions" : "LaLiga"} · ${list[0] ? roundLabel(list[0]) : "Sin jornada"} · ${mode === "classic" ? "Clásica 1X2" : "Marcador exacto"}`}
+        competition={
+          (demo ? demoCompetition : active?.competition) === "CL" ? "CL" : "PD"
+        }
+        applyLabel="Ver mis apuestas"
+      >
+        {!demo && (
+          <FilterField label="Grupo">
+            <select
+              aria-label="Grupo"
+              value={group}
+              disabled={selectorsDisabled}
+              onChange={(e) => setGroup(e.target.value)}
+            >
+              <option value="">Selecciona tu grupo</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </FilterField>
+        )}
+        <CompetitionSwitch
+          value={
+            (demo ? demoCompetition : active?.competition) === "CL"
+              ? "CL"
+              : "PD"
+          }
+          disabled={selectorsDisabled}
+          available={
+            demo
+              ? ["PD", "CL"]
+              : (["PD", "CL"] as const).filter((code) =>
+                  seasons.some((s) => s.competition === code),
+                )
+          }
+          onChange={(code) => {
+            if (demo) setDemoCompetition(code);
+            else {
+              if (user) preferenceStore.update(user.uid, { competition: code });
+              setSeason(seasons.find((s) => s.competition === code)?.id || "");
+            }
+            setRound("");
+          }}
+        />
+        {!demo &&
+          seasons.filter((s) => s.competition === active?.competition).length >
+            1 && (
+            <FilterField label="Temporada">
+              <select
+                aria-label="Temporada de la competición"
+                value={season}
+                disabled={selectorsDisabled}
+                onChange={(e) => {
+                  setSeason(e.target.value);
+                  setRound("");
+                }}
+              >
+                {seasons
+                  .filter((s) => s.competition === active?.competition)
+                  .map((s) => {
+                    const year = Number(s.id.split("-")[1]);
+                    return (
+                      <option key={s.id} value={s.id}>
+                        {year} / {year + 1}
+                      </option>
+                    );
+                  })}
+              </select>
+            </FilterField>
+          )}
+        <FilterField label="Jornada o ronda">
           <select
-            aria-label="Grupo"
-            value={group}
-            disabled={selectorsDisabled}
-            onChange={(e) => setGroup(e.target.value)}
+            aria-label="Jornada"
+            value={selected || ""}
+            disabled={selectorsDisabled || !rounds.length}
+            onChange={(e) => setRound(e.target.value)}
           >
-            <option value="">Selecciona tu grupo</option>
-            {groups.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
+            {!rounds.length && (
+              <option value="">Sin jornadas disponibles</option>
+            )}
+            {rounds.map((r) => (
+              <option key={r} value={r}>
+                {roundLabel(filtered.find((m) => m.roundId === r)!)}
               </option>
             ))}
           </select>
-        </div>
-      )}
-      <div
-        className="competition-picker"
-        role="group"
-        aria-label="Elegir competición de la quiniela"
-      >
-        {["PD", "CL"].map((code) => (
-          <button
-            key={code}
-            type="button"
-            aria-label={
-              code === "PD" ? "Elegir LaLiga" : "Elegir Champions League"
-            }
-            aria-pressed={
-              (demo ? demoCompetition : active?.competition) === code
-            }
-            disabled={
-              selectorsDisabled ||
-              (!demo && !seasons.some((s) => s.competition === code))
-            }
-            onClick={() => {
-              if (demo) setDemoCompetition(code);
-              else {
-                if (user)
-                  preferenceStore.update(user.uid, {
-                    competition: code as "PD" | "CL",
-                  });
-                setSeason(
-                  seasons.find((s) => s.competition === code)?.id || "",
-                );
-              }
-              setRound("");
-            }}
-          >
-            <CompetitionLogo code={code} small />
-            <span>
-              {code === "PD" ? "LaLiga EA Sports" : "Champions League"}
-            </span>
-          </button>
-        ))}
-      </div>
-      {!demo &&
-        seasons.filter((s) => s.competition === active?.competition).length >
-          1 && (
-          <label className="prediction-season-history">
-            Temporada
-            <select
-              aria-label="Temporada de la competición"
-              value={season}
-              disabled={selectorsDisabled}
-              onChange={(e) => {
-                setSeason(e.target.value);
-                setRound("");
-              }}
-            >
-              {seasons
-                .filter((s) => s.competition === active?.competition)
-                .map((s) => {
-                  const year = Number(s.id.split("-")[1]);
-                  return (
-                    <option key={s.id} value={s.id}>
-                      {year} / {year + 1}
-                    </option>
-                  );
-                })}
-            </select>
-          </label>
-        )}
-      <div className="filter-row">
-        <Badge>
-          {mode === "classic" ? "QUINIELA CLÁSICA · 1X2" : "MARCADOR EXACTO"}
-        </Badge>
-        <select
-          aria-label="Jornada"
-          value={selected || ""}
-          disabled={selectorsDisabled}
-          onChange={(e) => setRound(e.target.value)}
-        >
-          {rounds.map((r) => (
-            <option key={r} value={r}>
-              {roundLabel(filtered.find((m) => m.roundId === r)!)}
-            </option>
-          ))}
-        </select>
-      </div>
+        </FilterField>
+      </FilterPanel>
       {error && (
         <p className="error" role="alert">
           {error}

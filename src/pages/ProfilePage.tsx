@@ -294,8 +294,12 @@ export default function ProfilePage({
                 resultados anteriores a su inicio.
               </p>
               <p>
-                Los horarios usan la hora de tu dispositivo. Los resultados
-                dependen de la sincronización y pueden tener retraso.
+                Los horarios usan la hora de tu dispositivo. Los resultados se
+                sincronizan cada 2 horas y la web consulta el calendario cada 5
+                minutos mientras está visible. Puede haber retrasos del
+                proveedor o de la tarea programada. Los puntos se recalculan con
+                los partidos finalizados durante esa sincronización; vuelve a
+                entrar en Clasificación para consultar los nuevos totales.
               </p>
             </div>
           </>

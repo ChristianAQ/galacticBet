@@ -204,3 +204,12 @@ La vista de iPhone respeta las zonas seguras de la barra de estado y del indicad
 - `public`: iconos y configuración PWA.
 
 Los ficheros se crearon desde cero: el repositorio original no tenía commits ni código. La publicación de la web requiere configurar los servicios y activar GitHub Pages. Esta es una base funcional local e integrada en código; la aceptación completa de las fases que dependen de servicios requiere configurar y probar esos servicios.
+
+
+## Navegación compacta y frecuencia de actualización
+
+`FilterPanel` concentra la presentación y el comportamiento de los filtros de Quiniela, Clasificación y Partidos. Se inicia cerrado, resume la selección activa y conserva sus controles montados: abrir o cerrar no reinicia listeners ni recarga datos. `CompetitionSwitch` se comparte entre las tres páginas. El grupo y la competición se siguen recordando por usuario; las tarjetas de Mis grupos se inician cerradas, salvo enlaces explícitos a los detalles de un grupo. El estilo común utiliza las variables `--panel`, `--border`, `--surface-header` y `--surface-border` de `src/styles.css`.
+
+La tarea `Synchronize football and standings` se programa cada 2 horas, en el minuto 17 UTC (`17 */2 * * *`), y también permite ejecución manual. Football-Data.org y GitHub Actions pueden introducir retrasos. Durante la misma ejecución se recalculan puntos únicamente con partidos finalizados. La aplicación consulta el calendario público cada 5 minutos mientras está visible y al recuperar el foco, respetando la caché de 5 minutos. Los indicadores verde/gris/rojo se calculan localmente a partir de los cinco partidos finalizados anteriores al encuentro consultado; no realizan peticiones propias ni incluyen resultados posteriores a ese partido. Los huecos indican historial no disponible.
+
+La clasificación se consulta al entrar, cambiar de grupo o recuperar el foco con la caché caducada. Su caché dura 30 segundos; ese plazo no es un intervalo de sondeo y la página no consulta puntos cada 30 segundos. Las entregas y los pronósticos compartidos mantienen sus listeners acotados en tiempo real. Estos ajustes de navegación no modifican la programación del servidor ni añaden sondeos.
