@@ -4145,3 +4145,66 @@ td {
     transition: none;
   }
 }
+
+/* Standalone porra entry points. */
+.sidebar-tools {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 17px;
+}
+.sidebar-tools > .sidebar-caption {
+  display: block;
+  margin: 0 14px 12px;
+}
+.sidebar-tools > a {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  color: #c9dacb;
+  font-size: 12px;
+}
+.sidebar-tools > a.active,
+.sidebar-tools > a:hover {
+  background: #dce9d8;
+  color: #244a34;
+}
+.porra-home-link {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 18px;
+  margin: 0 0 26px;
+  border: 1px solid #c6d6bf;
+  border-radius: 12px;
+  background: #e6eedf;
+  color: #244a34;
+}
+.porra-home-icon {
+  display: grid;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  border-radius: 11px;
+  background: #d1dfc8;
+  flex-shrink: 0;
+}
+.porra-home-link > span:nth-child(2) {
+  display: grid;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+.porra-home-link strong {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.porra-home-link small {
+  font-size: 11px;
+  color: #56715c;
+  line-height: 1.5;
+}
+.porra-home-link > svg {
+  flex-shrink: 0;
+}

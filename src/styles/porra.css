@@ -1,0 +1,556 @@
+/* Light palette isolated to the standalone porra route. */
+.porra-tool {
+  --porra-paper: #eef4ed;
+  --porra-ink: #173b2d;
+  --porra-muted: #5f7665;
+  --porra-line: #cbd9c5;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 26px;
+  border: 1px solid #d6e3ce;
+  border-radius: 18px;
+  background: var(--porra-paper);
+  color: var(--porra-ink);
+}
+.porra-tool-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.porra-kicker {
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 1px;
+  color: #637d64;
+}
+.porra-tool-heading h2 {
+  margin: 8px 0 0;
+  font-size: 23px;
+  letter-spacing: -0.5px;
+}
+.porra-local-note,
+.porra-preview-status {
+  margin: 12px 0 22px;
+  font-size: 11px;
+  color: var(--porra-muted);
+  line-height: 1.6;
+}
+.porra-tool input,
+.porra-tool select {
+  border-color: var(--porra-line);
+  background: #fff;
+  color: var(--porra-ink);
+  font-size: 14px;
+  width: 100%;
+  min-height: 46px;
+  border-radius: 9px;
+  padding: 10px 12px;
+}
+.porra-tool input::placeholder {
+  color: #8a9a86;
+}
+.porra-tool :is(button, input, select, summary, a):focus-visible {
+  outline: 2px solid #466e4e;
+  outline-offset: 3px;
+}
+.porra-editor {
+  display: grid;
+  gap: 20px;
+}
+.porra-editor label {
+  color: #43634b;
+  font-size: 12px;
+  font-weight: 550;
+  gap: 8px;
+}
+.porra-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.porra-money-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 14px;
+  border: 1px solid var(--porra-line);
+  border-radius: 9px;
+  background: #fff;
+}
+.porra-money-input input {
+  border: 0;
+}
+.porra-editor-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-top: 5px;
+}
+.porra-editor-heading h3 {
+  font-size: 15px;
+  margin: 0;
+}
+.porra-editor-heading > span {
+  color: var(--porra-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.porra-player-labels,
+.porra-player-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 72px 38px;
+  align-items: center;
+  gap: 10px;
+}
+.porra-player-labels {
+  color: var(--porra-muted);
+  font-size: 10px;
+  text-align: center;
+  margin: -7px 0 -12px;
+}
+.porra-player-labels > span:first-child {
+  text-align: left;
+}
+.porra-player-fields {
+  display: grid;
+  gap: 9px;
+}
+.porra-player-field input[type="number"] {
+  text-align: center;
+  padding: 10px 5px;
+  font-variant-numeric: tabular-nums;
+  appearance: textfield;
+}
+.porra-player-field input::-webkit-inner-spin-button,
+.porra-player-field input::-webkit-outer-spin-button {
+  appearance: none;
+}
+.porra-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  min-height: 44px;
+  color: #647b65;
+  border-radius: 7px;
+}
+.porra-remove:hover:not(:disabled) {
+  background: #e4dcd2;
+  color: #8a4b37;
+}
+.porra-add {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #365f41;
+}
+.porra-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px 16px;
+  border-radius: 9px;
+  border: 1px solid #244b36;
+  background: #244b36;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.porra-button:hover:not(:disabled) {
+  background: #315f44;
+}
+.porra-button.secondary {
+  background: #fff;
+  border-color: var(--porra-line);
+  color: #365f41;
+}
+.porra-button.secondary:hover:not(:disabled) {
+  background: #e1ebdb;
+}
+.porra-editor-total {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 17px;
+  border: 1px solid var(--porra-line);
+  border-radius: 11px;
+  background: #e2ecdc;
+}
+.porra-editor-total > div {
+  display: grid;
+  gap: 5px;
+}
+.porra-editor-total span,
+.porra-editor-total small {
+  font-size: 11px;
+  color: #56705a;
+}
+.porra-editor-total strong {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+}
+.porra-editor-total small {
+  margin-left: auto;
+}
+.porra-editor-actions,
+.porra-preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.porra-preview-actions {
+  justify-content: flex-start;
+  margin-top: 18px;
+}
+.porra-message {
+  padding: 12px 14px;
+  margin: 12px 0;
+  background: #e1ebda;
+  border: 1px solid #c5d6bc;
+  border-radius: 9px;
+  color: #3e6146;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.porra-message.error-note {
+  background: #f5e6da;
+  border-color: #dcc5b4;
+  color: #834b33;
+}
+.porra-message a {
+  text-decoration: underline;
+}
+.porra-ticket {
+  max-width: 640px;
+  margin: 22px auto 0;
+  background: #fff;
+  border: 1px solid #c8d7bf;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 8px 25px #27452c09;
+}
+.porra-ticket-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 20px;
+  background: #e0ebd9;
+  border-bottom: 1px solid #c8d7bf;
+}
+.porra-ticket-header > strong {
+  font-size: 17px;
+  letter-spacing: -0.6px;
+}
+.porra-ticket-header > strong > span {
+  color: #648344;
+}
+.porra-ticket-header small {
+  font-size: 8px;
+  color: #637b61;
+  letter-spacing: 0.8px;
+}
+.porra-ticket-header > span {
+  font-size: 8px;
+  color: #637b61;
+  font-weight: 600;
+}
+.porra-ticket-match {
+  padding: 17px 20px;
+  text-align: center;
+}
+.porra-competition {
+  color: #627c62;
+  font-size: 10px;
+}
+.porra-ticket-match h2 {
+  font-size: 20px;
+  line-height: 1.4;
+  margin: 7px 0 16px;
+  overflow-wrap: anywhere;
+}
+.porra-teams {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 25px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+.porra-teams > div {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+.porra-team-badge {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #e1ebdc;
+  color: #3e6146;
+  font-size: 12px;
+  font-weight: 700;
+}
+.porra-teams strong {
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.porra-teams > span {
+  color: #8a9a86;
+  font-size: 10px;
+}
+.porra-ticket-match > time {
+  display: block;
+  margin-top: 15px;
+  font-size: 10px;
+  color: #627c62;
+}
+.porra-ticket-players {
+  display: grid;
+  gap: 6px;
+  padding: 0 16px 16px;
+  margin: 0;
+  list-style: none;
+}
+.porra-ticket-players.is-dense {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.porra-ticket-players > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  background: #f0f5ed;
+  border: 1px solid #e1eada;
+  border-radius: 7px;
+  min-width: 0;
+}
+.porra-ticket-players > li > span {
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.porra-ticket-players strong {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  color: #244a34;
+}
+.porra-ticket-players strong > span {
+  color: #8a9a86;
+  font-weight: 400;
+}
+.porra-ticket-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 17px 20px;
+  background: #244b36;
+  color: #f3f6ed;
+}
+.porra-ticket-total > div {
+  display: grid;
+  gap: 5px;
+}
+.porra-ticket-total span {
+  font-size: 10px;
+  color: #d4e0cc;
+}
+.porra-ticket-total strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.porra-ticket-total > b {
+  font-size: 28px;
+  color: #f1edc6;
+  font-variant-numeric: tabular-nums;
+}
+.porra-ticket-note {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 9px;
+  color: #6b7e67;
+  text-align: center;
+}
+.porra-saved {
+  margin-top: 24px;
+  border-top: 1px solid var(--porra-line);
+}
+.porra-saved > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 18px 0;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.porra-saved > summary > span:last-child,
+.porra-saved > p {
+  color: var(--porra-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.porra-saved > ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.porra-saved li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 9px;
+  border: 1px solid var(--porra-line);
+  border-radius: 9px;
+  background: #fff;
+}
+.porra-saved li > button:first-child {
+  display: grid;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  text-align: left;
+}
+.porra-saved li strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.porra-saved li span,
+.porra-saved li small {
+  font-size: 11px;
+  color: var(--porra-muted);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .porra-tool {
+    padding: 18px 14px;
+    border-radius: 14px;
+  }
+  .porra-tool-heading h2 {
+    font-size: 21px;
+  }
+  .porra-fields {
+    grid-template-columns: 1fr;
+  }
+  .porra-tool input,
+  .porra-tool select {
+    font-size: 16px;
+  }
+  .porra-player-field,
+  .porra-player-labels {
+    grid-template-columns: minmax(0, 1fr) 47px 47px 32px;
+    gap: 6px;
+  }
+  .porra-player-field input:first-child {
+    padding-left: 9px;
+    padding-right: 6px;
+  }
+  .porra-remove {
+    width: 32px;
+  }
+  .porra-preview-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .porra-preview-actions > .porra-button {
+    padding: 10px 6px;
+    font-size: 11px;
+  }
+  .porra-ticket-header,
+  .porra-ticket-match,
+  .porra-ticket-total {
+    padding-left: 13px;
+    padding-right: 13px;
+  }
+  .porra-ticket-header {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .porra-ticket-match h2 {
+    font-size: 18px;
+  }
+  .porra-ticket-players {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .porra-ticket-players > li {
+    padding: 8px 9px;
+  }
+  .porra-ticket-players.is-dense > li {
+    padding: 7px;
+    gap: 5px;
+  }
+  .porra-ticket-players.is-dense > li > span {
+    font-size: 10px;
+  }
+  .porra-ticket-players.is-dense strong {
+    font-size: 14px;
+    gap: 4px;
+  }
+  .porra-home-link {
+    padding: 14px;
+    gap: 11px;
+  }
+  .porra-home-icon {
+    width: 34px;
+    height: 37px;
+  }
+}
+
+.porra-tool {
+  scroll-margin-top: calc(88px + var(--safe-area-top));
+}
+.porra-tool-heading h2:focus {
+  outline: 0;
+}
+.porra-capture-modal {
+  width: 740px;
+  padding: 16px;
+  background: #eef4ed;
+  border-color: #cbd9c5;
+  color: #173b2d;
+}
+.porra-capture-modal h2 {
+  margin: 0 32px 12px 0;
+  font-size: 14px;
+}
+.porra-capture-modal .modal-close {
+  top: 7px;
+  right: 7px;
+  color: #365f41;
+}
+.porra-capture-modal > img {
+  display: block;
+  width: 100%;
+  max-height: calc(
+    100dvh - 130px - var(--safe-area-top) - var(--safe-area-bottom)
+  );
+  object-fit: contain;
+}

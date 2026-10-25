@@ -43,6 +43,7 @@ const pageLoaders = {
   "/grupos": () => import("./pages/GroupsPage"),
   "/clasificacion": () => import("./pages/StandingsPage"),
   "/perfil": () => import("./pages/ProfilePage"),
+  "/porra": () => import("./pages/PorraPage"),
 };
 const HomePage = lazy(pageLoaders["/"]);
 const MatchesPage = lazy(pageLoaders["/partidos"]);
@@ -50,6 +51,7 @@ const PredictionsPage = lazy(pageLoaders["/quiniela"]);
 const GroupsPage = lazy(pageLoaders["/grupos"]);
 const StandingsPage = lazy(pageLoaders["/clasificacion"]);
 const ProfilePage = lazy(pageLoaders["/perfil"]);
+const PorraPage = lazy(pageLoaders["/porra"]);
 function preloadPage(path: string) {
   const load = pageLoaders[path as keyof typeof pageLoaders];
   if (load) void load().catch(() => {});
@@ -350,6 +352,22 @@ export default function App() {
                       onLogin={() => setLogin(true)}
                       onUpdated={() => setProfileVersion((v) => v + 1)}
                     />
+                  }
+                />
+                <Route
+                  path="/porra"
+                  element={
+                    !authReady ? (
+                      <Empty title="Preparando tus porras…">Un momento.</Empty>
+                    ) : (
+                      <PorraPage
+                        key={user?.uid || "guest"}
+                        owner={user?.uid || "guest"}
+                        matches={matches}
+                        demo={demo}
+                        loading={loading}
+                      />
+                    )
                   }
                 />
                 <Route

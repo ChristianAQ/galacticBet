@@ -2,6 +2,7 @@ import {
   ArrowRight,
   CalendarDays,
   Plus,
+  NotebookPen,
   ShieldCheck,
   Users,
   Zap,
@@ -66,6 +67,18 @@ export default function HomePage({
         now={now}
         loading={loading}
       />
+      <Link to="/porra" className="porra-home-link">
+        <span className="porra-home-icon">
+          <NotebookPen size={23} />
+        </span>
+        <span>
+          <strong>Una porra para el próximo partido</strong>
+          <small>
+            Anota marcadores, calcula el bote y comparte la tarjeta.
+          </small>
+        </span>
+        <ArrowRight size={18} />
+      </Link>
       <div className="dashboard-columns">
         <section>
           <div className="section-heading">

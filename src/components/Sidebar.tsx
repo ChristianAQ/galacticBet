@@ -2,6 +2,7 @@ import {
   ArrowUpRight,
   CircleHelp,
   Plus,
+  NotebookPen,
   Users,
   X,
   Zap,
@@ -127,6 +128,17 @@ export default function Sidebar({
             </NavLink>
           ))}
         </nav>
+        <div className="sidebar-tools">
+          <span className="sidebar-caption">HERRAMIENTAS</span>
+          <NavLink
+            to="/porra"
+            onPointerEnter={() => onPrefetch?.("/porra")}
+            onFocus={() => onPrefetch?.("/porra")}
+            onPointerDown={() => onPrefetch?.("/porra")}
+          >
+            <NotebookPen size={19} /> Porra rápida
+          </NavLink>
+        </div>
         <div className="sidebar-competitions">
           <span className="sidebar-caption">COMPETICIONES</span>
           <Link to="/partidos?competition=PD">
