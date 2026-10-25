@@ -10,6 +10,8 @@ Requisitos: Node.js 24 y npm. Java 21 para las pruebas de Firestore.
 npm ci
 npm run dev
 ```
+
+
   
 En este entorno en la nube usa `npm ci --cache /tmp/galacticbet-npm-cache` si la caché personal no es escribible. Utiliza el checkout existente: las tareas ya están aisladas y no necesitan un worktree.
 
