@@ -20,7 +20,11 @@ import { scoringCalendar, syncCalendars } from "../scripts/calendarSync";
 import { recompute } from "../scripts/recompute";
 import { normalize, type ApiMatch } from "../scripts/normalize";
 import { decodeCalendar } from "../src/lib/calendar";
-import { decodeDelivery, encodeDelivery } from "../src/lib/roundDelivery";
+import {
+  decodeDelivery,
+  encodeDelivery,
+  requiresDelivery,
+} from "../src/lib/roundDelivery";
 
 const enabled = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 const raw = (id: number): ApiMatch => ({
@@ -251,8 +255,21 @@ describe.skipIf(!enabled)(
     });
     it("puntúa solo las entregas completas nuevas y usa la copia inmutable, no el borrador", async () => {
       const policies = new Map<string, string>();
-      const cache = await syncCalendars(db, "PD", [finished(2, 1)], policies);
-      const rid = normalize(raw(1), "PD").roundId;
+      // Keep this round after activation on any runner date, rather than letting
+      // a fixed kickoff turn the new-delivery case into a historical round.
+      const scheduled = {
+        ...raw(1),
+        utcDate: new Date(Date.now() + 86_400_000).toISOString(),
+      };
+      await syncCalendars(db, "PD", [scheduled], policies);
+      const activatedAt = policies.get("PD-2026");
+      const rid = normalize(scheduled, "PD").roundId;
+      expect(requiresDelivery([normalize(scheduled, "PD")], activatedAt)).toBe(
+        true,
+      );
+      expect(
+        (await db.doc(`rounds/${rid}`).get()).data()?.requiresSubmission,
+      ).toBe(true);
       const season = db.doc("groups/g/gameSeasons/PD-2026");
       await db.doc("groups/g").set({ memberIds: ["alice", "bob"] });
       await season.set({
@@ -277,6 +294,10 @@ describe.skipIf(!enabled)(
           submittedAt: Timestamp.now(),
           ...encodeDelivery("classic", ["1"], { "1": "1" }),
         });
+      const completed = { ...finished(2, 1), utcDate: scheduled.utcDate };
+      const cache = await syncCalendars(db, "PD", [completed], policies);
+      expect(policies.get("PD-2026")).toBe(activatedAt);
+      expect(requiresDelivery(cache.get("PD-2026")!, activatedAt)).toBe(true);
       await recompute(db, cache, policies);
       expect(
         (await season.collection("standings").doc("alice").get()).data()
@@ -336,9 +357,17 @@ describe.skipIf(!enabled)(
       const cache = await syncCalendars(
         db,
         "PD",
-        [{ ...finished(2, 1), utcDate: "2026-01-01T19:00:00Z" }],
+        [
+          {
+            ...finished(2, 1),
+            utcDate: new Date(Date.now() - 86_400_000).toISOString(),
+          },
+        ],
         policies,
       );
+      expect(
+        requiresDelivery(cache.get("PD-2026")!, policies.get("PD-2026")),
+      ).toBe(false);
       const season = db.doc("groups/g/gameSeasons/PD-2026");
       await db.doc("groups/g").set({ memberIds: ["alice"] });
       await season.set({
