@@ -1,49 +1,17 @@
-import { useEffect, useState } from "react";
+import { hasCurrentProbability } from "../lib/matchProbability";
 import type { Match } from "../lib/domain";
 import type { MatchProbability as Probability } from "../lib/matchProbability";
 export default function MatchProbability({
   match,
   probability,
+  now = Date.now(),
 }: {
   match: Match;
   probability?: Probability;
+  now?: number;
 }) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const refresh = () => {
-      if (!document.hidden) setNow(Date.now());
-    };
-    const timer = window.setInterval(refresh, 30_000);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, []);
-  if (
-    !["TIMED", "SCHEDULED"].includes(match.status) ||
-    Date.parse(match.utcDate) <= now
-  )
-    return (
-      <p className="match-extra-empty">
-        La probabilidad previa solo se muestra antes del partido.
-      </p>
-    );
-  if (
-    !probability ||
-    Date.parse(probability.fetchedAt) > now ||
-    now - Date.parse(probability.fetchedAt) > 36 * 3_600_000 ||
-    (probability.marketUpdatedAt !== undefined &&
-      (Date.parse(probability.marketUpdatedAt) > now ||
-        now - Date.parse(probability.marketUpdatedAt) > 36 * 3_600_000))
-  )
-    return (
-      <p className="match-extra-empty">
-        ESPN todavía no ofrece una probabilidad actualizada para este encuentro.
-      </p>
-    );
+  if (!probability || !hasCurrentProbability(match, probability, now))
+    return null;
   const options = [
     { label: match.home, value: probability.home, code: "1" },
     { label: "Empate", value: probability.draw, code: "X" },

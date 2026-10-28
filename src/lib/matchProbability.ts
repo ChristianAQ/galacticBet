@@ -1,3 +1,4 @@
+import type { Match } from "./domain";
 export interface MatchProbability {
   home: number;
   draw: number;
@@ -114,4 +115,21 @@ export function probabilityFromOdds(
     };
     if (validProbability(result)) return result;
   }
+}
+
+export function hasCurrentProbability(
+  match: Pick<Match, "status" | "utcDate">,
+  probability: MatchProbability | undefined,
+  now: number,
+) {
+  return (
+    ["TIMED", "SCHEDULED"].includes(match.status) &&
+    Date.parse(match.utcDate) > now &&
+    validProbability(probability) &&
+    Date.parse(probability.fetchedAt) <= now &&
+    now - Date.parse(probability.fetchedAt) <= 36 * 3_600_000 &&
+    (probability.marketUpdatedAt === undefined ||
+      (Date.parse(probability.marketUpdatedAt) <= now &&
+        now - Date.parse(probability.marketUpdatedAt) <= 36 * 3_600_000))
+  );
 }

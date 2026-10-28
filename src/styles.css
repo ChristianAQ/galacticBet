@@ -3945,8 +3945,7 @@ td {
 .finished-result {
   border-top: 1px solid var(--border);
 }
-.shared-predictions > summary,
-.match-result-stats > summary {
+.shared-predictions > summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3958,12 +3957,10 @@ td {
   cursor: pointer;
   list-style: none;
 }
-.shared-predictions > summary::-webkit-details-marker,
-.match-result-stats > summary::-webkit-details-marker {
+.shared-predictions > summary::-webkit-details-marker {
   display: none;
 }
-.shared-predictions > summary > span,
-.match-result-stats > summary > span {
+.shared-predictions > summary > span {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -3973,12 +3970,10 @@ td {
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
-.shared-predictions summary svg,
-.match-result-stats summary > svg {
+.shared-predictions summary svg {
   transition: transform 160ms ease;
 }
-.shared-predictions[open] .shared-predictions-count > svg,
-.match-result-stats[open] > summary > svg {
+.shared-predictions[open] .shared-predictions-count > svg {
   transform: rotate(180deg);
 }
 .shared-predictions .rivals-content {
@@ -4043,58 +4038,6 @@ td {
   color: #c4cbd7;
   font-size: 10px;
 }
-.match-result-stats {
-  border-top: 1px solid var(--border);
-}
-.match-result-stats > summary {
-  color: var(--green);
-  font-size: 10px;
-}
-.match-result-stats-body {
-  padding: 0 16px 14px;
-}
-.match-result-stats table {
-  table-layout: fixed;
-  width: 100%;
-}
-.match-result-stats th,
-.match-result-stats td {
-  padding: 10px 5px;
-  font-size: 11px;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-.match-result-stats th:first-child {
-  width: 40%;
-  text-align: left;
-}
-.match-result-stats thead th {
-  font-size: 10px;
-  color: var(--muted);
-}
-.match-result-stats tbody th {
-  color: #c4cbd7;
-  font-weight: 400;
-}
-.match-goals-total {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 10px;
-  margin-top: 10px;
-  border: 1px solid var(--surface-border);
-  border-radius: 7px;
-  font-size: 11px;
-  color: #c4cbd7;
-}
-.match-goals-total > strong {
-  color: var(--gold);
-  font-size: 16px;
-  font-variant-numeric: tabular-nums;
-}
 .result-pending {
   padding: 0 16px 12px;
 }
@@ -4133,15 +4076,13 @@ td {
   .finished-winner strong {
     font-size: 12px;
   }
-  .shared-predictions > summary,
-  .match-result-stats > summary {
+  .shared-predictions > summary {
     padding: 11px 13px;
     font-size: 10px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .shared-predictions summary svg,
-  .match-result-stats summary > svg {
+  .shared-predictions summary svg {
     transition: none;
   }
 }

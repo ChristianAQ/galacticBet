@@ -8,6 +8,7 @@ import {
 } from "../scripts/espn";
 import {
   insightCandidates,
+  insightCalendarWindows,
   insightRefreshInterval,
   syncMatchInsights,
   type StoredMatchInsight,
@@ -147,19 +148,17 @@ describe("sincronización acotada de información complementaria", () => {
       makeMatch(String(i + 1), HOUR),
     );
     const { db, docs } = database();
-    const odds = vi
-      .fn()
-      .mockResolvedValue({
-        items: [
-          {
-            provider: { name: "Proveedor" },
-            lastUpdated: new Date(now).toISOString(),
-            homeTeamOdds: { moneyLine: -110 },
-            drawOdds: { moneyLine: 250 },
-            awayTeamOdds: { moneyLine: 300 },
-          },
-        ],
-      });
+    const odds = vi.fn().mockResolvedValue({
+      items: [
+        {
+          provider: { name: "Proveedor" },
+          lastUpdated: new Date(now).toISOString(),
+          homeTeamOdds: { moneyLine: -110 },
+          drawOdds: { moneyLine: 250 },
+          awayTeamOdds: { moneyLine: 300 },
+        },
+      ],
+    });
     const report = await syncMatchInsights(db, fixtures, {
       now,
       client: { ...clientFor(fixtures), odds },
@@ -180,6 +179,109 @@ describe("sincronización acotada de información complementaria", () => {
     expect(report.stopped).toBe(true);
     expect(docs.get("1")?.insight?.venue).toBe("Estadio del partido");
     expect(client.summary).toHaveBeenCalledTimes(1);
+  });
+  it("recupera la jornada anterior fuera de 48 h y no confunde un aplazado con la última ronda", () => {
+    const finished = (
+      id: string,
+      day: number,
+      roundId: string,
+      matchday: number,
+    ) => ({
+      ...makeMatch(id, -day * 24 * HOUR),
+      status: "FINISHED",
+      roundId,
+      matchday,
+    });
+    const fixtures = [
+      finished("old", 30, "r8", 8),
+      finished("postponed", 1, "r8", 8),
+      finished("previous", 10, "r9", 9),
+      finished("current", 3, "r10", 10),
+    ];
+    const ids = insightCandidates(fixtures, now).map((m) => m.id);
+    expect(ids).toContain("previous");
+    expect(ids).toContain("current");
+    expect(ids).toContain("postponed"); // still in the recent 48-hour window
+    expect(ids).not.toContain("old");
+  });
+  it("reserva lecturas para el histórico y rota jornadas grandes sin superar 80", () => {
+    const history = Array.from({ length: 110 }, (_, i) => ({
+      ...makeMatch(String(i + 1), -7 * 24 * HOUR),
+      status: "FINISHED",
+      roundId: "previous",
+    }));
+    const upcoming = Array.from({ length: 50 }, (_, i) => ({
+      ...makeMatch(String(i + 200), HOUR),
+      roundId: "future",
+    }));
+    const seen = new Set<string>();
+    for (let cycle = 0; cycle < 4; cycle++) {
+      const candidates = insightCandidates(
+        [...upcoming, ...history],
+        now + cycle * 2 * HOUR,
+      );
+      expect(candidates.length).toBeLessThanOrEqual(80);
+      for (const m of candidates.filter((m) => m.status === "FINISHED"))
+        seen.add(m.id);
+    }
+    expect(seen.size).toBe(110);
+  });
+  it("divide los calendarios antiguos en ventanas de hasta cinco días", () => {
+    const fixtures = [
+      makeMatch("1", -21 * 24 * HOUR),
+      makeMatch("2", -20 * 24 * HOUR),
+      makeMatch("3", -7 * 24 * HOUR),
+      makeMatch("4", HOUR),
+    ];
+    const windows = insightCalendarWindows(fixtures);
+    expect(windows).toHaveLength(3);
+    expect(windows[0].matchIds).toEqual(["1", "2"]);
+    for (const window of windows) {
+      const date = (s: string) =>
+        Date.parse(`${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6)}T00:00:00Z`);
+      expect(date(window.to) - date(window.from)).toBeLessThanOrEqual(
+        4 * 24 * HOUR,
+      );
+    }
+  });
+  it("carga estadísticas de la jornada pasada y después conserva la caché siete días", async () => {
+    const match = { ...makeMatch("1", -7 * 24 * HOUR), status: "FINISHED" };
+    const { db, docs } = database();
+    const client = clientFor([match]);
+    client.summary.mockResolvedValue({
+      ...makeSummary(makeEvent(match)),
+      boxscore: {
+        teams: [
+          {
+            team: { id: "81" },
+            statistics: [{ name: "possessionPct", displayValue: "63%" }],
+          },
+          {
+            team: { id: "91" },
+            statistics: [{ name: "possessionPct", displayValue: "37%" }],
+          },
+        ],
+      },
+    });
+    expect(
+      (await syncMatchInsights(db, [match], { now, client, log })).summaries,
+    ).toBe(1);
+    expect(docs.get("1")?.insight?.statistics).toEqual([
+      { label: "Posesión", home: "63%", away: "37%" },
+    ]);
+    expect(
+      (
+        await syncMatchInsights(db, [match], {
+          now: now + 2 * 24 * HOUR,
+          client,
+          log,
+        })
+      ).summaries,
+    ).toBe(0);
+    expect(insightRefreshInterval(match, now, docs.get("1")?.insight)).toBe(
+      7 * 24 * HOUR,
+    );
+    expect(insightRefreshInterval(match, now, null)).toBe(24 * HOUR);
   });
   it("limita candidatos a 48 h anteriores/24 h futuras, 80 lecturas y excluye cancelados", () => {
     const fixtures = Array.from({ length: 90 }, (_, index) =>

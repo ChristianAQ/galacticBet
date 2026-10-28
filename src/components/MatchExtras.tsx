@@ -1,7 +1,7 @@
 import MatchStatistics from "./MatchStatistics";
 import MatchTimeline from "./MatchTimeline";
 import MatchProbability from "./MatchProbability";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {
   ArrowUpRight,
   ChartNoAxesColumnIncreasing,
@@ -22,7 +22,7 @@ import {
 import "../styles/matchExtras.css";
 import LineupPitch from "./LineupPitch";
 
-type DetailTab = "goals" | "lineups" | "statistics" | "probability";
+import { availableMatchTabs, type DetailTab } from "../lib/matchDetailTabs";
 const detailTabs = [
   {
     id: "probability",
@@ -106,9 +106,27 @@ export default function MatchExtras({
   onRetry: () => void;
   demo?: boolean;
 }) {
-  const [tab, setTab] = useState<DetailTab>(
+  const [selectedTab, setTab] = useState<DetailTab>(
     ["TIMED", "SCHEDULED"].includes(match.status) ? "probability" : "goals",
   );
+  const [clockTick, setNow] = useState(Date.now());
+  const now = Math.max(clockTick, Date.now());
+  useEffect(() => {
+    const refresh = () => {
+      if (!document.hidden) setNow(Date.now());
+    };
+    const timer = window.setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
+  const available =
+    !loading && !error && !demo ? availableMatchTabs(match, insight, now) : [];
+  const tab = available.includes(selectedTab) ? selectedTab : available[0];
   const headingId = useId();
   const panelId = useId();
   const links = matchExternalLinks(match, insight);
@@ -149,24 +167,31 @@ export default function MatchExtras({
         </p>
       ) : (
         <>
-          <div
-            className="match-extra-tabs"
-            role="group"
-            aria-label="Información del partido"
-          >
-            {detailTabs.map(({ id, label, Icon }) => (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={tab === id}
-                aria-controls={panelId}
-                onClick={() => setTab(id)}
-              >
-                <Icon size={15} aria-hidden="true" />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
+          {available.length > 0 && (
+            <div
+              className="match-extra-tabs"
+              style={{
+                gridTemplateColumns: `repeat(${available.length}, minmax(0, 1fr))`,
+              }}
+              role="group"
+              aria-label="Información del partido"
+            >
+              {detailTabs
+                .filter((item) => available.includes(item.id))
+                .map(({ id, label, Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={tab === id}
+                    aria-controls={panelId}
+                    onClick={() => setTab(id)}
+                  >
+                    <Icon size={15} aria-hidden="true" />
+                    <span>{label}</span>
+                  </button>
+                ))}
+            </div>
+          )}
           <div
             id={panelId}
             tabIndex={-1}
@@ -191,10 +216,15 @@ export default function MatchExtras({
                   <RefreshCw size={14} aria-hidden="true" /> Reintentar
                 </button>
               </div>
+            ) : !tab ? (
+              <p className="match-extra-empty">
+                Información del partido pendiente de publicación.
+              </p>
             ) : tab === "probability" ? (
               <MatchProbability
                 match={match}
                 probability={insight?.probability}
+                now={now}
               />
             ) : !insight ? (
               <p className="match-extra-empty">

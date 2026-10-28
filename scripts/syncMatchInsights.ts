@@ -30,35 +30,133 @@ interface SyncOptions {
   client?: EspnClient;
   log?: (message: string) => void;
 }
-export function insightRefreshInterval(match: Match, now: number) {
-  if (match.status === "FINISHED") return 24 * HOUR;
+export function insightRefreshInterval(
+  match: Match,
+  now: number,
+  insight?: MatchInsight | null,
+) {
+  if (match.status === "FINISHED")
+    return now - Date.parse(match.utcDate) > 48 * HOUR &&
+      insight?.statistics.length
+      ? 7 * 24 * HOUR
+      : 24 * HOUR;
   return Date.parse(match.utcDate) - now > 2 * HOUR ? 12 * HOUR : 2 * HOUR;
 }
 export function insightCandidates(matches: Match[], now: number) {
   const seen = new Set<string>();
-  return matches
-    .filter((match) => {
-      const date = Date.parse(match.utcDate);
-      if (
-        !/^[a-zA-Z0-9_-]{1,100}$/.test(match.id) ||
-        seen.has(match.id) ||
-        !Number.isFinite(date) ||
-        date < now - 48 * HOUR ||
-        date > now + 24 * HOUR ||
-        !["SCHEDULED", "TIMED", "IN_PLAY", "PAUSED", "FINISHED"].includes(
-          match.status,
-        )
+  const valid = matches.filter((match) => {
+    if (
+      !COMPETITION_CODES.some((code) => code === match.competition) ||
+      !/^[a-zA-Z0-9_-]{1,100}$/.test(match.id) ||
+      seen.has(match.id) ||
+      !Number.isFinite(Date.parse(match.utcDate))
+    )
+      return false;
+    seen.add(match.id);
+    return true;
+  });
+  // Round start, rather than the last postponed fixture, determines round order.
+  const rounds = new Map<
+    string,
+    { season: string; competition: Match["competition"]; start: number }
+  >();
+  for (const match of valid) {
+    const key = `${match.seasonId}:${match.roundId}`;
+    const previous = rounds.get(key);
+    rounds.set(key, {
+      season: match.seasonId,
+      competition: match.competition,
+      start: Math.min(previous?.start ?? Infinity, Date.parse(match.utcDate)),
+    });
+  }
+  const recentRounds = new Set<string>();
+  for (const code of COMPETITION_CODES) {
+    const seasons = [
+      ...new Set(
+        valid.filter((m) => m.competition === code).map((m) => m.seasonId),
+      ),
+    ].sort();
+    const season = seasons.at(-1);
+    const started = [...rounds.entries()]
+      .filter(
+        ([, r]) =>
+          r.competition === code && r.season === season && r.start <= now,
       )
-        return false;
-      seen.add(match.id);
-      return true;
-    })
+      .sort((a, b) => b[1].start - a[1].start);
+    for (const [key] of started.slice(0, 2)) recentRounds.add(key);
+  }
+  const recent = valid
+    .filter(
+      (m) =>
+        Date.parse(m.utcDate) >= now - 48 * HOUR &&
+        Date.parse(m.utcDate) <= now + 24 * HOUR &&
+        ["SCHEDULED", "TIMED", "IN_PLAY", "PAUSED", "FINISHED"].includes(
+          m.status,
+        ),
+    )
     .sort(
       (a, b) =>
         Math.abs(Date.parse(a.utcDate) - now) -
-        Math.abs(Date.parse(b.utcDate) - now),
+          Math.abs(Date.parse(b.utcDate) - now) || a.id.localeCompare(b.id),
+    );
+  const archive = valid
+    .filter(
+      (m) =>
+        m.status === "FINISHED" &&
+        Date.parse(m.utcDate) < now - 48 * HOUR &&
+        recentRounds.has(`${m.seasonId}:${m.roundId}`),
     )
-    .slice(0, MAX_DOCUMENT_READS);
+    .sort(
+      (a, b) =>
+        Date.parse(b.utcDate) - Date.parse(a.utcDate) ||
+        a.id.localeCompare(b.id),
+    );
+  // Reserve room for past rounds and rotate overflow, so large UCL rounds cannot starve.
+  const offset =
+    archive.length > 40
+      ? (Math.floor(now / (2 * HOUR)) * 40) % archive.length
+      : 0;
+  const history = [...archive.slice(offset), ...archive.slice(0, offset)];
+  const selected = [
+    ...recent.slice(0, 40),
+    ...history.slice(0, 40),
+    ...recent.slice(40),
+    ...history.slice(40),
+  ];
+  return selected.slice(0, MAX_DOCUMENT_READS);
+}
+
+export function insightCalendarWindows(matches: Match[]) {
+  const windows: {
+    competition: Match["competition"];
+    from: string;
+    to: string;
+    matchIds: string[];
+  }[] = [];
+  const dayNumber = (date: number) => Math.floor(date / (24 * HOUR));
+  for (const code of COMPETITION_CODES) {
+    const sorted = matches
+      .filter((m) => m.competition === code)
+      .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate));
+    let current: (typeof windows)[number] | undefined;
+    let firstDay = 0;
+    for (const match of sorted) {
+      const date = Date.parse(match.utcDate);
+      if (!current || dayNumber(date + 15 * 60_000) - firstDay > 4) {
+        firstDay = dayNumber(date - 15 * 60_000);
+        current = {
+          competition: code,
+          from: apiDate(date - 15 * 60_000),
+          to: apiDate(date + 15 * 60_000),
+          matchIds: [],
+        };
+        windows.push(current);
+      }
+      current.to = apiDate(date + 15 * 60_000);
+      current.matchIds.push(match.id);
+    }
+  }
+  return windows;
 }
 function validPrevious(
   value: Record<string, unknown> | undefined,
@@ -146,7 +244,8 @@ export async function syncMatchInsights(
       const fresh =
         previous &&
         checkedAt <= now &&
-        now - checkedAt < insightRefreshInterval(match, now) &&
+        now - checkedAt <
+          insightRefreshInterval(match, now, previous.insight) &&
         previous.status === match.status;
       if (fresh) report.skipped++;
       return !fresh;
@@ -162,40 +261,42 @@ export async function syncMatchInsights(
     );
     return report;
   }
-  const listings = new Map<Match["competition"], EspnEvent[]>();
+  const windows = insightCalendarWindows(pending.map((p) => p.match));
+  const windowForMatch = new Map(
+    windows.flatMap((window) =>
+      window.matchIds.map((id) => [id, window] as const),
+    ),
+  );
+  const listings = new Map<(typeof windows)[number], EspnEvent[] | null>();
   const updates: { id: string; data: StoredMatchInsight }[] = [];
   try {
-    // One interval query per competition, irrespective of the number of fixtures.
-    for (const code of COMPETITION_CODES) {
-      const dates = pending
-        .filter((item) => item.match.competition === code)
-        .map((item) => Date.parse(item.match.utcDate));
-      if (!dates.length) continue;
-      report.scoreboards++;
-      try {
-        listings.set(
-          code,
-          await client.scoreboard(
-            code,
-            apiDate(Math.min(...dates) - 15 * 60_000),
-            apiDate(Math.max(...dates) + 15 * 60_000),
-          ),
-        );
-      } catch (error) {
-        if (
-          error instanceof EspnRequestError &&
-          [400, 404].includes(error.status || 0)
-        ) {
-          report.failedCompetitions++;
-          log(
-            `ESPN ${code}: calendario no disponible; continúan las otras competiciones.`,
-          );
-        } else throw error;
-      }
-    }
     for (const { match, previous } of pending) {
-      if (!listings.has(match.competition)) continue;
-      const event = findEspnEvent(match, listings.get(match.competition) || []);
+      if (report.summaries >= MAX_SUMMARIES) break;
+      const window = windowForMatch.get(match.id)!;
+      // Download only the date window actually needed, not every historical day.
+      if (!listings.has(window)) {
+        report.scoreboards++;
+        try {
+          listings.set(
+            window,
+            await client.scoreboard(window.competition, window.from, window.to),
+          );
+        } catch (error) {
+          if (
+            error instanceof EspnRequestError &&
+            [400, 404].includes(error.status || 0)
+          ) {
+            report.failedCompetitions++;
+            listings.set(window, null);
+            log(
+              `ESPN ${window.competition}: calendario no disponible; continúan las otras fechas y competiciones.`,
+            );
+          } else throw error;
+        }
+      }
+      const listing = listings.get(window);
+      if (!listing) continue;
+      const event = findEspnEvent(match, listing);
       let insight = previous?.insight || null;
       if (event) {
         if (report.summaries >= MAX_SUMMARIES) break;
