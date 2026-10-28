@@ -360,7 +360,7 @@ export default function MatchExtras({
               <Tv size={19} aria-hidden="true" />
               <span>
                 <strong>Dónde verlo</strong>
-                <small>Abrir listado de emisiones en FCTV33</small>
+                <small>En vivo</small>
               </span>
               <ArrowUpRight size={16} aria-hidden="true" />
             </a>
