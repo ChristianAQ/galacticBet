@@ -5,6 +5,7 @@ on:
     paths:
       - "scripts/**"
       - "src/lib/roundDelivery.ts"
+      - "src/lib/matchInsightsData.ts"
       - ".github/workflows/sync.yml"
   schedule:
     - cron: "17 */2 * * *"
@@ -29,3 +30,4 @@ jobs:
         env:
           FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          ESPN_MATCH_DETAILS: ${{ vars.ESPN_MATCH_DETAILS }}

@@ -16,6 +16,8 @@ service cloud.firestore {
   match /matches/{id} { allow read: if true; }
   // Public season snapshots reduce calendar reads; clients still cannot write results.
   match /calendars/{id} { allow read: if true; }
+  // Complementary public match details, fetched only when a fixture is opened.
+  match /matchInsights/{id} { allow get: if true; }
   match /groups/{gid} {
    // A high-entropy document ID is an invitation capability. Lists remain member-only.
    allow get: if signed();

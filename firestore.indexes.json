@@ -18,6 +18,11 @@
     }
   ],
   "fieldOverrides": [
+    {
+      "collectionGroup": "matchInsights",
+      "fieldPath": "insight",
+      "indexes": []
+    },
     { "collectionGroup": "calendars", "fieldPath": "payload", "indexes": [] },
     { "collectionGroup": "players", "fieldPath": "selections", "indexes": [] },
     {

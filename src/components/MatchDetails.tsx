@@ -9,6 +9,8 @@ import {
 import CompetitionLogo from "./CompetitionLogo";
 import Modal from "./Modal";
 import MatchResult from "./MatchResult";
+import MatchExtras from "./MatchExtras";
+import { useMatchInsight } from "../lib/useMatchInsight";
 import TeamForm from "./TeamForm";
 import { Team } from "./ui";
 
@@ -16,11 +18,14 @@ export default function MatchDetails({
   match,
   matches,
   onClose,
+  demo = false,
 }: {
   match: Match;
   matches: Match[];
   onClose: () => void;
+  demo?: boolean;
 }) {
+  const insights = useMatchInsight(match, demo);
   const context = knockoutContext(match, matches);
   const home = seasonStats(match, "home", matches),
     away = seasonStats(match, "away", matches);
@@ -100,6 +105,7 @@ export default function MatchDetails({
         </p>
       )}
       {match.status === "FINISHED" && <MatchResult match={match} />}
+      <MatchExtras match={match} {...insights} demo={demo} />
       {context && (
         <section className="match-insight-section">
           <h3>

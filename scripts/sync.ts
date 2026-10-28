@@ -4,6 +4,7 @@ import type { Match } from "../src/lib/domain";
 import { type ApiMatch } from "./normalize";
 import { syncCalendars } from "./calendarSync";
 import { recompute } from "./recompute";
+import { syncMatchInsights } from "./syncMatchInsights";
 const token = process.env.FOOTBALL_DATA_TOKEN;
 if (!token) throw new Error("Falta FOOTBALL_DATA_TOKEN (solo backend).");
 // GitHub secret may contain a service-account JSON. Never log it or place it in VITE_*.
@@ -89,6 +90,20 @@ async function sync() {
     console.log(`${code}: ${matches.length} partidos sincronizados.`);
   }
   await recompute(db, cache, policies);
+  if (process.env.ESPN_MATCH_DETAILS !== "false") {
+    try {
+      const details = await syncMatchInsights(db, [...cache.values()].flat());
+      if (details.stopped)
+        console.warn(
+          "::warning::La consulta complementaria de ESPN se interrumpió. Revisa el resumen de detalles; los resultados y puntos oficiales ya se han sincronizado.",
+        );
+    } catch {
+      // Optional enrichment must never prevent official results or points updating.
+      console.warn(
+        "::warning::No se pudieron actualizar los detalles complementarios de ESPN. Los calendarios y puntos oficiales ya se han sincronizado.",
+      );
+    }
+  }
 }
 
 await sync();

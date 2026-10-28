@@ -141,6 +141,25 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
       ),
     );
   });
+  it("permite abrir detalles públicos, pero impide listados y cualquier escritura cliente", async () => {
+    await env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), "matchInsights/future"), {
+        insight: { provider: "ESPN" },
+      });
+    });
+    const guest = env.unauthenticatedContext().firestore();
+    await assertSucceeds(getDoc(doc(guest, "matchInsights/future")));
+    await assertFails(getDocs(collection(guest, "matchInsights")));
+    for (const db of [guest, env.authenticatedContext("alice").firestore()]) {
+      await assertFails(
+        setDoc(doc(db, "matchInsights/new"), { insight: null }),
+      );
+      await assertFails(
+        updateDoc(doc(db, "matchInsights/future"), { insight: null }),
+      );
+      await assertFails(deleteDoc(doc(db, "matchInsights/future")));
+    }
+  });
   it("permite leer calendarios agregados públicos pero nunca escribir resultados desde el cliente", async () => {
     await env.withSecurityRulesDisabled((c) =>
       setDoc(doc(c.firestore(), "calendars/PD-2026"), {

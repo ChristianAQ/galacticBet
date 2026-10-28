@@ -126,8 +126,10 @@ export default function MatchesPage({
       </div>
       {detail && (
         <MatchDetails
+          key={detail.id}
           match={detail}
           matches={matches}
+          demo={demo}
           onClose={() => setDetailId("")}
         />
       )}
