@@ -1,3 +1,4 @@
+import MatchStatistics from "./MatchStatistics";
 import MatchTimeline from "./MatchTimeline";
 import MatchProbability from "./MatchProbability";
 import { useId, useState } from "react";
@@ -20,7 +21,6 @@ import {
 } from "../lib/matchInsightsData";
 import "../styles/matchExtras.css";
 import LineupPitch from "./LineupPitch";
-import { statisticShares } from "../lib/matchPresentation";
 
 type DetailTab = "goals" | "lineups" | "statistics" | "probability";
 const detailTabs = [
@@ -170,7 +170,7 @@ export default function MatchExtras({
           <div
             id={panelId}
             tabIndex={-1}
-            className="match-extra-panel"
+            className={`match-extra-panel${tab === "statistics" ? " match-statistics-panel" : ""}`}
             aria-busy={loading}
           >
             {loading ? (
@@ -229,42 +229,10 @@ export default function MatchExtras({
               )
             ) : insight.statistics.length ? (
               <>
-                <table className="match-extra-stats">
-                  <caption className="sr-only">
-                    Estadísticas del partido según ESPN
-                  </caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">{match.home}</th>
-                      <th scope="col">
-                        <span className="sr-only">Estadística</span>
-                      </th>
-                      <th scope="col">{match.away}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {insight.statistics.map((stat, index) => (
-                      <tr key={`${stat.label}-${index}`}>
-                        <td>{stat.home}</td>
-                        <th scope="row">
-                          {stat.label}
-                          <span className="stat-comparison" aria-hidden="true">
-                            {statisticShares(stat.home, stat.away)?.map(
-                              (share, side) => (
-                                <i
-                                  key={side}
-                                  className={side === 0 ? "home" : "away"}
-                                  style={{ width: `${share}%` }}
-                                />
-                              ),
-                            )}
-                          </span>
-                        </th>
-                        <td>{stat.away}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <MatchStatistics
+                  match={match}
+                  statistics={insight.statistics}
+                />
                 {["EXTRA_TIME", "PENALTY_SHOOTOUT"].includes(
                   match.scoreDuration || "",
                 ) && (
