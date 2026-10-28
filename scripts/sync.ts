@@ -1,3 +1,4 @@
+import { syncNews } from "./syncNews";
 import { COMPETITION_CODES } from "../src/lib/competitions";
 import { applicationDefault, cert, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
@@ -111,7 +112,17 @@ async function sync() {
       "No se pudo sincronizar ninguna competición. Revisa acceso y disponibilidad del proveedor.",
     );
   await recompute(db, cache, policies);
-  if (process.env.ESPN_MATCH_DETAILS !== "false") {
+  let espnBlocked = false;
+  if (process.env.ESPN_NEWS !== "false") {
+    try {
+      espnBlocked = (await syncNews(db)) === false;
+    } catch {
+      console.warn(
+        "::warning::No se pudo actualizar la edición de noticias. Los resultados oficiales están guardados.",
+      );
+    }
+  }
+  if (!espnBlocked && process.env.ESPN_MATCH_DETAILS !== "false") {
     try {
       const details = await syncMatchInsights(db, [...cache.values()].flat());
       if (details.stopped)

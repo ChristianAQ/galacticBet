@@ -1,8 +1,8 @@
 import { competitionName } from "./competitions";
 import type { Match } from "./domain";
-import type { MatchGoal, MatchPlayer } from "./matchInsightsData";
+import type { MatchPlayer } from "./matchInsightsData";
 
-export function chronologicalGoals(goals: MatchGoal[]) {
+export function chronologicalGoals<T extends { minute: string }>(goals: T[]) {
   const key = (minute: string) => {
     const parts = /^(\d+)(?:\+(\d+))?$/.exec(minute.replace(/[\s'’′]/g, ""));
     return parts ? Number(parts[1]) * 1000 + Number(parts[2] || 0) : Infinity;

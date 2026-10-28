@@ -1,0 +1,41 @@
+import { validNews, type FootballNews } from "./footballNews";
+import { createMemoryCache } from "./memoryCache";
+const TTL = 3_600_000;
+export function createNewsLoader(
+  project: string,
+  storage: () => Pick<Storage, "getItem" | "setItem">,
+  fetchNews: () => Promise<unknown>,
+) {
+  const cache = createMemoryCache(1);
+  const key = `galacticbet:news:v1:${project}`;
+  return () =>
+    cache.read<FootballNews | null>(
+      key,
+      async () => {
+        try {
+          const raw = storage().getItem(key);
+          if (raw && raw.length <= 16000) {
+            const saved = JSON.parse(raw);
+            if (
+              typeof saved.at === "number" &&
+              saved.at <= Date.now() &&
+              Date.now() - saved.at < TTL &&
+              (saved.news === null || validNews(saved.news))
+            )
+              return saved.news;
+          }
+        } catch {
+          /* Storage is optional. */
+        }
+        const value = await fetchNews();
+        const news = validNews(value) ? value : null;
+        try {
+          storage().setItem(key, JSON.stringify({ at: Date.now(), news }));
+        } catch {
+          /* Memory cache still works. */
+        }
+        return news;
+      },
+      TTL,
+    );
+}

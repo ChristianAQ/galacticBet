@@ -1,4 +1,4 @@
-import { ChevronDown, Clock3 } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import type { Participant } from "../lib/data";
 
 export default function RoundDeliveryStatus({
@@ -50,7 +50,7 @@ export default function RoundDeliveryStatus({
           {validDate ? (
             <time
               dateTime={new Date(deadline).toISOString()}
-              title={closed ? "Plazo cerrado" : "Inicio del primer partido"}
+              title={closed ? "Plazo cerrado" : "Cierre de entregas"}
             >
               {date}
             </time>
@@ -61,10 +61,6 @@ export default function RoundDeliveryStatus({
         </span>
       </summary>
       <div className="delivery-content">
-        <p className="delivery-start">
-          <Clock3 size={16} aria-hidden="true" />
-          Inicio del primer partido de la jornada
-        </p>
         {!ready ? (
           <p className="delivery-all-done" role="status">
             Comprobando quién falta…

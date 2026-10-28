@@ -286,7 +286,7 @@ export default function App() {
                       groups={activeGroups}
                       matches={matches}
                       loading={loading}
-                      onDemo={() => setDemo(true)}
+                      demo={demo}
                     />
                   }
                 />

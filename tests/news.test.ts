@@ -1,0 +1,122 @@
+import { describe, expect, it, vi } from "vitest";
+import type { Firestore } from "firebase-admin/firestore";
+import { normalizeNews, syncNews } from "../scripts/syncNews";
+import {
+  currentArticles,
+  newsUrl,
+  validNews,
+  type FootballNews,
+} from "../src/lib/footballNews";
+import { createNewsLoader } from "../src/lib/newsCache";
+const now = Date.parse("2026-10-28T18:00:00Z");
+const article = {
+  headline: "Titular de prueba",
+  published: "2026-10-28T17:00:00Z",
+  links: { web: { href: "https://www.espn.com/soccer/story/_/id/123/test" } },
+};
+const feed: FootballNews = {
+  version: 1,
+  provider: "ESPN",
+  fetchedAt: new Date(now).toISOString(),
+  articles: normalizeNews({ articles: [article] }, "PD", now),
+};
+function database(previous?: unknown) {
+  const set = vi.fn().mockResolvedValue(undefined);
+  const get = vi.fn().mockResolvedValue({ data: () => previous });
+  const doc = vi.fn(() => ({ get, set }));
+  return { db: { doc } as unknown as Firestore, set, get };
+}
+describe("Noticias: fuente, sincronización y caché", () => {
+  it("acepta enlaces seguros de ESPN y rechaza esquemas, credenciales y dominios parecidos", () => {
+    expect(newsUrl(article.links.web.href)).toBe(article.links.web.href);
+    for (const url of [
+      "javascript:alert(1)",
+      "https://espn.com.evil.test/a",
+      "https://evil.test/espn.com",
+      "https://name:pass@espn.com/a",
+      "https://espn.com:444/a",
+      "http://espn.com/a",
+    ])
+      expect(newsUrl(url)).toBeNull();
+  });
+  it("no muestra titulares futuros, antiguos, sin fecha o malformados", () => {
+    const articles = [
+      article,
+      { ...article, published: "2026-10-01" },
+      { ...article, published: "2026-11-01" },
+      { ...article, published: null },
+      { ...article, headline: "" },
+      null,
+    ];
+    expect(normalizeNews({ articles }, "PL", now)).toHaveLength(1);
+    expect(validNews(feed)).toBe(true);
+    expect(
+      validNews({
+        ...feed,
+        articles: [{ ...feed.articles[0], competition: "CDR" }],
+      }),
+    ).toBe(false);
+    expect(currentArticles(feed, now + 8 * 86400000)).toHaveLength(0);
+  });
+  it("consulta una vez cada competición y deduplica en un único documento", async () => {
+    const { db, set } = database();
+    const request = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify({ articles: [article] })));
+    // Each fetch gets its own response body.
+    request.mockImplementation(
+      async () => new Response(JSON.stringify({ articles: [article] })),
+    );
+    await syncNews(db, { now, request, log: vi.fn() });
+    expect(request).toHaveBeenCalledTimes(3);
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(set.mock.calls[0][0].articles).toHaveLength(1);
+    expect(validNews(set.mock.calls[0][0])).toBe(true);
+  });
+  it("respeta seis horas de caché y conserva la edición anterior ante errores o vacío", async () => {
+    const { db, set } = database(feed);
+    const request = vi.fn<typeof fetch>();
+    await syncNews(db, { now: now + 3600000, request });
+    expect(request).not.toHaveBeenCalled();
+    request.mockImplementation(async () => new Response("", { status: 429 }));
+    await syncNews(db, { now: now + 7 * 3600000, request, log: vi.fn() });
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(set).not.toHaveBeenCalled();
+    request.mockImplementation(async () => new Response('{"articles":[]}'));
+    await syncNews(db, { now: now + 7 * 3600000, request, log: vi.fn() });
+    expect(set).not.toHaveBeenCalled();
+  });
+  it("deduplica lecturas concurrentes y reutiliza la caché tras recargar", async () => {
+    const entries = new Map<string, string>();
+    const storage = {
+      getItem: (k: string) => entries.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        entries.set(k, v);
+      },
+    };
+    const fetch = vi.fn().mockResolvedValue(feed);
+    const load = createNewsLoader("test", () => storage, fetch);
+    await Promise.all([load(), load(), load()]);
+    await createNewsLoader("test", () => storage, fetch)();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await createNewsLoader("other-project", () => storage, fetch)();
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+  it("permite reintentar un fallo y funciona con almacenamiento bloqueado", async () => {
+    const fetch = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue(null);
+    const load = createNewsLoader(
+      "test",
+      () => {
+        throw new Error("blocked");
+      },
+      fetch,
+    );
+    await expect(load()).rejects.toThrow("offline");
+    expect(await load()).toBeNull();
+    expect(await load()).toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});

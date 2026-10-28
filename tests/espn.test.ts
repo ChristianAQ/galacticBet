@@ -61,6 +61,36 @@ function summary(extra: Record<string, unknown> = {}) {
 }
 
 describe("ESPN: asociación y datos complementarios", () => {
+  it("incorpora probabilidades solo antes del inicio y con identidad validada", () => {
+    const before = "2026-10-28T19:00:00Z";
+    const predictor = {
+      homeTeam: { id: "83", gameProjection: "40" },
+      awayTeam: { id: "86", gameProjection: "35" },
+      drawChance: "25",
+    };
+    const next = { ...match, status: "TIMED" as const };
+    expect(
+      normalizeEspnSummary(summary({ predictor }), next, event, before)
+        ?.probability?.home,
+    ).toBe(40);
+    expect(
+      normalizeEspnSummary(summary({ predictor }), match, event, before)
+        ?.probability,
+    ).toBeUndefined();
+    expect(
+      normalizeEspnSummary(summary({ predictor }), next, event, match.utcDate)
+        ?.probability,
+    ).toBeUndefined();
+    expect(
+      normalizeEspnSummary(
+        summary({ predictor: { ...predictor, drawChance: undefined } }),
+        next,
+        event,
+        before,
+      )?.probability,
+    ).toBeUndefined();
+  });
+
   it("asocia alias explícitos, mismo torneo, localía y hora, sin coincidencias difusas", () => {
     expect(findEspnEvent(match, [event])).toEqual(event);
     expect(canonicalTeamName(" Atlético Madrid ")).toBe(
@@ -352,6 +382,92 @@ describe("ESPN: asociación y datos complementarios", () => {
       EspnRequestError,
     );
     expect(request).toHaveBeenCalledTimes(2);
+  });
+  it("recupera un rango 400 por días, deduplica y no reintenta 429", async () => {
+    const request = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("", { status: 400 }))
+      .mockImplementation(async () => new Response(JSON.stringify(scoreboard)));
+    const client = createEspnClient(request);
+    expect(await client.scoreboard("PD", "20261028", "20261029")).toHaveLength(
+      1,
+    );
+    expect(request).toHaveBeenCalledTimes(3);
+    expect(String(request.mock.calls[1][0])).toContain("dates=20261028&");
+    expect(String(request.mock.calls[2][0])).toContain("dates=20261029&");
+    request.mockClear().mockResolvedValue(new Response("", { status: 429 }));
+    await expect(
+      client.scoreboard("PD", "20261028", "20261029"),
+    ).rejects.toThrow();
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+  it("limita recuperación a cinco días y consultas de cuotas a rutas fijas", async () => {
+    const request = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () => new Response("", { status: 400 }));
+    const client = createEspnClient(request);
+    await expect(
+      client.scoreboard("PD", "20260101", "20260201"),
+    ).rejects.toThrow();
+    expect(request).toHaveBeenCalledTimes(1);
+    request.mockImplementation(async () => new Response('{"items":[]}'));
+    await client.odds!("PL", "777");
+    expect(String(request.mock.calls[1][0])).toBe(
+      "https://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1/events/777/competitions/777/odds?limit=10",
+    );
+    await expect(client.odds!("PL", "../../secret")).rejects.toThrow();
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+  it("normaliza tarjetas y cambios solo con jugadores, roles y equipos explícitos", () => {
+    const yellow = {
+      type: { text: "Yellow Card" },
+      team: { id: "83" },
+      clock: { displayValue: "35'" },
+      participants: [athlete("Jugador amonestado")],
+    };
+    const sub = {
+      type: { text: "Substitution" },
+      team: { id: "86" },
+      clock: { displayValue: "60'" },
+      participants: [
+        { ...athlete("Entra"), type: "substitution-on" },
+        { ...athlete("Sale"), type: "substitution-off" },
+      ],
+    };
+    const result = normalizeEspnSummary(
+      summary({
+        keyEvents: [
+          yellow,
+          yellow,
+          sub,
+          { ...yellow, team: { id: "invalid" } },
+          { ...sub, participants: [athlete("Desconocido")] },
+        ],
+      }),
+      match,
+      event,
+    )!;
+    expect(result.incidents).toHaveLength(2);
+    expect(result.incidents![0]).toMatchObject({
+      kind: "yellow-card",
+      side: "home",
+      player: "Jugador amonestado",
+    });
+    expect(result.incidents![1]).toMatchObject({
+      kind: "substitution",
+      side: "away",
+      player: "Entra",
+      playerOut: "Sale",
+    });
+  });
+  it("aplica un presupuesto de 50 peticiones sin enviar la siguiente", async () => {
+    const request = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () => new Response("{}"));
+    const client = createEspnClient(request);
+    for (let i = 0; i < 50; i++) await client.summary("PD", "777");
+    await expect(client.summary("PD", "777")).rejects.toThrow("límite interno");
+    expect(request).toHaveBeenCalledTimes(50);
   });
   it("convierte timeout y JSON inválido en errores seguros", async () => {
     const request = vi

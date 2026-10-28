@@ -1,4 +1,8 @@
 import {
+  parseProbability,
+  probabilityFromOdds,
+} from "../src/lib/matchProbability";
+import {
   COMPETITIONS,
   COMPETITION_CODES,
   type CompetitionCode,
@@ -7,6 +11,7 @@ import type { Match } from "../src/lib/domain";
 import {
   validMatchInsight,
   type MatchGoal,
+  type MatchIncident,
   type MatchInsight,
   type MatchLineup,
   type MatchPlayer,
@@ -369,6 +374,78 @@ function normalizeGoals(
   }
   return result.slice(0, 40);
 }
+function normalizeIncidents(
+  data: Row,
+  event: EspnEvent,
+  competition: Row,
+): MatchIncident[] {
+  const result = new Map<string, MatchIncident>();
+  for (const entry of [
+    ...rows(data.keyEvents),
+    ...rows(competition.details),
+  ].slice(0, 300)) {
+    const type = row(entry.type);
+    const label = cleanName(
+      [type.text, type.type, type.name]
+        .filter((v) => typeof v === "string")
+        .join(" "),
+    );
+    if (/cancel|overturn|rescind/.test(label)) continue;
+    const side = sideFor(entry.team, event);
+    const minute =
+      text(row(entry.clock).displayValue, 30) || text(entry.displayClock, 30);
+    if (!side || !minute) continue;
+    const kind = /second yellow|yellow red|yellow card 2nd|2nd yellow/.test(
+      label,
+    )
+      ? "second-yellow"
+      : /red card/.test(label)
+        ? "red-card"
+        : /yellow card/.test(label)
+          ? "yellow-card"
+          : /substitution/.test(label)
+            ? "substitution"
+            : undefined;
+    if (!kind) continue;
+    const participants = rows(entry.participants);
+    const role = (p: Row) =>
+      cleanName(
+        [p.type, p.role, row(p.type).text, row(p.type).name]
+          .filter((v) => typeof v === "string")
+          .join(" "),
+      );
+    const incoming = participants.find((p) =>
+      /^(substitution )?(on|in|entering)$/.test(role(p)),
+    );
+    const outgoing = participants.find((p) =>
+      /^(substitution )?(off|out|leaving)$/.test(role(p)),
+    );
+    const player =
+      kind === "substitution"
+        ? playerName(incoming)
+        : playerName(entry.athlete) ||
+          (participants.length === 1 ? playerName(participants[0]) : undefined);
+    const playerOut =
+      kind === "substitution" ? playerName(outgoing) : undefined;
+    if (!player || (kind === "substitution" && !playerOut)) continue;
+    const incident: MatchIncident = {
+      side,
+      minute,
+      kind,
+      player,
+      ...(playerOut ? { playerOut } : {}),
+    };
+    const key = [
+      side,
+      minute.replace(/[\s'’′]/g, ""),
+      kind,
+      player,
+      playerOut,
+    ].join(":");
+    result.set(key, incident);
+  }
+  return [...result.values()].slice(0, 100);
+}
 const statisticNames: Record<string, string> = {
   possessionpct: "Posesión",
   possession: "Posesión",
@@ -388,6 +465,15 @@ const statisticNames: Record<string, string> = {
   redcards: "Tarjetas rojas",
   totalpasses: "Pases",
   accuratepasses: "Pases completados",
+  expectedgoals: "Goles esperados (xG)",
+  shotsblocked: "Remates bloqueados",
+  blockedshots: "Remates bloqueados",
+  shotswide: "Remates fuera",
+  shotsofftarget: "Remates fuera",
+  tackles: "Entradas",
+  interceptions: "Intercepciones",
+  passpct: "Precisión de pase",
+  passcompletionpct: "Precisión de pase",
 };
 function statValue(value: unknown): string | undefined {
   const formatted =
@@ -418,7 +504,10 @@ function normalizeStatistics(data: Row, event: EspnEvent): MatchStatistic[] {
       if (label && value !== undefined)
         bySide[side].set(
           label,
-          label === "Posesión" && !value.endsWith("%") ? `${value}%` : value,
+          ["Posesión", "Precisión de pase"].includes(label) &&
+            !value.endsWith("%")
+            ? `${value}%`
+            : value,
         );
     }
   }
@@ -474,6 +563,16 @@ export function normalizeEspnSummary(
     Number.isInteger(attendanceValue) && Number(attendanceValue) >= 0
       ? Number(attendanceValue)
       : undefined;
+  const probability =
+    ["SCHEDULED", "TIMED"].includes(match.status) &&
+    Date.parse(fetchedAt) < Date.parse(match.utcDate)
+      ? parseProbability(
+          data.predictor,
+          event.homeId,
+          event.awayId,
+          fetchedAt,
+        ) || probabilityFromOdds(data.pickcenter, fetchedAt)
+      : undefined;
   const insight: MatchInsight = {
     version: 1,
     matchId: match.id,
@@ -482,9 +581,11 @@ export function normalizeEspnSummary(
     provider: "ESPN",
     eventId: event.id,
     fetchedAt,
+    ...(probability ? { probability } : {}),
     ...(venue ? { venue } : {}),
     ...(referee ? { referee } : {}),
     ...(attendance !== undefined ? { attendance } : {}),
+    incidents: normalizeIncidents(data, event, competition),
     lineups: normalizeLineups(data, event),
     goals: normalizeGoals(data, event, competition),
     statistics: normalizeStatistics(data, event),
@@ -493,15 +594,24 @@ export function normalizeEspnSummary(
 }
 
 export class EspnRequestError extends Error {
-  constructor(public readonly status?: number) {
+  constructor(
+    public readonly status?: number,
+    budgetExhausted = false,
+  ) {
     super(
-      status
-        ? `ESPN HTTP ${status}; se conserva la información anterior.`
-        : "ESPN no respondió; se conserva la información anterior.",
+      budgetExhausted
+        ? "ESPN: límite interno de 50 peticiones alcanzado; se conserva la información anterior."
+        : status
+          ? `ESPN HTTP ${status}; se conserva la información anterior.`
+          : "ESPN no respondió; se conserva la información anterior.",
     );
   }
 }
 export interface EspnClient {
+  odds?: (
+    competition: Match["competition"],
+    eventId: string,
+  ) => Promise<unknown>;
   scoreboard: (
     competition: Match["competition"],
     from: string,
@@ -513,7 +623,9 @@ export interface EspnClient {
   ) => Promise<unknown>;
 }
 export function createEspnClient(request: typeof fetch = fetch): EspnClient {
+  let requests = 0;
   async function read(url: string) {
+    if (++requests > 50) throw new EspnRequestError(undefined, true);
     try {
       const response = await request(url, {
         signal: AbortSignal.timeout(15_000),
@@ -532,11 +644,56 @@ export function createEspnClient(request: typeof fetch = fetch): EspnClient {
     async scoreboard(competition, from, to) {
       if (!/^\d{8}$/.test(from) || !/^\d{8}$/.test(to))
         throw new Error("ESPN: intervalo de fechas inválido.");
-      return parseEspnScoreboard(
-        await read(
-          `${API_ROOT}/${ESPN_LEAGUES[competition]}/scoreboard?dates=${from}-${to}&limit=100`,
-        ),
-        competition,
+      const url = `${API_ROOT}/${ESPN_LEAGUES[competition]}/scoreboard`;
+      try {
+        return parseEspnScoreboard(
+          await read(
+            `${url}?dates=${from === to ? from : `${from}-${to}`}&limit=100`,
+          ),
+          competition,
+        );
+      } catch (error) {
+        // Community documentation reports date-range regressions. Do not retry 403/429.
+        if (
+          !(error instanceof EspnRequestError) ||
+          error.status !== 400 ||
+          from === to
+        )
+          throw error;
+        const day = (v: string) =>
+          Date.parse(
+            `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6)}T00:00:00Z`,
+          );
+        const start = day(from),
+          end = day(to);
+        if (
+          !Number.isFinite(start) ||
+          !Number.isFinite(end) ||
+          end < start ||
+          end - start > 4 * 86400000
+        )
+          throw error;
+        const events = new Map<string, EspnEvent>();
+        for (let date = start; date <= end; date += 86400000) {
+          const key = new Date(date)
+            .toISOString()
+            .slice(0, 10)
+            .replaceAll("-", "");
+          for (const event of parseEspnScoreboard(
+            await read(`${url}?dates=${key}&limit=100`),
+            competition,
+          ))
+            events.set(event.id, event);
+        }
+        return [...events.values()];
+      }
+    },
+    async odds(competition, eventId) {
+      if (!/^\d{1,30}$/.test(eventId) || !ESPN_LEAGUES[competition])
+        throw new Error("ESPN: identificador inválido.");
+      // Fixed host/path; never follow provider-supplied $ref URLs.
+      return read(
+        `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${ESPN_LEAGUES[competition]}/events/${eventId}/competitions/${eventId}/odds?limit=10`,
       );
     },
     async summary(competition, eventId) {

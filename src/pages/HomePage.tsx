@@ -10,7 +10,7 @@ import {
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import UpcomingSchedule from "../components/UpcomingSchedule";
-import { Empty, MatchRow } from "../components/ui";
+import NewsSection from "../components/NewsSection";
 import type { Group } from "../lib/data";
 import type { Match } from "../lib/domain";
 import { upcomingMatches } from "../lib/schedule";
@@ -20,13 +20,13 @@ export default function HomePage({
   groups,
   matches,
   loading,
-  onDemo,
+  demo = false,
 }: {
   name: string;
   groups: Group[];
   matches: Match[];
   loading: boolean;
-  onDemo: () => void;
+  demo?: boolean;
 }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -80,46 +80,7 @@ export default function HomePage({
         <ArrowRight size={18} />
       </Link>
       <div className="dashboard-columns">
-        <section>
-          <div className="section-heading">
-            <h2>Próximos encuentros</h2>
-            <Link to="/partidos">
-              Ver todos <ArrowRight size={15} />
-            </Link>
-          </div>
-          <div className="panel">
-            {loading ? (
-              <Empty title="Cargando calendario…">
-                Consultando los partidos disponibles.
-              </Empty>
-            ) : upcoming.length ? (
-              upcoming.slice(0, 3).map((m) => <MatchRow key={m.id} match={m} />)
-            ) : (
-              <div className="calendar-empty">
-                <span className="empty-icon">
-                  <CalendarDays size={25} />
-                </span>
-                <div>
-                  <h3>
-                    {matches.length
-                      ? "Sin próximos encuentros"
-                      : "El calendario está por llegar"}
-                  </h3>
-                  <p>
-                    {matches.length
-                      ? "Los encuentros disponibles ya han comenzado. Puedes consultar el calendario y sus resultados."
-                      : "Los partidos reales aparecerán al conectar y sincronizar la competición."}
-                  </p>
-                </div>
-                {!matches.length && (
-                  <button className="text-button" onClick={onDemo}>
-                    Explorar demo <ArrowRight size={15} />
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </section>
+        <NewsSection demo={demo} />
         <aside className="right-column">
           <div className="section-heading">
             <h2>Tu vestuario</h2>

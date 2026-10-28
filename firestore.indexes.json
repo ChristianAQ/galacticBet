@@ -18,6 +18,7 @@
     }
   ],
   "fieldOverrides": [
+    { "collectionGroup": "news", "fieldPath": "articles", "indexes": [] },
     {
       "collectionGroup": "matchInsights",
       "fieldPath": "insight",

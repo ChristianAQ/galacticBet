@@ -1,3 +1,4 @@
+import { validProbability, type MatchProbability } from "./matchProbability";
 import { isKnownCompetition } from "./competitions";
 import type { Match } from "./domain";
 
@@ -24,6 +25,13 @@ export interface MatchStatistic {
   home: string;
   away: string;
 }
+export interface MatchIncident {
+  side: "home" | "away";
+  minute: string;
+  kind: "yellow-card" | "red-card" | "second-yellow" | "substitution";
+  player: string;
+  playerOut?: string;
+}
 // Complementary information never participates in results or scoring.
 export interface MatchInsight {
   version: 1;
@@ -33,6 +41,8 @@ export interface MatchInsight {
   provider: "ESPN";
   eventId: string;
   fetchedAt: string;
+  probability?: MatchProbability;
+  incidents?: MatchIncident[];
   venue?: string;
   referee?: string;
   attendance?: number;
@@ -61,6 +71,25 @@ export function validMatchInsight(value: unknown): value is MatchInsight {
     Number.isFinite(Date.parse(value.kickoff)) &&
     text(value.fetchedAt) &&
     Number.isFinite(Date.parse(value.fetchedAt)) &&
+    (value.probability === undefined || validProbability(value.probability)) &&
+    (value.incidents === undefined ||
+      (Array.isArray(value.incidents) &&
+        value.incidents.length <= 100 &&
+        value.incidents.every(
+          (i) =>
+            record(i) &&
+            side(i.side) &&
+            text(i.minute, 30) &&
+            text(i.player) &&
+            [
+              "yellow-card",
+              "red-card",
+              "second-yellow",
+              "substitution",
+            ].includes(String(i.kind)) &&
+            optionalText(i.playerOut) &&
+            (i.kind !== "substitution" || text(i.playerOut)),
+        ))) &&
     optionalText(value.venue) &&
     optionalText(value.referee) &&
     (value.attendance === undefined ||

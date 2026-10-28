@@ -1,3 +1,5 @@
+import MatchTimeline from "./MatchTimeline";
+import MatchProbability from "./MatchProbability";
 import { useId, useState } from "react";
 import {
   ArrowUpRight,
@@ -18,11 +20,16 @@ import {
 } from "../lib/matchInsightsData";
 import "../styles/matchExtras.css";
 import LineupPitch from "./LineupPitch";
-import { chronologicalGoals, statisticShares } from "../lib/matchPresentation";
+import { statisticShares } from "../lib/matchPresentation";
 
-type DetailTab = "goals" | "lineups" | "statistics";
+type DetailTab = "goals" | "lineups" | "statistics" | "probability";
 const detailTabs = [
-  { id: "goals", label: "Goles", Icon: CircleDot },
+  {
+    id: "probability",
+    label: "Probabilidad",
+    Icon: ChartNoAxesColumnIncreasing,
+  },
+  { id: "goals", label: "Eventos", Icon: CircleDot },
   { id: "lineups", label: "Alineaciones", Icon: UsersRound },
   {
     id: "statistics",
@@ -99,7 +106,9 @@ export default function MatchExtras({
   onRetry: () => void;
   demo?: boolean;
 }) {
-  const [tab, setTab] = useState<DetailTab>("goals");
+  const [tab, setTab] = useState<DetailTab>(
+    ["TIMED", "SCHEDULED"].includes(match.status) ? "probability" : "goals",
+  );
   const headingId = useId();
   const panelId = useId();
   const links = matchExternalLinks(match, insight);
@@ -182,65 +191,18 @@ export default function MatchExtras({
                   <RefreshCw size={14} aria-hidden="true" /> Reintentar
                 </button>
               </div>
+            ) : tab === "probability" ? (
+              <MatchProbability
+                match={match}
+                probability={insight?.probability}
+              />
             ) : !insight ? (
               <p className="match-extra-empty">
                 Los detalles aún no están disponibles. Puedes consultar la ficha
                 externa mientras se actualizan.
               </p>
             ) : tab === "goals" ? (
-              insight.goals.length ? (
-                <>
-                  <ol
-                    className="match-extra-goals"
-                    aria-label="Goleadores del partido"
-                  >
-                    {chronologicalGoals(insight.goals).map((goal, index) => (
-                      <li
-                        className={`goal-event ${goal.side}`}
-                        key={`${goal.minute}-${goal.scorer}-${index}`}
-                      >
-                        <span className="match-extra-minute">
-                          {goal.minute}
-                        </span>
-                        <span
-                          className={`match-extra-goal-marker ${goal.side}`}
-                          aria-hidden="true"
-                        >
-                          <CircleDot size={15} />
-                        </span>
-                        <div>
-                          <strong>{goal.scorer}</strong>
-                          <span>
-                            {goal.side === "home" ? match.home : match.away}
-                          </span>
-                          {goal.assist && (
-                            <small>Asistencia: {goal.assist}</small>
-                          )}
-                          {goal.kind !== "goal" && (
-                            <em>
-                              {goal.kind === "penalty"
-                                ? "Penalti"
-                                : "En propia puerta"}
-                            </em>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ol>
-                  {["EXTRA_TIME", "PENALTY_SHOOTOUT"].includes(
-                    match.scoreDuration || "",
-                  ) && (
-                    <p className="match-extra-note">
-                      Incluye goles de la prórroga cuando están disponibles. La
-                      tanda de penaltis no se incluye.
-                    </p>
-                  )}
-                </>
-              ) : (
-                <p className="match-extra-empty">
-                  Detalle de goleadores no disponible.
-                </p>
-              )
+              <MatchTimeline match={match} insight={insight} />
             ) : tab === "lineups" ? (
               insight.lineups.length ? (
                 <>

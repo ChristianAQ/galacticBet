@@ -31,4 +31,5 @@ jobs:
         env:
           FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          ESPN_NEWS: ${{ vars.ESPN_NEWS }}
           ESPN_MATCH_DETAILS: ${{ vars.ESPN_MATCH_DETAILS }}

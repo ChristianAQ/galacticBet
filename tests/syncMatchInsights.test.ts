@@ -132,6 +132,55 @@ function clientFor(matches: Match[]) {
 const log = vi.fn<(message: string) => void>();
 
 describe("sincronización acotada de información complementaria", () => {
+  it("una ficha 404 no impide actualizar el siguiente partido", async () => {
+    const fixtures = [makeMatch("1", HOUR), makeMatch("2", HOUR)];
+    const { db, docs } = database();
+    const client = clientFor(fixtures);
+    client.summary.mockRejectedValueOnce(new EspnRequestError(404));
+    const report = await syncMatchInsights(db, fixtures, { now, client, log });
+    expect(report.stopped).toBe(false);
+    expect(report.missingSummaries).toBe(1);
+    expect(docs.get("2")?.insight?.venue).toBe("Estadio del partido");
+  });
+  it("reutiliza la ficha y limita a ocho consultas extra de cuotas", async () => {
+    const fixtures = Array.from({ length: 12 }, (_, i) =>
+      makeMatch(String(i + 1), HOUR),
+    );
+    const { db, docs } = database();
+    const odds = vi
+      .fn()
+      .mockResolvedValue({
+        items: [
+          {
+            provider: { name: "Proveedor" },
+            lastUpdated: new Date(now).toISOString(),
+            homeTeamOdds: { moneyLine: -110 },
+            drawOdds: { moneyLine: 250 },
+            awayTeamOdds: { moneyLine: 300 },
+          },
+        ],
+      });
+    const report = await syncMatchInsights(db, fixtures, {
+      now,
+      client: { ...clientFor(fixtures), odds },
+      log,
+    });
+    expect(report.odds).toBe(8);
+    expect(odds).toHaveBeenCalledTimes(8);
+    expect(docs.get("1")?.insight?.probability?.model).toBe("ESPN_ODDS");
+  });
+  it("conserva la ficha descargada si cuotas devuelve 429 y detiene el resto", async () => {
+    const fixtures = [makeMatch("1", HOUR), makeMatch("2", HOUR)];
+    const { db, docs } = database();
+    const client = {
+      ...clientFor(fixtures),
+      odds: vi.fn().mockRejectedValue(new EspnRequestError(429)),
+    };
+    const report = await syncMatchInsights(db, fixtures, { now, client, log });
+    expect(report.stopped).toBe(true);
+    expect(docs.get("1")?.insight?.venue).toBe("Estadio del partido");
+    expect(client.summary).toHaveBeenCalledTimes(1);
+  });
   it("limita candidatos a 48 h anteriores/24 h futuras, 80 lecturas y excluye cancelados", () => {
     const fixtures = Array.from({ length: 90 }, (_, index) =>
       makeMatch(String(index + 1), index * 60_000),

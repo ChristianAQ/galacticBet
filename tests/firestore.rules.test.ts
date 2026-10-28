@@ -156,6 +156,21 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
       setDoc(doc(db, "groups/g/gameSeasons/CDR-2026"), value("CDR")),
     );
   });
+  it("publica solo la edición de noticias y prohíbe listar o modificar titulares", async () => {
+    await env.withSecurityRulesDisabled((c) =>
+      setDoc(doc(c.firestore(), "news/football"), { provider: "ESPN" }),
+    );
+    for (const db of [
+      env.unauthenticatedContext().firestore(),
+      env.authenticatedContext("alice").firestore(),
+    ]) {
+      await assertSucceeds(getDoc(doc(db, "news/football")));
+      await assertFails(getDoc(doc(db, "news/private")));
+      await assertFails(getDocs(collection(db, "news")));
+      await assertFails(setDoc(doc(db, "news/football"), { provider: "fake" }));
+      await assertFails(deleteDoc(doc(db, "news/football")));
+    }
+  });
   it("permite abrir detalles públicos, pero impide listados y cualquier escritura cliente", async () => {
     await env.withSecurityRulesDisabled(async (c) => {
       await setDoc(doc(c.firestore(), "matchInsights/future"), {

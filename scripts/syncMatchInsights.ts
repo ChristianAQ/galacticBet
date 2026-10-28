@@ -1,3 +1,4 @@
+import { probabilityFromOdds } from "../src/lib/matchProbability";
 import { COMPETITION_CODES } from "../src/lib/competitions";
 import type { Firestore } from "firebase-admin/firestore";
 import type { Match } from "../src/lib/domain";
@@ -86,7 +87,9 @@ function validPrevious(
 function hasInformation(value: MatchInsight | null) {
   return Boolean(
     value &&
-    (value.venue ||
+    (value.probability ||
+      value.incidents?.length ||
+      value.venue ||
       value.referee ||
       value.attendance !== undefined ||
       value.goals.length ||
@@ -112,6 +115,9 @@ export async function syncMatchInsights(
     reads: 0,
     scoreboards: 0,
     summaries: 0,
+    odds: 0,
+    missingSummaries: 0,
+    failedCompetitions: 0,
     updated: 0,
     skipped: 0,
     stopped: false,
@@ -166,28 +172,87 @@ export async function syncMatchInsights(
         .map((item) => Date.parse(item.match.utcDate));
       if (!dates.length) continue;
       report.scoreboards++;
-      listings.set(
-        code,
-        await client.scoreboard(
+      try {
+        listings.set(
           code,
-          apiDate(Math.min(...dates) - 15 * 60_000),
-          apiDate(Math.max(...dates) + 15 * 60_000),
-        ),
-      );
+          await client.scoreboard(
+            code,
+            apiDate(Math.min(...dates) - 15 * 60_000),
+            apiDate(Math.max(...dates) + 15 * 60_000),
+          ),
+        );
+      } catch (error) {
+        if (
+          error instanceof EspnRequestError &&
+          [400, 404].includes(error.status || 0)
+        ) {
+          report.failedCompetitions++;
+          log(
+            `ESPN ${code}: calendario no disponible; continúan las otras competiciones.`,
+          );
+        } else throw error;
+      }
     }
     for (const { match, previous } of pending) {
+      if (!listings.has(match.competition)) continue;
       const event = findEspnEvent(match, listings.get(match.competition) || []);
       let insight = previous?.insight || null;
       if (event) {
         if (report.summaries >= MAX_SUMMARIES) break;
         report.summaries++;
+        let summary: unknown;
+        try {
+          summary = await client.summary(match.competition, event.id);
+        } catch (error) {
+          if (
+            error instanceof EspnRequestError &&
+            [400, 404].includes(error.status || 0)
+          )
+            report.missingSummaries++;
+          else throw error;
+        }
         const normalized = normalizeEspnSummary(
-          await client.summary(match.competition, event.id),
+          summary,
           match,
           event,
           new Date(now).toISOString(),
         );
         if (!normalized) report.rejectedSummaries++;
+        if (
+          normalized &&
+          !normalized.probability &&
+          client.odds &&
+          report.odds < 8 &&
+          ["TIMED", "SCHEDULED"].includes(match.status) &&
+          Date.parse(match.utcDate) > now
+        ) {
+          report.odds++;
+          try {
+            const response = await client.odds(match.competition, event.id);
+            const items =
+              response && typeof response === "object"
+                ? (response as { items?: unknown }).items
+                : undefined;
+            const probability = probabilityFromOdds(
+              items,
+              new Date(now).toISOString(),
+            );
+            if (probability) normalized.probability = probability;
+          } catch (error) {
+            if (
+              !(error instanceof EspnRequestError) ||
+              ![400, 404].includes(error.status || 0)
+            ) {
+              // Keep the useful summary already downloaded; stop further requests.
+              report.stopped = true;
+              log(
+                error instanceof EspnRequestError
+                  ? error.message
+                  : "ESPN cuotas: respuesta no utilizable.",
+              );
+            }
+          }
+        }
         // Reconcile an official 0–0 even if summary only has a valid header.
         const confirmedNoGoals =
           match.status === "FINISHED" &&
@@ -215,6 +280,8 @@ export async function syncMatchInsights(
             // Missing sides/statistics are partial data, not evidence they vanished.
             // Preserve the oldest fetchedAt whenever any previous field is reused.
             const retained =
+              (!normalized.incidents?.length &&
+                Boolean(old.incidents?.length)) ||
               (!confirmedNoGoals &&
                 !normalized.goals.length &&
                 old.goals.length > 0) ||
@@ -232,14 +299,18 @@ export async function syncMatchInsights(
               (!normalized.referee && Boolean(old.referee)) ||
               (normalized.attendance === undefined &&
                 old.attendance !== undefined);
+            const { probability: _previousProbability, ...oldDetails } = old;
             insight = {
-              ...old,
+              ...oldDetails,
               ...normalized,
               goals: confirmedNoGoals
                 ? []
                 : normalized.goals.length
                   ? normalized.goals
                   : old.goals,
+              incidents: normalized.incidents?.length
+                ? normalized.incidents
+                : old.incidents || [],
               lineups: [...lineups.values()],
               statistics: [...statistics.values()],
               fetchedAt: retained ? old.fetchedAt : normalized.fetchedAt,
@@ -261,6 +332,7 @@ export async function syncMatchInsights(
           status: match.status,
         },
       });
+      if (report.stopped) break;
     }
   } catch (error) {
     report.stopped = true;
@@ -289,7 +361,7 @@ export async function syncMatchInsights(
     }
   }
   log(
-    `Detalles de partidos: ${report.reads} lecturas, ${report.scoreboards} calendarios ESPN, ${report.summaries} fichas, ${report.updated} documentos actualizados, ${report.available} fichas con información, ${report.unmatched} sin asociación y ${report.rejectedSummaries} respuestas rechazadas${report.stopped ? "; proveedor interrumpido" : ""}.`,
+    `Detalles de partidos: ${report.reads} lecturas, ${report.scoreboards} calendarios ESPN, ${report.summaries} fichas, ${report.odds} consultas de cuotas, ${report.missingSummaries} fichas no disponibles, ${report.failedCompetitions} calendarios fallidos, ${report.updated} documentos actualizados, ${report.available} fichas con información, ${report.unmatched} sin asociación y ${report.rejectedSummaries} respuestas rechazadas${report.stopped ? "; proveedor interrumpido" : ""}.`,
   );
   return report;
 }
