@@ -17,6 +17,8 @@ import {
   type MatchPlayer,
 } from "../lib/matchInsightsData";
 import "../styles/matchExtras.css";
+import LineupPitch from "./LineupPitch";
+import { chronologicalGoals, statisticShares } from "../lib/matchPresentation";
 
 type DetailTab = "goals" | "lineups" | "statistics";
 const detailTabs = [
@@ -156,7 +158,12 @@ export default function MatchExtras({
               </button>
             ))}
           </div>
-          <div id={panelId} className="match-extra-panel" aria-busy={loading}>
+          <div
+            id={panelId}
+            tabIndex={-1}
+            className="match-extra-panel"
+            aria-busy={loading}
+          >
             {loading ? (
               <p className="match-extra-empty" role="status">
                 Cargando información del partido…
@@ -167,7 +174,10 @@ export default function MatchExtras({
                 <button
                   type="button"
                   className="match-extra-retry"
-                  onClick={onRetry}
+                  onClick={() => {
+                    document.getElementById(panelId)?.focus();
+                    onRetry();
+                  }}
                 >
                   <RefreshCw size={14} aria-hidden="true" /> Reintentar
                 </button>
@@ -184,8 +194,11 @@ export default function MatchExtras({
                     className="match-extra-goals"
                     aria-label="Goleadores del partido"
                   >
-                    {insight.goals.map((goal, index) => (
-                      <li key={`${goal.minute}-${goal.scorer}-${index}`}>
+                    {chronologicalGoals(insight.goals).map((goal, index) => (
+                      <li
+                        className={`goal-event ${goal.side}`}
+                        key={`${goal.minute}-${goal.scorer}-${index}`}
+                      >
                         <span className="match-extra-minute">
                           {goal.minute}
                         </span>
@@ -230,16 +243,22 @@ export default function MatchExtras({
               )
             ) : tab === "lineups" ? (
               insight.lineups.length ? (
-                <div className="match-extra-lineups">
-                  <TeamLineup
-                    name={match.home}
-                    lineup={insight.lineups.find((l) => l.side === "home")}
-                  />
-                  <TeamLineup
-                    name={match.away}
-                    lineup={insight.lineups.find((l) => l.side === "away")}
-                  />
-                </div>
+                <>
+                  <LineupPitch match={match} lineups={insight.lineups} />
+                  <details className="lineup-full-list">
+                    <summary>Ver lista completa y suplentes</summary>
+                    <div className="match-extra-lineups">
+                      <TeamLineup
+                        name={match.home}
+                        lineup={insight.lineups.find((l) => l.side === "home")}
+                      />
+                      <TeamLineup
+                        name={match.away}
+                        lineup={insight.lineups.find((l) => l.side === "away")}
+                      />
+                    </div>
+                  </details>
+                </>
               ) : (
                 <p className="match-extra-empty">
                   Alineaciones no disponibles. Suelen publicarse cerca del
@@ -265,7 +284,20 @@ export default function MatchExtras({
                     {insight.statistics.map((stat, index) => (
                       <tr key={`${stat.label}-${index}`}>
                         <td>{stat.home}</td>
-                        <th scope="row">{stat.label}</th>
+                        <th scope="row">
+                          {stat.label}
+                          <span className="stat-comparison" aria-hidden="true">
+                            {statisticShares(stat.home, stat.away)?.map(
+                              (share, side) => (
+                                <i
+                                  key={side}
+                                  className={side === 0 ? "home" : "away"}
+                                  style={{ width: `${share}%` }}
+                                />
+                              ),
+                            )}
+                          </span>
+                        </th>
                         <td>{stat.away}</td>
                       </tr>
                     ))}

@@ -10,6 +10,7 @@ import CompetitionLogo from "./CompetitionLogo";
 import Modal from "./Modal";
 import MatchResult from "./MatchResult";
 import MatchExtras from "./MatchExtras";
+import MatchCalendarAction from "./MatchCalendarAction";
 import { useMatchInsight } from "../lib/useMatchInsight";
 import TeamForm from "./TeamForm";
 import { Team } from "./ui";
@@ -94,6 +95,7 @@ export default function MatchDetails({
           }).format(new Date(match.utcDate))}
         </time>
       </p>
+      {!demo && <MatchCalendarAction match={match} />}
       {["EXTRA_TIME", "PENALTY_SHOOTOUT"].includes(
         match.scoreDuration || "",
       ) && (
