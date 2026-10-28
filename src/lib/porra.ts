@@ -1,4 +1,4 @@
-import { isCompetition } from "./competitions";
+import { isKnownCompetition } from "./competitions";
 import type { Match } from "./domain";
 
 export const MAX_PORRAS = 20;
@@ -54,7 +54,7 @@ export function validPorra(value: unknown): value is Porra {
     text(p.title, 60) &&
     Boolean(p.fixture) &&
     text(p.fixture.id, 128) &&
-    isCompetition(p.fixture.competition) &&
+    isKnownCompetition(p.fixture.competition) &&
     text(p.fixture.home, 100) &&
     text(p.fixture.away, 100) &&
     typeof p.fixture.utcDate === "string" &&

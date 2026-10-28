@@ -118,9 +118,7 @@ export default function MatchesPage({
           <Empty title="Aún no hay partidos disponibles">
             {demo
               ? "La demo contiene únicamente una jornada de LaLiga."
-              : competition === "CDR"
-                ? "La Copa del Rey requiere acceso a esta competición en Football-Data (TIER_THREE). Si tu token no la incluye, el calendario permanecerá vacío; revisa el aviso CDR en la sincronización."
-                : "La sincronización cargará los calendarios y resultados reales desde Football-Data.org."}
+              : "La sincronización cargará los calendarios y resultados reales desde Football-Data.org."}
             <br />
             <button className="button secondary" onClick={onDemo}>
               Explorar modo demo

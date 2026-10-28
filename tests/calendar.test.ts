@@ -34,6 +34,28 @@ const storage = () => {
 };
 afterEach(() => vi.useRealTimers());
 
+it("filtra Copa de la caché anterior y de respuestas nuevas conservando el resto", async () => {
+  const store = storage();
+  const old = {
+    ...match,
+    id: "cup",
+    competition: "CDR" as const,
+    seasonId: "CDR-2026",
+  };
+  store.setItem(
+    "galacticbet:calendar:v1:project",
+    JSON.stringify({ savedAt: Date.now(), matches: [match, old] }),
+  );
+  const fetch = vi.fn(async () => [match, old]);
+  expect(await createCalendarLoader("project", () => store, fetch)()).toEqual([
+    calendarMatch(match),
+  ]);
+  expect(fetch).not.toHaveBeenCalled();
+  expect(await createCalendarLoader("another", () => store, fetch)()).toEqual([
+    calendarMatch(match),
+  ]);
+});
+
 it("publica solo campos de calendario con orden estable y conserva todas las jornadas", () => {
   const other = {
     ...match,

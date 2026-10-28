@@ -11,6 +11,20 @@ const participants = [
   { id: "bea", name: "Bea", avatar: "avatar.png" },
   { id: "carlos", name: "Carlos", avatar: null },
 ];
+it("excluye puntos históricos de Copa del total global sin borrar los registros", () => {
+  const archived: SeasonRanking = {
+    id: "CDR-2026",
+    competition: "CDR",
+    standings: [{ id: "ana", points: 100, hits: 30, rounds: {} }],
+  };
+  expect(
+    buildRanking(participants, [archived], "global").every(
+      (row) => row.points === 0,
+    ),
+  ).toBe(true);
+  expect(archived.standings[0].points).toBe(100);
+  expect(rankingRounds([archived], [], "global")).toEqual([]);
+});
 const r1 = "PD-2026-REGULAR_SEASON-1";
 const r2 = "PD-2026-REGULAR_SEASON-2";
 const clRound = "CL-2026-LEAGUE_STAGE-1";

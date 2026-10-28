@@ -240,8 +240,7 @@ export default function ProfilePage({
               <ol className="how-to-steps">
                 <li>
                   Crea un grupo o únete con el código de tus amigos. Los grupos
-                  nuevos incluyen LaLiga, Champions, Premier League y Copa del
-                  Rey.
+                  nuevos incluyen LaLiga, Champions y Premier League.
                 </li>
                 <li>
                   En Mi quiniela, elige tu grupo y pulsa el logo de la
@@ -282,8 +281,8 @@ export default function ProfilePage({
               <p>
                 Los cinco puntos representan los últimos resultados disponibles
                 antes del partido, de más antiguo a más reciente. Combinan
-                LaLiga, Champions, Premier League y Copa del Rey; los huecos
-                indican que falta historial.
+                LaLiga, Champions y Premier League; los huecos indican que falta
+                historial.
               </p>
               <p>
                 La forma, las estadísticas y el global se calculan a 90 minutos

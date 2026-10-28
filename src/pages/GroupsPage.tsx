@@ -134,7 +134,7 @@ export default function GroupsPage({
                 setParams({ group: id }, { replace: true });
                 setMessage(
                   modal === "create"
-                    ? "¡Grupo creado! Ya podéis jugar a LaLiga, Champions, Premier League y Copa del Rey."
+                    ? "¡Grupo creado! Ya podéis jugar a LaLiga, Champions y Premier League."
                     : "¡Ya estás dentro del grupo!",
                 );
               }}
@@ -190,7 +190,7 @@ function GroupForm({
         {kind === "create" ? (
           <>
             <p className="muted">
-              Un grupo privado para jugar juntos a las cuatro competiciones.
+              Un grupo privado para jugar juntos a las tres competiciones.
             </p>
             <div className="included-competitions">
               {COMPETITION_CODES.map((code) => (
@@ -226,7 +226,7 @@ function GroupForm({
             </label>
             <p className="footnote muted">
               <LockKeyhole size={13} />
-              La modalidad se aplica a las cuatro competiciones y queda fija
+              La modalidad se aplica a las tres competiciones y queda fija
               durante la temporada.
             </p>
           </>

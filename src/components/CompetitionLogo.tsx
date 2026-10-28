@@ -4,7 +4,7 @@ import {
   COMPETITIONS,
 } from "../lib/competitions";
 import { useState } from "react";
-/** Public provider emblems; local wordmarks remain visible if the image is unavailable. */
+/** Identical light badges keep all three official emblems legible on dark surfaces. */
 export default function CompetitionLogo({
   code,
   small = false,
@@ -16,41 +16,22 @@ export default function CompetitionLogo({
   const loaded = loadedCode === code;
   return (
     <span
-      className={`competition-logo ${code === "PD" ? "laliga" : "champions"} ${small ? "small" : ""}`}
+      className={`competition-logo competition-badge ${small ? "small" : ""}`}
       role="img"
       aria-label={competitionName(code)}
     >
-      {code !== "CDR" && (
-        <img
-          className={`official-emblem ${loaded ? "loaded" : ""}`}
-          src={`https://crests.football-data.org/${code}.png`}
-          alt=""
-          onLoad={() => setLoadedCode(code)}
-          onError={() => setLoadedCode("")}
-        />
+      <img
+        className={`official-emblem ${loaded ? "loaded" : ""}`}
+        src={`https://crests.football-data.org/${code}.png`}
+        alt=""
+        onLoad={() => setLoadedCode(code)}
+        onError={() => setLoadedCode("")}
+      />
+      {!loaded && (
+        <span className="competition-fallback" aria-hidden="true">
+          {COMPETITIONS[competitionCode(code)].mark}
+        </span>
       )}
-      {!loaded &&
-        (code === "PL" || code === "CDR" ? (
-          <span className="competition-monogram">
-            {code === "CDR" ? "🏆" : COMPETITIONS[competitionCode(code)].mark}
-          </span>
-        ) : code === "CL" ? (
-          <>
-            <span className="starball">✦</span>
-            <span>
-              UEFA
-              <br />
-              CHAMPIONS
-              <br />
-              LEAGUE
-            </span>
-          </>
-        ) : (
-          <>
-            <span className="ll-mark">LL</span>
-            <strong>LALIGA</strong>
-          </>
-        ))}
     </span>
   );
 }

@@ -1,3 +1,4 @@
+import { isCompetition } from "./competitions";
 import { sealRound } from "./roundSubmission";
 import {
   collection,
@@ -46,7 +47,9 @@ export const loadMatches = createCalendarLoader(
       const legacy = await getDocs(collection(database(), "matches"));
       return legacy.docs.map((d) => ({ ...d.data(), id: d.id }) as Match);
     }
-    return snap.docs.flatMap((d) => decodeCalendar(d.data()));
+    return snap.docs
+      .filter((d) => isCompetition(d.id.split("-")[0]))
+      .flatMap((d) => decodeCalendar(d.data()));
   },
 );
 export async function loadGroups(uid: string) {
@@ -78,11 +81,13 @@ async function fetchGameSeasons(groupId: string) {
   const list = await getDocs(
     collection(database(), "groups", groupId, "gameSeasons"),
   );
-  return list.docs.map((d) => ({
-    id: d.id,
-    competition: d.data().competition as string,
-    mode: d.data().mode as Mode,
-  }));
+  return list.docs
+    .filter((d) => isCompetition(d.data().competition))
+    .map((d) => ({
+      id: d.id,
+      competition: d.data().competition as string,
+      mode: d.data().mode as Mode,
+    }));
 }
 export async function joinGroup(uid: string, code: string) {
   const store = database();

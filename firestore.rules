@@ -37,7 +37,7 @@ service cloud.firestore {
    }
    match /gameSeasons/{sid} {
     allow read: if member(gid);
-    allow create: if signed() && getAfter(/databases/$(database)/documents/groups/$(gid)).data.ownerId == request.auth.uid && request.resource.data.keys().hasOnly(['competition','seasonId','mode','createdAt']) && request.resource.data.competition in ['PD','CL','PL','CDR'] && request.resource.data.seasonId == sid && request.resource.data.mode in ['classic','exact'] && request.resource.data.createdAt == request.time;
+    allow create: if signed() && getAfter(/databases/$(database)/documents/groups/$(gid)).data.ownerId == request.auth.uid && request.resource.data.keys().hasOnly(['competition','seasonId','mode','createdAt']) && request.resource.data.competition in ['PD','CL','PL'] && request.resource.data.seasonId == sid && request.resource.data.mode in ['classic','exact'] && request.resource.data.createdAt == request.time;
     // No client updates: mode and season remain immutable, even for the owner.
     function marker(uid, rid) { return /databases/$(database)/documents/groups/$(gid)/gameSeasons/$(sid)/submissions/$(uid)/rounds/$(rid); }
     function entry(uid, rid) { return /databases/$(database)/documents/groups/$(gid)/gameSeasons/$(sid)/roundEntries/$(rid)/players/$(uid); }

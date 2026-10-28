@@ -1,3 +1,4 @@
+import { isCompetition } from "../src/lib/competitions";
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import type { Match, Mode } from "../src/lib/domain";
 import { scoringCalendar } from "./calendarSync";
@@ -22,6 +23,7 @@ export async function recompute(
     const seasons = await group.ref.collection("gameSeasons").get();
     for (const season of seasons.docs) {
       const config = season.data();
+      if (!isCompetition(config.competition)) continue;
       const mode = config.mode as Mode;
       if (!["classic", "exact"].includes(mode))
         throw new Error("Modalidad no válida en backend.");

@@ -1,3 +1,4 @@
+import { isCompetition } from "./competitions";
 import { calendarMatch, validCalendarMatch } from "./calendar";
 import type { Match } from "./domain";
 
@@ -32,7 +33,9 @@ export function createCalendarLoader(
       )
         cached = {
           savedAt: data.savedAt,
-          matches: data.matches.map(calendarMatch),
+          matches: data.matches
+            .filter((m: Match) => isCompetition(m.competition))
+            .map(calendarMatch),
         };
     } catch {
       /* Safari private mode / full storage: use memory instead. */
@@ -51,6 +54,7 @@ export function createCalendarLoader(
       .then(fetchMatches)
       .then((matches) => {
         const clean = matches
+          .filter((m) => isCompetition(m.competition))
           .map(calendarMatch)
           .sort((a, b) => a.utcDate.localeCompare(b.utcDate));
         if (!clean.length)

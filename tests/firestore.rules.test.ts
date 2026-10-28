@@ -141,6 +141,21 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
       ),
     );
   });
+  it("permite nuevas temporadas Premier pero impide reactivar Copa desde el cliente", async () => {
+    const db = env.authenticatedContext("alice").firestore();
+    const value = (competition: string) => ({
+      competition,
+      seasonId: `${competition}-2026`,
+      mode: "classic",
+      createdAt: serverTimestamp(),
+    });
+    await assertSucceeds(
+      setDoc(doc(db, "groups/g/gameSeasons/PL-2026"), value("PL")),
+    );
+    await assertFails(
+      setDoc(doc(db, "groups/g/gameSeasons/CDR-2026"), value("CDR")),
+    );
+  });
   it("permite abrir detalles públicos, pero impide listados y cualquier escritura cliente", async () => {
     await env.withSecurityRulesDisabled(async (c) => {
       await setDoc(doc(c.firestore(), "matchInsights/future"), {
@@ -282,7 +297,7 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
     expect(
       (await getDoc(doc(db, `groups/${id}/members/charlie`))).exists(),
     ).toBe(true);
-    for (const competition of ["PD", "CL", "PL", "CDR"]) {
+    for (const competition of ["PD", "CL", "PL"]) {
       const season = await getDoc(
         doc(db, `groups/${id}/gameSeasons/${gameSeasonId(competition)}`),
       );
@@ -305,7 +320,7 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
     const db = env.authenticatedContext("alice").firestore();
     const store = doc(db, "groups/g").firestore;
     await prepareGroupCompetitions(store, "alice", "g");
-    for (const competition of ["PL", "CDR"]) {
+    for (const competition of ["PL"]) {
       expect(
         (
           await getDoc(

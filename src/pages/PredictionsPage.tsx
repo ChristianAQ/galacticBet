@@ -458,6 +458,7 @@ export default function PredictionsPage({
       {list.length ? (
         <>
           <RoundDeliveryStatus
+            key={`${group}:${list[0]?.roundId}`}
             memberIds={
               demo
                 ? demoPlayers.map((person) => person.id)

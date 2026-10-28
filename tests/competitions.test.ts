@@ -24,7 +24,7 @@ const fixture: ApiMatch = {
     regularTime: { home: 1, away: 1 },
   },
 };
-it("acepta las cuatro competiciones sin confundir sus calendarios o sus nombres", () => {
+it("acepta las tres competiciones sin confundir sus calendarios o sus nombres", () => {
   for (const code of COMPETITION_CODES) {
     const match = normalize(fixture, code);
     expect(
@@ -39,10 +39,10 @@ it("acepta las cuatro competiciones sin confundir sus calendarios o sus nombres"
     expect(competitionCode(code)).toBe(code);
   }
   expect(competitionName("PL")).toBe("Premier League");
-  expect(competitionName("CDR")).toBe("Copa del Rey");
+  expect(COMPETITION_CODES).not.toContain("CDR");
   expect(competitionCode("INVALID")).toBe("PD");
 });
-it("recuerda Premier y Copa tras recargar las preferencias", () => {
+it("recuerda Premier y descarta preferencias de competiciones retiradas", () => {
   const data = new Map<string, string>();
   const storage = () => ({
     getItem: (key: string) => data.get(key) || null,
@@ -54,7 +54,7 @@ it("recuerda Premier y Copa tras recargar las preferencias", () => {
   store.update("a", { competition: "PL" });
   store.update("b", { competition: "CDR" });
   expect(createPreferenceStore(storage).get("a").competition).toBe("PL");
-  expect(createPreferenceStore(storage).get("b").competition).toBe("CDR");
+  expect(createPreferenceStore(storage).get("b").competition).toBe("PD");
 });
 it("admite una ronda grande de Copa pero rechaza entregas fuera del límite y valores inválidos", () => {
   const ids = Array.from({ length: 64 }, (_, i) => String(i));

@@ -4,6 +4,7 @@ import { HashRouter } from "react-router-dom";
 import App from "./App";
 import { configureMobileViewport } from "./lib/mobileViewport";
 import "./styles.css";
+import "./styles/sportsTheme.css";
 const resetMobileViewport = configureMobileViewport();
 if (import.meta.hot) import.meta.hot.dispose(resetMobileViewport);
 ReactDOM.createRoot(document.getElementById("root")!).render(

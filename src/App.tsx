@@ -141,7 +141,7 @@ export default function App() {
           auth?.currentUser?.uid === user.uid
         )
           setError(
-            "No se pudieron preparar las cuatro competiciones: " +
+            "No se pudieron preparar las tres competiciones: " +
               readableError(failed.reason),
           );
         if (auth?.currentUser?.uid === user.uid) {

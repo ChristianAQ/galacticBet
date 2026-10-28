@@ -1,4 +1,4 @@
-import { Clock3 } from "lucide-react";
+import { ChevronDown, Clock3 } from "lucide-react";
 import type { Participant } from "../lib/data";
 
 export default function RoundDeliveryStatus({
@@ -8,8 +8,6 @@ export default function RoundDeliveryStatus({
   ready,
   deadline,
   clock,
-  canShare,
-  sealed,
 }: {
   memberIds: string[];
   participants: Participant[];
@@ -22,82 +20,80 @@ export default function RoundDeliveryStatus({
 }) {
   const done = memberIds.filter((id) => completedIds.includes(id));
   const missing = memberIds.filter((id) => !completedIds.includes(id));
-  const closed = deadline !== null && clock >= deadline;
-  const date =
-    deadline === null
-      ? ""
-      : new Intl.DateTimeFormat("es", {
-          weekday: "short",
-          day: "numeric",
-          month: "short",
-          hour: "2-digit",
-          minute: "2-digit",
-        }).format(deadline);
+  const validDate = deadline !== null && Number.isFinite(deadline);
+  const closed = validDate && clock >= deadline;
+  const date = validDate
+    ? new Intl.DateTimeFormat("es", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(deadline)
+    : "Fecha pendiente";
   return (
-    <section
+    <details
       className="delivery-panel panel"
       aria-label="Entregas de la jornada"
       aria-busy={!ready}
     >
-      <div className="delivery-heading">
-        <h2>
-          {ready
-            ? `${done.length} de ${memberIds.length} han guardado`
-            : "Comprobando entregas…"}
-        </h2>
-        {ready && (
-          <span>
-            {canShare
-              ? "Pronósticos compartidos"
-              : "Solo tú ves tus elecciones"}
-          </span>
-        )}
-      </div>
-      <p
-        className={`delivery-deadline ${closed ? "is-closed" : ""}`}
-        role="status"
-      >
-        <Clock3 size={15} />
-        <span>
-          {deadline === null ? (
-            "Esperando el horario de la jornada"
+      <summary className="delivery-summary">
+        <strong
+          aria-label={
+            ready
+              ? `${done.length} de ${memberIds.length} participantes han guardado`
+              : "Comprobando entregas"
+          }
+        >
+          {ready ? done.length : "—"} <span>de {memberIds.length}</span>
+        </strong>
+        <span className={`delivery-summary-date ${closed ? "is-closed" : ""}`}>
+          {validDate ? (
+            <time
+              dateTime={new Date(deadline).toISOString()}
+              title={closed ? "Plazo cerrado" : "Inicio del primer partido"}
+            >
+              {date}
+            </time>
           ) : (
-            <>
-              {closed ? "Plazo cerrado" : "Entrega hasta"} ·{" "}
-              <time dateTime={new Date(deadline).toISOString()}>{date}</time>
-              <small>Inicio del primer partido · hora local</small>
-            </>
+            date
           )}
+          <ChevronDown size={15} aria-hidden="true" />
         </span>
-      </p>
-      {ready &&
-        (missing.length ? (
+      </summary>
+      <div className="delivery-content">
+        <p className="delivery-start">
+          <Clock3 size={16} aria-hidden="true" />
+          Inicio del primer partido de la jornada
+        </p>
+        {!ready ? (
+          <p className="delivery-all-done" role="status">
+            Comprobando quién falta…
+          </p>
+        ) : missing.length ? (
           <div className="delivery-missing">
             <h3>
               {closed ? "Sin entregar" : "Faltan por guardar"}
               <span>{missing.length}</span>
             </h3>
             <ul>
-              {missing.map((id) => (
-                <li key={id}>
-                  {participants.find((person) => person.id === id)?.name ||
-                    "Jugador"}
-                </li>
-              ))}
+              {missing.map((id) => {
+                const name =
+                  participants.find((p) => p.id === id)?.name || "Jugador";
+                return (
+                  <li key={id}>
+                    <span className="delivery-person-icon" aria-hidden="true">
+                      {name.slice(0, 1).toUpperCase()}
+                    </span>
+                    <span>{name}</span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ) : (
-          <p className="delivery-all-done">
-            Todo el grupo ha guardado su quiniela.
-          </p>
-        ))}
-      {ready && !canShare && (sealed || !closed) && (
-        <p className="delivery-privacy">
-          {sealed
-            ? "Esta entrega anterior no está habilitada para compartir. Solo se comparten jornadas completas."
-            : "Completa y guarda para ver a quienes también hayan entregado."}
-        </p>
-      )}
-    </section>
+          <p className="delivery-all-done">Todos han guardado su quiniela.</p>
+        )}
+      </div>
+    </details>
   );
 }

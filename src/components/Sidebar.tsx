@@ -1,8 +1,5 @@
-import {
-  COMPETITION_CODES,
-  COMPETITIONS,
-  competitionName,
-} from "../lib/competitions";
+import CompetitionLogo from "./CompetitionLogo";
+import { COMPETITION_CODES, competitionName } from "../lib/competitions";
 import {
   ArrowUpRight,
   CircleHelp,
@@ -148,8 +145,8 @@ export default function Sidebar({
           <span className="sidebar-caption">COMPETICIONES</span>
           {COMPETITION_CODES.map((code) => (
             <Link key={code} to={`/partidos?competition=${code}`}>
-              <span className="tiny-league" aria-hidden="true">
-                {COMPETITIONS[code].mark}
+              <span aria-hidden="true">
+                <CompetitionLogo code={code} small />
               </span>
               {competitionName(code)}
             </Link>

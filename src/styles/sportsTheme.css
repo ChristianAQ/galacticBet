@@ -1,0 +1,329 @@
+/* Shared compact sports theme. Component-specific layouts and safe areas remain in styles.css. */
+:root {
+  --green: #68e591;
+  --muted: #a1aaa7;
+  --border: #2b3330;
+  --panel: #191e1c;
+  --surface-header: #202824;
+  --surface-border: #343f38;
+  color: #f1f4f2;
+  background: #101411;
+}
+body {
+  background: #101411;
+}
+p {
+  color: var(--muted);
+}
+.sidebar,
+.topbar {
+  background: #151a17;
+  border-color: var(--border);
+}
+.sidebar-caption,
+.page-eyebrow {
+  color: #89968e;
+  letter-spacing: 0.1em;
+}
+.sidebar nav > a.active {
+  background: #25372a;
+  color: var(--green);
+}
+.sidebar nav > a {
+  border-radius: 10px;
+}
+.panel {
+  background: var(--panel);
+  border-color: var(--border);
+  border-radius: 14px;
+  box-shadow: none;
+}
+h1 {
+  font-size: clamp(25px, 3vw, 32px);
+  letter-spacing: -0.8px;
+}
+.page-title {
+  margin-bottom: 20px;
+}
+.button {
+  border-radius: 10px;
+}
+.button.primary {
+  color: #102016;
+  background: var(--green);
+  box-shadow: none;
+}
+.button.primary:hover {
+  background: #8ceea9;
+}
+.button.secondary {
+  background: #242d27;
+  border-color: #3b4940;
+  color: #e1eae4;
+}
+input,
+select {
+  border-radius: 9px;
+  background: #121814;
+  border-color: #354039;
+}
+.filter-panel {
+  overflow: hidden;
+}
+.filter-summary,
+.filter-summary:hover,
+.filter-summary[aria-expanded="true"] {
+  background: #202824;
+}
+.filter-summary-text > strong {
+  font-weight: 650;
+}
+.filter-summary-action {
+  color: #a5b7ab;
+}
+.filter-controls {
+  background: #191e1c;
+}
+.competition-switch {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  max-width: 100%;
+  gap: 6px;
+  padding: 5px;
+  background: #111713;
+  border-color: var(--border);
+}
+.competition-switch::before {
+  display: none;
+}
+.competition-switch > button {
+  flex-direction: column;
+  gap: 8px;
+  min-height: 94px;
+  padding: 10px 3px;
+  border-radius: 10px;
+  color: #aab9af;
+}
+.competition-switch > button > span:last-child {
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: center;
+}
+.competition-switch > button[aria-pressed="true"] {
+  background: #243b2c;
+  color: #a4efbb;
+  box-shadow: inset 0 0 0 1px #4d895e;
+}
+.competition-logo.competition-badge,
+.competition-logo.competition-badge.small {
+  display: inline-flex;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  padding: 9px;
+  border-radius: 12px;
+  background: #f2f5f3;
+  border: 1px solid #fff;
+  color: #1a2b21;
+}
+.competition-logo.competition-badge.small {
+  width: 36px;
+  height: 36px;
+  padding: 7px;
+  border-radius: 9px;
+}
+.competition-logo.competition-badge .official-emblem {
+  position: absolute;
+  inset: 7px;
+  width: calc(100% - 14px);
+  height: calc(100% - 14px);
+  max-height: none;
+  object-fit: contain;
+}
+.competition-logo.competition-badge .competition-fallback {
+  display: block;
+  font:
+    800 18px/1 ui-sans-serif,
+    system-ui;
+  color: #243c2e;
+}
+.competition-switch .competition-logo.competition-badge.small {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+}
+.fixture-card-heading,
+.fixture-card-footer,
+.schedule-competition {
+  background: #202824;
+  border-color: var(--border);
+}
+.fixture-card-heading {
+  font-size: 11px;
+  color: #b9c9be;
+}
+.fixture-card-footer {
+  color: #92cba3;
+}
+.match-calendar-list {
+  gap: 10px;
+}
+.standings-table thead {
+  background: #202824;
+}
+.standings-table tbody tr {
+  border-color: var(--border);
+}
+.round-save-panel {
+  background: #1b2920;
+  border-color: #354c3c;
+}
+.bottom-nav {
+  background: #161d19f5;
+  border-color: #344039;
+  backdrop-filter: blur(14px);
+}
+.bottom-nav a.active {
+  color: var(--green);
+}
+.match-extras,
+.match-extra-panel {
+  background: #141d17;
+}
+.match-extra-tabs button[aria-pressed="true"] {
+  background: #2a4833;
+}
+.delivery-panel.panel {
+  padding: 0;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.delivery-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 16px;
+  min-height: 54px;
+  cursor: pointer;
+  list-style: none;
+}
+.delivery-summary::-webkit-details-marker {
+  display: none;
+}
+.delivery-summary > strong {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: #e8f4eb;
+  white-space: nowrap;
+}
+.delivery-summary > strong > span {
+  font-weight: 450;
+  color: #b1bdb5;
+}
+.delivery-summary-date {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: right;
+  font-size: 11px;
+  color: #b4c8bb;
+}
+.delivery-summary-date.is-closed {
+  color: #dab5a8;
+}
+.delivery-summary-date svg {
+  transition: transform 0.18s ease;
+}
+.delivery-panel[open] .delivery-summary-date svg {
+  transform: rotate(180deg);
+}
+.delivery-summary:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: -3px;
+  border-radius: 12px;
+}
+.delivery-content {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border);
+}
+.delivery-start {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  color: #afc6b7;
+  margin: 15px 0;
+  line-height: 1.5;
+}
+.delivery-start svg {
+  color: var(--green);
+}
+.delivery-missing {
+  border-top: 0;
+  padding-top: 0;
+}
+.delivery-missing h3 {
+  color: #d3dfd7;
+  font-size: 11px;
+  font-weight: 500;
+}
+.delivery-missing h3 > span {
+  background: #2c3d31;
+  color: #b6d4bf;
+}
+.delivery-missing ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.delivery-missing li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+  background: #202a23;
+  border: 1px solid #303e34;
+  border-radius: 9px;
+  color: #e0e9e3;
+}
+.delivery-person-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #344d3c;
+  color: #b9e4c7;
+  font-size: 11px;
+}
+.delivery-missing li > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.delivery-all-done {
+  margin: 12px 0 0;
+  color: #98d7ab;
+}
+@media (max-width: 370px) {
+  .competition-switch > button > span:last-child {
+    font-size: 10px;
+  }
+  .delivery-summary {
+    padding: 13px 12px;
+  }
+  .delivery-summary-date {
+    font-size: 10px;
+    gap: 4px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .delivery-summary-date svg {
+    transition: none;
+  }
+}

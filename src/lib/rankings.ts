@@ -1,3 +1,4 @@
+import { isCompetition } from "./competitions";
 import { competitionName } from "./competitions";
 import { roundLabelFromId, type Match } from "./domain";
 import type { Participant } from "./data";
@@ -31,6 +32,7 @@ export function buildRanking(
     participants.map((p) => [p.id, { ...p, points: 0, hits: 0 }]),
   );
   for (const season of seasons) {
+    if (!isCompetition(season.competition)) continue;
     if (scope !== "global" && scope !== season.competition) continue;
     for (const standing of season.standings) {
       const row = totals.get(standing.id);
@@ -59,7 +61,9 @@ export function rankingRounds(
   scope: string,
 ) {
   const active = seasons.filter(
-    (s) => scope === "global" || s.competition === scope,
+    (s) =>
+      isCompetition(s.competition) &&
+      (scope === "global" || s.competition === scope),
   );
   const seasonIds = new Set(active.map((s) => s.id));
   const rounds = new Map<

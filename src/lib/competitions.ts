@@ -1,5 +1,6 @@
-export const COMPETITION_CODES = ["PD", "CL", "PL", "CDR"] as const;
-export type CompetitionCode = (typeof COMPETITION_CODES)[number];
+export const COMPETITION_CODES = ["PD", "CL", "PL"] as const;
+// Retired codes remain readable for previously saved records only.
+export type CompetitionCode = keyof typeof COMPETITIONS;
 export const COMPETITIONS = {
   PD: { name: "LaLiga EA Sports", short: "LaLiga", mark: "LL", espn: "esp.1" },
   CL: {
@@ -34,4 +35,8 @@ export function competitionName(value: unknown, short = false) {
   return isCompetition(value)
     ? COMPETITIONS[value][short ? "short" : "name"]
     : "Competición";
+}
+
+export function isKnownCompetition(value: unknown): value is CompetitionCode {
+  return typeof value === "string" && Object.hasOwn(COMPETITIONS, value);
 }
