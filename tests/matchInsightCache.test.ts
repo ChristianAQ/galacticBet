@@ -160,11 +160,10 @@ describe("Detalles públicos bajo demanda", () => {
     ])
       expect(validMatchInsight({ ...detail(), ...patch })).toBe(false);
   });
-  it("construye enlaces HTTPS de consulta con fecha y país, sin URLs del proveedor sin validar", () => {
+  it("usa el listado de emisiones configurado y enlaces HTTPS de información con destinos fijos", () => {
     const links = matchExternalLinks(fixture, detail());
     const tv = new URL(links.television);
-    expect(tv.origin).toBe("https://www.google.com");
-    expect(tv.searchParams.get("q")).toContain("España TV emisión oficial");
+    expect(tv.href).toBe("https://jack21eo.mpanrc4imind.my/es");
     expect(links.source).toBe(
       "https://www.espn.com/soccer/match/_/gameId/12345",
     );

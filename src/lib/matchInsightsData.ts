@@ -124,7 +124,7 @@ export function matchExternalLinks(
   }).format(new Date(match.utcDate));
   const query = `${match.home} ${match.away} ${date}`;
   return {
-    television: `https://www.google.com/search?q=${encodeURIComponent(`${query} dónde ver España TV emisión oficial`)}`,
+    television: "https://jack21eo.mpanrc4imind.my/es",
     details: `https://www.google.com/search?q=${encodeURIComponent(`${query} alineaciones goles`)}`,
     source:
       insight && /^\d+$/.test(insight.eventId)
