@@ -124,7 +124,11 @@ export function knockoutContext(
   matches: Match[],
   now = Date.now(),
 ) {
-  if (target.competition !== "CL" || !twoLeggedStages.includes(target.stage))
+  if (
+    (target.competition === "CDR" && target.stage !== "SEMI_FINALS") ||
+    !["CL", "CDR"].includes(target.competition) ||
+    !twoLeggedStages.includes(target.stage)
+  )
     return null;
   const legs = matches
     .filter(

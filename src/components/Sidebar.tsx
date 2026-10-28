@@ -1,4 +1,9 @@
 import {
+  COMPETITION_CODES,
+  COMPETITIONS,
+  competitionName,
+} from "../lib/competitions";
+import {
   ArrowUpRight,
   CircleHelp,
   Plus,
@@ -141,14 +146,14 @@ export default function Sidebar({
         </div>
         <div className="sidebar-competitions">
           <span className="sidebar-caption">COMPETICIONES</span>
-          <Link to="/partidos?competition=PD">
-            <span className="tiny-league">LL</span>LaLiga EA Sports
-            <span className="live-dot" />
-          </Link>
-          <Link to="/partidos?competition=CL">
-            <span className="tiny-league">✦</span>Champions League
-            <span className="live-dot" />
-          </Link>
+          {COMPETITION_CODES.map((code) => (
+            <Link key={code} to={`/partidos?competition=${code}`}>
+              <span className="tiny-league" aria-hidden="true">
+                {COMPETITIONS[code].mark}
+              </span>
+              {competitionName(code)}
+            </Link>
+          ))}
         </div>
         <div className="sidebar-bottom">
           <div className="friend-card">

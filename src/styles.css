@@ -4208,3 +4208,32 @@ td {
 .porra-home-link > svg {
   flex-shrink: 0;
 }
+
+/* Four competitions share a compact, wrapping selector on every page. */
+.competition-logo .competition-monogram,
+.competition-logo.small.champions > .competition-monogram:last-child {
+  display: block;
+  font-size: 20px;
+  font-weight: 800;
+  color: #17251e;
+  line-height: 1;
+}
+.competition-switch::before {
+  display: none;
+}
+.competition-switch {
+  gap: 4px;
+}
+.competition-switch > button[aria-pressed="true"] {
+  background: #2a3b1d;
+  box-shadow: inset 0 0 0 1px #5d7d3e;
+}
+.included-competitions {
+  flex-wrap: wrap;
+}
+@media (min-width: 620px) {
+  .competition-switch {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    max-width: 100%;
+  }
+}

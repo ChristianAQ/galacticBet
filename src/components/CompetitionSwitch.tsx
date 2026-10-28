@@ -1,3 +1,5 @@
+import { competitionName } from "../lib/competitions";
+import { COMPETITION_CODES } from "../lib/competitions";
 import CompetitionLogo from "./CompetitionLogo";
 import type { CompetitionCode } from "../lib/preferences";
 export default function CompetitionSwitch({
@@ -5,7 +7,7 @@ export default function CompetitionSwitch({
   onChange,
   combined = false,
   disabled = false,
-  available = ["PD", "CL"],
+  available = [...COMPETITION_CODES],
 }: {
   value: CompetitionCode;
   onChange: (value: CompetitionCode) => void;
@@ -21,17 +23,17 @@ export default function CompetitionSwitch({
       role="group"
       aria-label="Elegir competición"
     >
-      {(["PD", "CL"] as const).map((code) => (
+      {COMPETITION_CODES.map((code) => (
         <button
           key={code}
           type="button"
-          aria-label={code === "PD" ? "LaLiga" : "Champions League"}
+          aria-label={competitionName(code)}
           aria-pressed={!combined && value === code}
           disabled={disabled || !available.includes(code)}
           onClick={() => onChange(code)}
         >
           <CompetitionLogo code={code} small />
-          <span>{code === "PD" ? "LaLiga" : "Champions"}</span>
+          <span>{competitionName(code, true)}</span>
         </button>
       ))}
     </div>

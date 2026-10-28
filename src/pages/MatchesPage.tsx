@@ -1,3 +1,5 @@
+import { competitionCode } from "../lib/competitions";
+import { competitionName } from "../lib/competitions";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
@@ -19,7 +21,7 @@ export default function MatchesPage({
   loading: boolean;
 }) {
   const [params, setParams] = useSearchParams();
-  const competition = params.get("competition") === "CL" ? "CL" : "PD";
+  const competition = competitionCode(params.get("competition"));
   const round = params.get("round") || "";
   const [detailId, setDetailId] = useState("");
   const detail = matches.find((m) => m.id === detailId);
@@ -45,7 +47,7 @@ export default function MatchesPage({
         title="El calendario del fútbol"
       />
       <FilterPanel
-        title={competition === "PD" ? "LaLiga EA Sports" : "Champions League"}
+        title={competitionName(competition)}
         summary={
           filtered.find((m) => m.roundId === selected)
             ? roundLabel(filtered.find((m) => m.roundId === selected)!)
@@ -116,7 +118,9 @@ export default function MatchesPage({
           <Empty title="Aún no hay partidos disponibles">
             {demo
               ? "La demo contiene únicamente una jornada de LaLiga."
-              : "La sincronización cargará los calendarios y resultados reales desde Football-Data.org."}
+              : competition === "CDR"
+                ? "La Copa del Rey requiere acceso a esta competición en Football-Data (TIER_THREE). Si tu token no la incluye, el calendario permanecerá vacío; revisa el aviso CDR en la sincronización."
+                : "La sincronización cargará los calendarios y resultados reales desde Football-Data.org."}
             <br />
             <button className="button secondary" onClick={onDemo}>
               Explorar modo demo

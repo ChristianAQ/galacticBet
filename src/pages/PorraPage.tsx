@@ -1,3 +1,5 @@
+import { competitionName } from "../lib/competitions";
+import { COMPETITION_CODES } from "../lib/competitions";
 import {
   Download,
   Camera,
@@ -424,13 +426,8 @@ export default function PorraPage({
                     esta porra
                   </option>
                 )}
-                {(["PD", "CL"] as const).map((code) => (
-                  <optgroup
-                    key={code}
-                    label={
-                      code === "PD" ? "LaLiga EA Sports" : "Champions League"
-                    }
-                  >
+                {COMPETITION_CODES.map((code) => (
+                  <optgroup key={code} label={competitionName(code)}>
                     {upcoming
                       .filter((m) => m.competition === code)
                       .map((m) => (

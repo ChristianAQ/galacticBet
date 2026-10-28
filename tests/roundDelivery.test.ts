@@ -66,7 +66,7 @@ it("la nueva puntuación exige entrega en las rondas posteriores al cambio sin a
   expect(requiresDelivery(games)).toBe(false);
 });
 it("codifica una jornada completa sin perder identidades ni marcadores y permite ambos modos", () => {
-  const ids = Array.from({ length: 32 }, (_, i) => String(i));
+  const ids = Array.from({ length: 64 }, (_, i) => String(i));
   const exact = Object.fromEntries(
     ids.map((id) => [id, { home: 99, away: 0 }]),
   );

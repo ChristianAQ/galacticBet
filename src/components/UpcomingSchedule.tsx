@@ -1,3 +1,5 @@
+import { competitionName } from "../lib/competitions";
+import { COMPETITION_CODES } from "../lib/competitions";
 import { ArrowRight, CalendarDays, Clock3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { roundLabel, type Match } from "../lib/domain";
@@ -33,7 +35,7 @@ export default function UpcomingSchedule({
         </Link>
       </div>
       <div className="schedule-grid">
-        {(["PD", "CL"] as const).map((competition) => {
+        {COMPETITION_CODES.map((competition) => {
           const next = upcoming.find(
             (match) => match.competition === competition,
           );
@@ -49,11 +51,7 @@ export default function UpcomingSchedule({
             <article className="schedule-card" key={competition}>
               <header className="schedule-competition">
                 <CompetitionLogo code={competition} small />
-                <h3>
-                  {competition === "PD"
-                    ? "LaLiga EA Sports"
-                    : "Champions League"}
-                </h3>
+                <h3>{competitionName(competition)}</h3>
               </header>
               {loading ? (
                 <div className="schedule-empty" role="status">

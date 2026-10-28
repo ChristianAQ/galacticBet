@@ -1,3 +1,4 @@
+import type { CompetitionCode } from "./competitions";
 export type Mode = "classic" | "exact";
 export type Outcome = "1" | "X" | "2";
 export interface Prediction {
@@ -16,7 +17,7 @@ export function predictionSummary(value: PredictionValue) {
 }
 export interface Match {
   id: string;
-  competition: "PD" | "CL";
+  competition: CompetitionCode;
   seasonId: string;
   roundId: string;
   matchday: number;
@@ -93,6 +94,11 @@ const stages: Record<string, string> = {
   LEAGUE_STAGE: "Fase liga",
   GROUP_STAGE: "Fase de grupos",
   PLAYOFFS: "Playoffs",
+  LAST_128: "Primera ronda",
+  LAST_64: "Treintaidosavos",
+  PRELIMINARY_ROUND: "Ronda previa",
+  FIRST_ROUND: "Primera ronda",
+  SECOND_ROUND: "Segunda ronda",
   LAST_32: "Dieciseisavos",
   LAST_16: "Octavos de final",
   QUARTER_FINALS: "Cuartos de final",

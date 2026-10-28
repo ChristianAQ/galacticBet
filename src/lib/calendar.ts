@@ -1,3 +1,4 @@
+import { isCompetition } from "./competitions";
 import type { Match } from "./domain";
 
 export const CALENDAR_FORMAT = 1;
@@ -39,7 +40,7 @@ export function validCalendarMatch(value: unknown): value is Match {
   if (!value || typeof value !== "object") return false;
   const m = value as Record<string, unknown>;
   return (
-    (m.competition === "PD" || m.competition === "CL") &&
+    isCompetition(m.competition) &&
     [
       "id",
       "seasonId",

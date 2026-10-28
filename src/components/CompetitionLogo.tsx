@@ -1,3 +1,8 @@
+import {
+  competitionName,
+  competitionCode,
+  COMPETITIONS,
+} from "../lib/competitions";
 import { useState } from "react";
 /** Public provider emblems; local wordmarks remain visible if the image is unavailable. */
 export default function CompetitionLogo({
@@ -7,22 +12,29 @@ export default function CompetitionLogo({
   code: string;
   small?: boolean;
 }) {
-  const [loaded, setLoaded] = useState(false);
+  const [loadedCode, setLoadedCode] = useState("");
+  const loaded = loadedCode === code;
   return (
     <span
-      className={`competition-logo ${code === "CL" ? "champions" : "laliga"} ${small ? "small" : ""}`}
+      className={`competition-logo ${code === "PD" ? "laliga" : "champions"} ${small ? "small" : ""}`}
       role="img"
-      aria-label={code === "CL" ? "UEFA Champions League" : "LaLiga"}
+      aria-label={competitionName(code)}
     >
-      <img
-        className={`official-emblem ${loaded ? "loaded" : ""}`}
-        src={`https://crests.football-data.org/${code}.png`}
-        alt=""
-        onLoad={() => setLoaded(true)}
-        onError={() => setLoaded(false)}
-      />
+      {code !== "CDR" && (
+        <img
+          className={`official-emblem ${loaded ? "loaded" : ""}`}
+          src={`https://crests.football-data.org/${code}.png`}
+          alt=""
+          onLoad={() => setLoadedCode(code)}
+          onError={() => setLoadedCode("")}
+        />
+      )}
       {!loaded &&
-        (code === "CL" ? (
+        (code === "PL" || code === "CDR" ? (
+          <span className="competition-monogram">
+            {code === "CDR" ? "🏆" : COMPETITIONS[competitionCode(code)].mark}
+          </span>
+        ) : code === "CL" ? (
           <>
             <span className="starball">✦</span>
             <span>

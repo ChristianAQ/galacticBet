@@ -1,3 +1,4 @@
+import type { CompetitionCode } from "../src/lib/competitions";
 import type { Match } from "../src/lib/domain";
 export interface ApiMatch {
   id: number;
@@ -27,7 +28,7 @@ export interface ApiMatch {
     regularTime?: { home: number | null; away: number | null };
   };
 }
-export function normalize(m: ApiMatch, competition: "PD" | "CL"): Match {
+export function normalize(m: ApiMatch, competition: CompetitionCode): Match {
   const year = m.season.startDate.slice(0, 4);
   const seasonId = `${competition}-${year}`;
   // Stage is essential: Champions knockouts may reuse matchday numbers or have none.

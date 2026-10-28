@@ -1,3 +1,4 @@
+import type { CompetitionCode } from "../src/lib/competitions";
 import {
   FieldValue,
   Timestamp,
@@ -56,7 +57,7 @@ function snapshotData(seasonId: string, matches: Match[]) {
 
 export async function syncCalendars(
   db: Firestore,
-  code: "PD" | "CL",
+  code: CompetitionCode,
   rawMatches: ApiMatch[],
   policies = new Map<string, string>(),
 ) {

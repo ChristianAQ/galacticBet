@@ -1,4 +1,9 @@
-export type CompetitionCode = "PD" | "CL";
+import {
+  competitionCode,
+  isCompetition,
+  type CompetitionCode,
+} from "./competitions";
+export type { CompetitionCode } from "./competitions";
 export interface UserPreferences {
   groupId: string;
   competition: CompetitionCode;
@@ -34,7 +39,7 @@ export function createPreferenceStore(
                 uid,
                 {
                   groupId: validId(value.groupId) ? value.groupId : "",
-                  competition: value.competition === "CL" ? "CL" : "PD",
+                  competition: competitionCode(value.competition),
                 },
               ],
             ];
@@ -59,10 +64,9 @@ export function createPreferenceStore(
     const before = get(uid);
     const next = {
       groupId: validId(patch.groupId) ? patch.groupId : before.groupId,
-      competition:
-        patch.competition === "PD" || patch.competition === "CL"
-          ? patch.competition
-          : before.competition,
+      competition: isCompetition(patch.competition)
+        ? patch.competition
+        : before.competition,
     };
     if (
       next.groupId === before.groupId &&

@@ -37,14 +37,14 @@ service cloud.firestore {
    }
    match /gameSeasons/{sid} {
     allow read: if member(gid);
-    allow create: if signed() && getAfter(/databases/$(database)/documents/groups/$(gid)).data.ownerId == request.auth.uid && request.resource.data.keys().hasOnly(['competition','seasonId','mode','createdAt']) && request.resource.data.competition in ['PD','CL'] && request.resource.data.seasonId == sid && request.resource.data.mode in ['classic','exact'] && request.resource.data.createdAt == request.time;
+    allow create: if signed() && getAfter(/databases/$(database)/documents/groups/$(gid)).data.ownerId == request.auth.uid && request.resource.data.keys().hasOnly(['competition','seasonId','mode','createdAt']) && request.resource.data.competition in ['PD','CL','PL','CDR'] && request.resource.data.seasonId == sid && request.resource.data.mode in ['classic','exact'] && request.resource.data.createdAt == request.time;
     // No client updates: mode and season remain immutable, even for the owner.
     function marker(uid, rid) { return /databases/$(database)/documents/groups/$(gid)/gameSeasons/$(sid)/submissions/$(uid)/rounds/$(rid); }
     function entry(uid, rid) { return /databases/$(database)/documents/groups/$(gid)/gameSeasons/$(sid)/roundEntries/$(rid)/players/$(uid); }
     function attendance(rid) { return /databases/$(database)/documents/groups/$(gid)/gameSeasons/$(sid)/roundAttendance/$(rid); }
     function exact(v) { return v is map && v.keys().hasOnly(['home','away']) && v.home is int && v.away is int && v.home >= 0 && v.away >= 0 && v.home <= 99 && v.away <= 99; }
     function complete(selections, ids, mode) {
-     return selections is string && ids is list && ids.size() > 0 && ids.size() <= 32 && selections.size() <= 191
+     return selections is string && ids is list && ids.size() > 0 && ids.size() <= 64 && selections.size() <= 383
        && ((mode == 'classic' && selections.matches('^[1X2]{' + string(ids.size()) + '}$'))
        || (mode == 'exact' && selections.matches('^[0-9]{1,2}:[0-9]{1,2}(,[0-9]{1,2}:[0-9]{1,2}){' + string(ids.size()-1) + '}$')));
     }

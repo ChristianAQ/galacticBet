@@ -1,3 +1,4 @@
+import { COMPETITION_CODES } from "../src/lib/competitions";
 import type { Firestore } from "firebase-admin/firestore";
 import type { Match } from "../src/lib/domain";
 import {
@@ -159,7 +160,7 @@ export async function syncMatchInsights(
   const updates: { id: string; data: StoredMatchInsight }[] = [];
   try {
     // One interval query per competition, irrespective of the number of fixtures.
-    for (const code of ["PD", "CL"] as const) {
+    for (const code of COMPETITION_CODES) {
       const dates = pending
         .filter((item) => item.match.competition === code)
         .map((item) => Date.parse(item.match.utcDate));

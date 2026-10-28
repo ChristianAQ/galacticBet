@@ -1,3 +1,8 @@
+import {
+  COMPETITIONS,
+  COMPETITION_CODES,
+  type CompetitionCode,
+} from "../src/lib/competitions";
 import type { Match } from "../src/lib/domain";
 import {
   validMatchInsight,
@@ -8,7 +13,9 @@ import {
   type MatchStatistic,
 } from "../src/lib/matchInsightsData";
 
-export const ESPN_LEAGUES = { PD: "esp.1", CL: "uefa.champions" } as const;
+export const ESPN_LEAGUES = Object.fromEntries(
+  COMPETITION_CODES.map((code) => [code, COMPETITIONS[code].espn]),
+) as Record<CompetitionCode, string>;
 const API_ROOT = "https://site.api.espn.com/apis/site/v2/sports/soccer";
 type Row = Record<string, unknown>;
 const row = (value: unknown): Row =>

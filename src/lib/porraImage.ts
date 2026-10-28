@@ -1,3 +1,4 @@
+import { competitionName } from "./competitions";
 import { euro, porraTotal, type Porra } from "./porra";
 
 /** A local, complete PNG with no remote assets or canvas-tainting image requests. */
@@ -96,10 +97,7 @@ export async function porraImage(p: Porra): Promise<Blob> {
     write(line, 56, 130 + i * 44, 36, "#173b2d", 750),
   );
   const fixtureY = 152 + titleLines.length * 44;
-  const competition =
-    p.fixture.competition === "PD"
-      ? "LaLiga EA Sports"
-      : "UEFA Champions League";
+  const competition = competitionName(p.fixture.competition);
   write(competition, 56, fixtureY, 19, "#587260", 600);
   const teamsY = fixtureY + 48;
   box(56, teamsY, 74, 74, "#dce9d8", 37);

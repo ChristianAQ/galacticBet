@@ -282,7 +282,7 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
     expect(
       (await getDoc(doc(db, `groups/${id}/members/charlie`))).exists(),
     ).toBe(true);
-    for (const competition of ["PD", "CL"]) {
+    for (const competition of ["PD", "CL", "PL", "CDR"]) {
       const season = await getDoc(
         doc(db, `groups/${id}/gameSeasons/${gameSeasonId(competition)}`),
       );
@@ -305,6 +305,15 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
     const db = env.authenticatedContext("alice").firestore();
     const store = doc(db, "groups/g").firestore;
     await prepareGroupCompetitions(store, "alice", "g");
+    for (const competition of ["PL", "CDR"]) {
+      expect(
+        (
+          await getDoc(
+            doc(db, `groups/g/gameSeasons/${gameSeasonId(competition)}`),
+          )
+        ).data(),
+      ).toMatchObject({ competition, mode: "exact" });
+    }
     const path = `groups/g/gameSeasons/${gameSeasonId("CL")}`;
     const first = (await getDoc(doc(db, path))).data();
     expect(first?.mode).toBe("exact");
@@ -680,8 +689,8 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
       ),
     );
   });
-  it("completa 32 marcadores exactos dentro de los límites de acceso y evaluación de reglas", async () => {
-    const ids = Array.from({ length: 32 }, (_, i) => `match${i}`);
+  it("completa 64 marcadores exactos dentro de los límites de acceso y evaluación de reglas", async () => {
+    const ids = Array.from({ length: 64 }, (_, i) => `match${i}`);
     const picks = Object.fromEntries(
       ids.map((id) => [id, { home: 99, away: 0 }]),
     );

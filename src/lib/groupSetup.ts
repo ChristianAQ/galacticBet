@@ -1,3 +1,4 @@
+import { COMPETITION_CODES } from "./competitions";
 import {
   collection,
   doc,
@@ -35,7 +36,7 @@ export async function createPrivateGroup(
     userId: uid,
     joinedAt: serverTimestamp(),
   });
-  for (const competition of ["PD", "CL"]) {
+  for (const competition of [...COMPETITION_CODES]) {
     const seasonId = gameSeasonId(competition);
     batch.set(doc(group, "gameSeasons", seasonId), {
       competition,
@@ -55,7 +56,7 @@ export async function prepareGroupCompetitions(
   groupId: string,
 ) {
   const group = doc(store, "groups", groupId);
-  const refs = ["PD", "CL"].map((c) =>
+  const refs = [...COMPETITION_CODES].map((c) =>
     doc(group, "gameSeasons", gameSeasonId(c)),
   );
   return runTransaction(store, async (tx) => {
@@ -70,7 +71,7 @@ export async function prepareGroupCompetitions(
     seasons.forEach((season, i) => {
       if (!season.exists())
         tx.set(refs[i], {
-          competition: i === 0 ? "PD" : "CL",
+          competition: COMPETITION_CODES[i],
           seasonId: refs[i].id,
           mode,
           createdAt: serverTimestamp(),

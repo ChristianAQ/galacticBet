@@ -1,3 +1,4 @@
+import { competitionName } from "../lib/competitions";
 import { euro, porraTotal, type Porra } from "../lib/porra";
 
 export default function PorraTicket({ porra: p }: { porra: Porra }) {
@@ -12,9 +13,7 @@ export default function PorraTicket({ porra: p }: { porra: Porra }) {
       </header>
       <div className="porra-ticket-match">
         <span className="porra-competition">
-          {p.fixture.competition === "PD"
-            ? "LaLiga EA Sports"
-            : "UEFA Champions League"}
+          {competitionName(p.fixture.competition)}
         </span>
         <h2>{p.title}</h2>
         <div className="porra-teams">

@@ -1,3 +1,4 @@
+import { competitionName } from "../lib/competitions";
 import type { User } from "firebase/auth";
 import { useEffect, useState } from "react";
 import { Empty, PageTitle, PrivateGate, readableError } from "../components/ui";
@@ -118,7 +119,7 @@ export default function StandingsPage({
             summary={
               period === "round" && selectedRound
                 ? title
-                : `${scope === "global" ? "LaLiga + Champions" : competition === "PD" ? "LaLiga" : "Champions"} · ${title}`
+                : `${scope === "global" ? "Todas las competiciones" : competitionName(competition)} · ${title}`
             }
             competition={scope === "global" ? "global" : competition}
             applyLabel="Ver clasificación"
@@ -177,7 +178,7 @@ export default function StandingsPage({
                   checked={combined}
                   onChange={(e) => setCombined(e.target.checked)}
                 />
-                <span>Sumar LaLiga y Champions</span>
+                <span>Sumar todas las competiciones</span>
               </label>
             )}
             {period === "round" && (
@@ -267,9 +268,7 @@ export default function StandingsPage({
                     {selectedGroup.name} · {title} ·{" "}
                     {scope === "global"
                       ? "Global del grupo"
-                      : scope === "PD"
-                        ? "LaLiga"
-                        : "Champions League"}
+                      : competitionName(scope)}
                   </caption>
                   <thead>
                     <tr>

@@ -1,3 +1,4 @@
+import { competitionName } from "../lib/competitions";
 import { CalendarDays, GitCompareArrows } from "lucide-react";
 import { matchStatusLabel, roundLabel, type Match } from "../lib/domain";
 import {
@@ -54,11 +55,7 @@ export default function MatchDetails({
       <div className="match-detail-competition">
         <CompetitionLogo code={match.competition} small />
         <span>
-          <strong>
-            {match.competition === "PD"
-              ? "LaLiga EA Sports"
-              : "UEFA Champions League"}
-          </strong>
+          <strong>{competitionName(match.competition)}</strong>
           <small>
             {roundLabel(match)}
             {context?.leg ? ` · ${context.leg === 1 ? "Ida" : "Vuelta"}` : ""}
@@ -162,8 +159,7 @@ export default function MatchDetails({
       <section className="match-insight-section">
         <h3>Rendimiento de temporada</h3>
         <p className="match-data-note">
-          {match.competition === "PD" ? "LaLiga" : "Champions"} ·{" "}
-          {match.seasonId.split("-")[1]}/
+          {competitionName(match.competition)} · {match.seasonId.split("-")[1]}/
           {String(Number(match.seasonId.split("-")[1]) + 1).slice(-2)}.
         </p>
         {!home.played && !away.played ? (
@@ -204,9 +200,7 @@ export default function MatchDetails({
                   {new Intl.DateTimeFormat("es", {
                     dateStyle: "medium",
                   }).format(new Date(m.utcDate))}
-                  <small>
-                    {m.competition === "PD" ? "LaLiga" : "Champions"}
-                  </small>
+                  <small>{competitionName(m.competition)}</small>
                 </span>
                 <span>
                   {m.home}

@@ -1,3 +1,4 @@
+import { competitionName } from "./competitions";
 import type { Match } from "./domain";
 import type { MatchGoal, MatchPlayer } from "./matchInsightsData";
 
@@ -108,7 +109,7 @@ export function matchCalendarFile(match: Match, now = Date.now()) {
     `DTSTAMP:${date(now)}`,
     `DTSTART:${date(Date.parse(match.utcDate))}`,
     `SUMMARY:${escape(`${match.home} – ${match.away}`)}`,
-    `DESCRIPTION:${escape(`${match.competition === "PD" ? "LaLiga" : "Champions League"} · GalacticBet. Revisa el horario en la aplicación antes del partido; este evento no se actualiza automáticamente.`)}`,
+    `DESCRIPTION:${escape(`${competitionName(match.competition)} · GalacticBet. Revisa el horario en la aplicación antes del partido; este evento no se actualiza automáticamente.`)}`,
     "BEGIN:VALARM",
     "TRIGGER:-PT30M",
     "ACTION:DISPLAY",

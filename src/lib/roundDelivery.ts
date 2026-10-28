@@ -5,7 +5,7 @@ import {
   type PredictionValue,
 } from "./domain";
 
-export const MAX_ROUND_MATCHES = 32;
+export const MAX_ROUND_MATCHES = 64;
 export const DELIVERY_VERSION = 2;
 
 export function roundRequirements(matches: Match[]) {

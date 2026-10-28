@@ -1,3 +1,5 @@
+import { competitionName } from "../lib/competitions";
+import { COMPETITION_CODES } from "../lib/competitions";
 import type { User } from "firebase/auth";
 import { ArrowRight, Copy, LockKeyhole, Plus, UserPlus } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
@@ -132,7 +134,7 @@ export default function GroupsPage({
                 setParams({ group: id }, { replace: true });
                 setMessage(
                   modal === "create"
-                    ? "¡Grupo creado! Ya podéis jugar a LaLiga y Champions."
+                    ? "¡Grupo creado! Ya podéis jugar a LaLiga, Champions, Premier League y Copa del Rey."
                     : "¡Ya estás dentro del grupo!",
                 );
               }}
@@ -188,17 +190,15 @@ function GroupForm({
         {kind === "create" ? (
           <>
             <p className="muted">
-              Un grupo privado para jugar juntos a las dos competiciones.
+              Un grupo privado para jugar juntos a las cuatro competiciones.
             </p>
             <div className="included-competitions">
-              <span>
-                <CompetitionLogo code="PD" small />
-                LaLiga
-              </span>
-              <span>
-                <CompetitionLogo code="CL" small />
-                Champions
-              </span>
+              {COMPETITION_CODES.map((code) => (
+                <span key={code}>
+                  <CompetitionLogo code={code} small />
+                  {competitionName(code, true)}
+                </span>
+              ))}
             </div>
             <label>
               Nombre del grupo
@@ -226,7 +226,7 @@ function GroupForm({
             </label>
             <p className="footnote muted">
               <LockKeyhole size={13} />
-              La modalidad se aplica a las dos competiciones y queda fija
+              La modalidad se aplica a las cuatro competiciones y queda fija
               durante la temporada.
             </p>
           </>
@@ -376,15 +376,13 @@ function GroupDetails({
         <p className="muted">Cargando modalidades…</p>
       ) : (
         <div className="group-competition-rules">
-          {["PD", "CL"].map((code) => {
+          {[...COMPETITION_CODES].map((code) => {
             const season = seasons.find((s) => s.id === gameSeasonId(code));
             return (
               <div key={code}>
                 <CompetitionLogo code={code} small />
                 <span>
-                  <strong>
-                    {code === "PD" ? "LaLiga EA Sports" : "Champions League"}
-                  </strong>
+                  <strong>{competitionName(code)}</strong>
                   <small>
                     {season
                       ? season.mode === "classic"

@@ -1,3 +1,4 @@
+import { competitionName } from "./competitions";
 import { roundLabelFromId, type Match } from "./domain";
 import type { Participant } from "./data";
 
@@ -70,7 +71,7 @@ export function rankingRounds(
     const previous = rounds.get(id);
     rounds.set(id, {
       id,
-      label: `${competition === "PD" ? "LaLiga" : "Champions"} · ${roundLabelFromId(id)} · ${year}/${String(Number(year) + 1).slice(-2)}`,
+      label: `${competitionName(competition, true)} · ${roundLabelFromId(id)} · ${year}/${String(Number(year) + 1).slice(-2)}`,
       kickoff:
         previous?.kickoff && (!kickoff || previous.kickoff < kickoff)
           ? previous.kickoff

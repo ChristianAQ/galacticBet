@@ -1,3 +1,5 @@
+import { competitionCode, competitionName } from "../lib/competitions";
+import { COMPETITION_CODES } from "../lib/competitions";
 import type { User } from "firebase/auth";
 import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 import { LockKeyhole, Save, Target, Users } from "lucide-react";
@@ -324,7 +326,7 @@ export default function PredictionsPage({
   return (
     <>
       <PageTitle
-        eyebrow={`QUINIELA${list[0] ? (list[0].competition === "PD" ? " · LALIGA" : " · CHAMPIONS LEAGUE") : ""}`}
+        eyebrow={`QUINIELA${list[0] ? ` · ${competitionName(list[0].competition).toUpperCase()}` : ""}`}
         title={list[0] ? roundLabel(list[0]) : "Mi quiniela"}
         description={
           !list.length
@@ -346,10 +348,10 @@ export default function PredictionsPage({
             ? "Grupo de demostración"
             : selectedGroup?.name || "Selecciona tu grupo"
         }
-        summary={`${(demo ? demoCompetition : active?.competition) === "CL" ? "Champions" : "LaLiga"} · ${list[0] ? roundLabel(list[0]) : "Sin jornada"} · ${mode === "classic" ? "Clásica 1X2" : "Marcador exacto"}`}
-        competition={
-          (demo ? demoCompetition : active?.competition) === "CL" ? "CL" : "PD"
-        }
+        summary={`${competitionName(demo ? demoCompetition : active?.competition)} · ${list[0] ? roundLabel(list[0]) : "Sin jornada"} · ${mode === "classic" ? "Clásica 1X2" : "Marcador exacto"}`}
+        competition={competitionCode(
+          demo ? demoCompetition : active?.competition,
+        )}
         applyLabel="Ver mis apuestas"
       >
         {!demo && (
@@ -370,16 +372,12 @@ export default function PredictionsPage({
           </FilterField>
         )}
         <CompetitionSwitch
-          value={
-            (demo ? demoCompetition : active?.competition) === "CL"
-              ? "CL"
-              : "PD"
-          }
+          value={competitionCode(demo ? demoCompetition : active?.competition)}
           disabled={selectorsDisabled}
           available={
             demo
-              ? ["PD", "CL"]
-              : (["PD", "CL"] as const).filter((code) =>
+              ? [...COMPETITION_CODES]
+              : COMPETITION_CODES.filter((code) =>
                   seasons.some((s) => s.competition === code),
                 )
           }

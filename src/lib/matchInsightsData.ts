@@ -1,3 +1,4 @@
+import { isCompetition } from "./competitions";
 import type { Match } from "./domain";
 
 export interface MatchPlayer {
@@ -55,7 +56,7 @@ export function validMatchInsight(value: unknown): value is MatchInsight {
     text(value.matchId, 100) &&
     text(value.eventId, 30) &&
     /^\d+$/.test(value.eventId) &&
-    (value.competition === "PD" || value.competition === "CL") &&
+    isCompetition(value.competition) &&
     text(value.kickoff) &&
     Number.isFinite(Date.parse(value.kickoff)) &&
     text(value.fetchedAt) &&

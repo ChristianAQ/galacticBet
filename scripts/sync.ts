@@ -1,3 +1,4 @@
+import { COMPETITION_CODES } from "../src/lib/competitions";
 import { applicationDefault, cert, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import type { Match } from "../src/lib/domain";
@@ -54,6 +55,8 @@ async function api<T>(path: string): Promise<T> {
   throw new Error("Reintentos agotados");
 }
 async function sync() {
+  const now = new Date();
+  const seasonYear = now.getUTCFullYear() - (now.getUTCMonth() < 6 ? 1 : 0);
   const cache = new Map<string, Match[]>();
   const policies = new Map<string, string>();
   const available = await api<{
@@ -64,31 +67,49 @@ async function sync() {
       currentSeason?: { startDate: string };
     }[];
   }>("/competitions");
-  for (const code of ["PD", "CL"] as const) {
-    const competition = available.competitions.find((c) => c.code === code);
-    if (!competition)
-      throw new Error(`Competición ${code} no disponible en este plan.`);
-    const { matches } = await api<{ matches: ApiMatch[] }>(
-      `/competitions/${code}/matches`,
-    );
-    if (!Array.isArray(matches) || !matches.length)
-      throw new Error(
-        `Calendario ${code} vacío; se conserva la base anterior.`,
+  for (const code of COMPETITION_CODES) {
+    try {
+      const competition = available.competitions.find((c) => c.code === code);
+      if (!competition)
+        throw new Error(`Competición ${code} no disponible en este plan.`);
+      const { matches } = await api<{ matches: ApiMatch[] }>(
+        `/competitions/${code}/matches?season=${seasonYear}`,
       );
-    await db.doc(`competitions/${code}`).set(
-      {
-        code,
-        name: competition.name,
-        emblem: competition.emblem,
-        syncedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
-    const normalized = await syncCalendars(db, code, matches, policies);
-    for (const [seasonId, fixtures] of normalized)
-      cache.set(seasonId, fixtures);
-    console.log(`${code}: ${matches.length} partidos sincronizados.`);
+      if (!Array.isArray(matches) || !matches.length)
+        throw new Error(
+          `Calendario ${code} vacío; se conserva la base anterior.`,
+        );
+      if (
+        matches.some(
+          (match) => match.season.startDate.slice(0, 4) !== String(seasonYear),
+        )
+      )
+        throw new Error(
+          `El proveedor no ha devuelto la temporada ${seasonYear}/${seasonYear + 1}`,
+        );
+      await db.doc(`competitions/${code}`).set(
+        {
+          code,
+          name: competition.name,
+          emblem: competition.emblem,
+          syncedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+      const normalized = await syncCalendars(db, code, matches, policies);
+      for (const [seasonId, fixtures] of normalized)
+        cache.set(seasonId, fixtures);
+      console.log(`${code}: ${matches.length} partidos sincronizados.`);
+    } catch (error) {
+      console.warn(
+        `::warning::${code}: ${error instanceof Error ? error.message : "No se pudo sincronizar"}. Las otras competiciones continuarán.`,
+      );
+    }
   }
+  if (!cache.size)
+    throw new Error(
+      "No se pudo sincronizar ninguna competición. Revisa acceso y disponibilidad del proveedor.",
+    );
   await recompute(db, cache, policies);
   if (process.env.ESPN_MATCH_DETAILS !== "false") {
     try {
