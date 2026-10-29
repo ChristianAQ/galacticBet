@@ -29,13 +29,13 @@ function database(previous?: unknown) {
 describe("Noticias: fuente, sincronización y caché", () => {
   it("acepta enlaces seguros de ESPN y rechaza esquemas, credenciales y dominios parecidos", () => {
     expect(newsUrl(article.links.web.href)).toBe(article.links.web.href);
+    expect(newsUrl("http://www.espn.com/a")).toBe("https://www.espn.com/a");
     for (const url of [
       "javascript:alert(1)",
       "https://espn.com.evil.test/a",
       "https://evil.test/espn.com",
       "https://name:pass@espn.com/a",
       "https://espn.com:444/a",
-      "http://espn.com/a",
     ])
       expect(newsUrl(url)).toBeNull();
   });
@@ -119,4 +119,33 @@ describe("Noticias: fuente, sincronización y caché", () => {
     expect(await load()).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+});
+
+it("recupera la edición por defecto y convierte enlaces HTTP de ESPN a HTTPS", async () => {
+  const { db, set } = database();
+  const request = vi
+    .fn<typeof fetch>()
+    .mockImplementation(
+      async (url) =>
+        new Response(
+          JSON.stringify({
+            articles: String(url).includes("lang=es")
+              ? []
+              : [
+                  {
+                    ...article,
+                    links: {
+                      web: {
+                        href: "http://www.espn.com/soccer/story/_/id/123/test",
+                      },
+                    },
+                  },
+                ],
+          }),
+        ),
+    );
+  await syncNews(db, { now, request, log: vi.fn() });
+  expect(request).toHaveBeenCalledTimes(6);
+  expect(set.mock.calls[0][0].articles).toHaveLength(1);
+  expect(set.mock.calls[0][0].articles[0].url).toBe(article.links.web.href);
 });

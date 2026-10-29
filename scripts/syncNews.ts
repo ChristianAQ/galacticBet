@@ -16,25 +16,41 @@ export function normalizeNews(
   value: unknown,
   competition: CompetitionCode,
   now: number,
+  log?: (message: string) => void,
 ): FootballArticle[] {
   if (!value || typeof value !== "object") return [];
   const articles = (value as { articles?: unknown }).articles;
-  if (!Array.isArray(articles)) return [];
-  return articles.slice(0, 20).flatMap((a) => {
+  if (!Array.isArray(articles)) {
+    log?.(`Noticias ESPN ${competition}: formato sin lista articles.`);
+    return [];
+  }
+  const rejected = { title: 0, link: 0, date: 0, expired: 0, future: 0 };
+  const result = articles.slice(0, 20).flatMap((a) => {
     if (!a || typeof a !== "object") return [];
     const title = typeof a.headline === "string" ? a.headline.trim() : "";
     const url = newsUrl(a.links?.web?.href);
     const published =
       typeof a.published === "string" ? Date.parse(a.published) : NaN;
-    if (
-      !title ||
-      title.length > 240 ||
-      !url ||
-      !Number.isFinite(published) ||
-      published > now ||
-      now - published > NEWS_MAX_AGE
-    )
+    if (!title || title.length > 240) {
+      rejected.title++;
       return [];
+    }
+    if (!url) {
+      rejected.link++;
+      return [];
+    }
+    if (!Number.isFinite(published)) {
+      rejected.date++;
+      return [];
+    }
+    if (published > now) {
+      rejected.future++;
+      return [];
+    }
+    if (now - published > NEWS_MAX_AGE) {
+      rejected.expired++;
+      return [];
+    }
     return [
       {
         title,
@@ -44,6 +60,10 @@ export function normalizeNews(
       },
     ];
   });
+  log?.(
+    `Noticias ESPN ${competition}: recibidos ${articles.length}, válidos ${result.length}; descartados por título ${rejected.title}, enlace ${rejected.link}, fecha inválida ${rejected.date}, antigüedad ${rejected.expired}, fecha futura ${rejected.future}.`,
+  );
+  return result;
 }
 export async function syncNews(
   db: Firestore,
@@ -67,22 +87,28 @@ export async function syncNews(
   // A failed/empty response never replaces the last good feed. Fixed provider URLs only.
   for (const code of COMPETITION_CODES) {
     try {
-      const response = await request(
-        `https://site.api.espn.com/apis/site/v2/sports/soccer/${COMPETITIONS[code].espn}/news?limit=8&lang=es&region=es`,
-        {
+      const base = `https://site.api.espn.com/apis/site/v2/sports/soccer/${COMPETITIONS[code].espn}/news`;
+      for (const suffix of ["?limit=8&lang=es&region=es", ""]) {
+        const response = await request(base + suffix, {
           signal: AbortSignal.timeout(15_000),
           headers: { Accept: "application/json" },
-        },
-      );
-      if (!response.ok) {
-        log(
-          `Noticias ESPN: HTTP ${response.status}; se conserva la edición anterior.`,
-        );
-        return [403, 429].includes(response.status) ? false : undefined;
+        });
+        if (!response.ok) {
+          log(
+            `Noticias ESPN ${code}: HTTP ${response.status}; se conserva la edición anterior.`,
+          );
+          return [403, 429].includes(response.status) ? false : undefined;
+        }
+        const body = await response.text();
+        if (body.length > 1_000_000) throw new Error("size");
+        const articles = normalizeNews(JSON.parse(body), code, now, log);
+        all.push(...articles);
+        if (articles.length) break;
+        if (suffix)
+          log(
+            `Noticias ESPN ${code}: se comprueba la edición sin parámetros de idioma.`,
+          );
       }
-      const body = await response.text();
-      if (body.length > 1_000_000) throw new Error("size");
-      all.push(...normalizeNews(JSON.parse(body), code, now));
     } catch {
       log(
         "Noticias ESPN: proveedor no disponible; se conserva la edición anterior.",

@@ -17,7 +17,7 @@ export function newsUrl(value: unknown): string | null {
   try {
     const url = new URL(value);
     if (
-      url.protocol !== "https:" ||
+      !["https:", "http:"].includes(url.protocol) ||
       url.username ||
       url.password ||
       url.port ||
@@ -29,6 +29,7 @@ export function newsUrl(value: unknown): string | null {
       )
     )
       return null;
+    url.protocol = "https:";
     url.hash = "";
     return url.href;
   } catch {

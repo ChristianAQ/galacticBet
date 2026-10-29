@@ -1,13 +1,14 @@
 import { validNews, type FootballNews } from "./footballNews";
 import { createMemoryCache } from "./memoryCache";
 const TTL = 3_600_000;
+const EMPTY_TTL = 120_000;
 export function createNewsLoader(
   project: string,
   storage: () => Pick<Storage, "getItem" | "setItem">,
   fetchNews: () => Promise<unknown>,
 ) {
   const cache = createMemoryCache(1);
-  const key = `galacticbet:news:v1:${project}`;
+  const key = `galacticbet:news:v2:${project}`;
   return () =>
     cache.read<FootballNews | null>(
       key,
@@ -19,7 +20,7 @@ export function createNewsLoader(
             if (
               typeof saved.at === "number" &&
               saved.at <= Date.now() &&
-              Date.now() - saved.at < TTL &&
+              Date.now() - saved.at < (saved.news === null ? EMPTY_TTL : TTL) &&
               (saved.news === null || validNews(saved.news))
             )
               return saved.news;
@@ -36,6 +37,6 @@ export function createNewsLoader(
         }
         return news;
       },
-      TTL,
+      EMPTY_TTL,
     );
 }
