@@ -1,5 +1,8 @@
 /* Shared compact sports theme. Component-specific layouts and safe areas remain in styles.css. */
 :root {
+  --brand-accent: #c5f66a;
+  --brand-tint: #c5f66a0d;
+  --brand-border: #c5f66a30;
   --green: #92a1bb;
   --muted: #a1a4aa;
   --border: #2b2e33;
@@ -359,16 +362,21 @@ body {
 }
 .sidebar nav > a.active,
 .competition-switch > button[aria-pressed="true"] {
-  background: #b4c7e014;
-  color: #e2ebf8;
-  box-shadow: inset 0 0 0 1px #b4c7e035;
+  background: var(--brand-tint);
+  color: var(--brand-accent);
+  box-shadow: inset 0 0 0 1px var(--brand-border);
 }
 .button.primary {
-  background: #c4d0e2;
-  color: #182334;
+  background: #c5f66a12;
+  border-color: #c5f66a55;
+  color: #e5f3ce;
 }
-.button.primary:hover {
-  background: #dde5f1;
+.button.primary:hover:not(:disabled) {
+  background: #c5f66a20;
+  border-color: #c5f66a85;
+}
+.button.primary > svg {
+  color: var(--brand-accent);
 }
 .button.secondary {
   background: #b4c7e00d;
@@ -545,4 +553,38 @@ body {
   .news-feed li > a {
     transition: none;
   }
+}
+
+/* Original lime identity, used sparingly against the slate and black surfaces. */
+.brand-mark,
+.brand > span:not(.brand-mark):not(.brand-dot) {
+  color: var(--brand-accent);
+}
+.sidebar nav > a.active .nav-dot,
+.bottom-nav a.active::before,
+.round-progress-track > span {
+  background: var(--brand-accent);
+}
+.bottom-nav a.active,
+.schedule-board-heading > a,
+.schedule-action > svg,
+.filter-summary[aria-expanded="true"] .filter-summary-action,
+.news-read > svg {
+  color: var(--brand-accent);
+}
+.round-progress-track {
+  background: #c5f66a10;
+}
+.round-save-panel {
+  border-color: var(--brand-border);
+}
+.how-icon {
+  color: var(--brand-accent);
+  background: var(--brand-tint);
+  border-color: var(--brand-border);
+}
+.sidebar nav > a:focus-visible,
+.bottom-nav a:focus-visible,
+.competition-switch > button:focus-visible {
+  outline-color: var(--brand-accent);
 }
