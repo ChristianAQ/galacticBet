@@ -80,6 +80,7 @@ export async function syncNews(
   const previous = (await ref.get()).data();
   const fresh =
     validNews(previous) &&
+    previous.linkPolicyVersion === 2 &&
     Date.parse(previous.fetchedAt) <= now &&
     now - Date.parse(previous.fetchedAt) < 6 * 3_600_000;
   if (fresh) return;
@@ -128,6 +129,7 @@ export async function syncNews(
   const news: FootballNews = {
     version: 1,
     provider: "ESPN",
+    linkPolicyVersion: 2,
     fetchedAt: new Date(now).toISOString(),
     articles: unique,
   };

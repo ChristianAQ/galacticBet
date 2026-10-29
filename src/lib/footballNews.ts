@@ -8,10 +8,23 @@ export interface FootballArticle {
 export interface FootballNews {
   version: 1;
   provider: "ESPN";
+  linkPolicyVersion?: number;
   fetchedAt: string;
   articles: FootballArticle[];
 }
 export const NEWS_MAX_AGE = 7 * 24 * 3_600_000;
+const ESPN_NEWS_DOMAINS = [
+  "espn.com",
+  "espn.com.mx",
+  "espn.com.ar",
+  "espn.com.co",
+  "espn.cl",
+  "espn.com.pe",
+  "espn.com.ec",
+  "espn.com.uy",
+  "espn.com.ve",
+  "espn.es",
+];
 export function newsUrl(value: unknown): string | null {
   if (typeof value !== "string" || value.length > 1200) return null;
   try {
@@ -21,11 +34,9 @@ export function newsUrl(value: unknown): string | null {
       url.username ||
       url.password ||
       url.port ||
-      !(
-        url.hostname === "espn.com" ||
-        url.hostname.endsWith(".espn.com") ||
-        url.hostname === "espn.com.mx" ||
-        url.hostname.endsWith(".espn.com.mx")
+      !ESPN_NEWS_DOMAINS.some(
+        (domain) =>
+          url.hostname === domain || url.hostname.endsWith(`.${domain}`),
       )
     )
       return null;

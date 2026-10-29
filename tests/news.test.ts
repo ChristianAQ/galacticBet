@@ -17,6 +17,7 @@ const article = {
 const feed: FootballNews = {
   version: 1,
   provider: "ESPN",
+  linkPolicyVersion: 2,
   fetchedAt: new Date(now).toISOString(),
   articles: normalizeNews({ articles: [article] }, "PD", now),
 };
@@ -123,29 +124,62 @@ describe("Noticias: fuente, sincronización y caché", () => {
 
 it("recupera la edición por defecto y convierte enlaces HTTP de ESPN a HTTPS", async () => {
   const { db, set } = database();
-  const request = vi
-    .fn<typeof fetch>()
-    .mockImplementation(
-      async (url) =>
-        new Response(
-          JSON.stringify({
-            articles: String(url).includes("lang=es")
-              ? []
-              : [
-                  {
-                    ...article,
-                    links: {
-                      web: {
-                        href: "http://www.espn.com/soccer/story/_/id/123/test",
-                      },
+  const request = vi.fn<typeof fetch>().mockImplementation(
+    async (url) =>
+      new Response(
+        JSON.stringify({
+          articles: String(url).includes("lang=es")
+            ? []
+            : [
+                {
+                  ...article,
+                  links: {
+                    web: {
+                      href: "http://www.espn.com/soccer/story/_/id/123/test",
                     },
                   },
-                ],
-          }),
-        ),
-    );
+                },
+              ],
+        }),
+      ),
+  );
   await syncNews(db, { now, request, log: vi.fn() });
   expect(request).toHaveBeenCalledTimes(6);
   expect(set.mock.calls[0][0].articles).toHaveLength(1);
   expect(set.mock.calls[0][0].articles[0].url).toBe(article.links.web.href);
+});
+
+it("acepta las ediciones regionales españolas sin aceptar dominios parecidos", () => {
+  for (const domain of ["espn.com.ar", "espn.com.co", "espn.cl", "espn.es"]) {
+    expect(newsUrl(`http://www.${domain}/futbol/nota/_/id/123`)).toBe(
+      `https://www.${domain}/futbol/nota/_/id/123`,
+    );
+    expect(newsUrl(`https://www.${domain}.evil.test/noticia`)).toBeNull();
+  }
+});
+it("prioriza la edición española y renueva una edición guardada con el filtro anterior", async () => {
+  const { db, set } = database({ ...feed, linkPolicyVersion: undefined });
+  const request = vi
+    .fn<typeof fetch>()
+    .mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            articles: [
+              {
+                ...article,
+                links: {
+                  web: { href: "https://www.espn.com.ar/futbol/nota/_/id/123" },
+                },
+              },
+            ],
+          }),
+        ),
+    );
+  await syncNews(db, { now, request, log: vi.fn() });
+  expect(request).toHaveBeenCalledTimes(3);
+  expect(
+    request.mock.calls.every(([url]) => String(url).includes("lang=es")),
+  ).toBe(true);
+  expect(set.mock.calls[0][0].linkPolicyVersion).toBe(2);
 });
