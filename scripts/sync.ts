@@ -1,3 +1,4 @@
+import { syncTeamDirectory } from "./syncTeamDirectory";
 import { syncNews } from "./syncNews";
 import { COMPETITION_CODES } from "../src/lib/competitions";
 import { applicationDefault, cert, initializeApp } from "firebase-admin/app";
@@ -112,6 +113,13 @@ async function sync() {
       "No se pudo sincronizar ninguna competición. Revisa acceso y disponibilidad del proveedor.",
     );
   await recompute(db, cache, policies);
+  try {
+    await syncTeamDirectory(db, api);
+  } catch {
+    console.warn(
+      "Plantillas: no se pudo actualizar el directorio; los resultados oficiales están guardados.",
+    );
+  }
   let espnBlocked = false;
   if (process.env.ESPN_NEWS !== "false") {
     try {

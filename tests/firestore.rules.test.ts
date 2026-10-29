@@ -42,6 +42,13 @@ describe.skipIf(!enabled)("Firestore: permisos reales del backend", () => {
       },
     });
   });
+  it("permite consultar el directorio público sin permitir listas ni escrituras", async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertSucceeds(getDoc(doc(db, "teamDirectory/featured")));
+    await assertFails(getDocs(collection(db, "teamDirectory")));
+    await assertFails(setDoc(doc(db, "teamDirectory/featured"), { teams: [] }));
+    await assertFails(setDoc(doc(env.authenticatedContext("alice").firestore(), "teamDirectory/featured"), { teams: [] }));
+  });
   beforeEach(async () => {
     await env.clearFirestore();
     await env.withSecurityRulesDisabled(async (c) => {

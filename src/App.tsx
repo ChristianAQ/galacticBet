@@ -37,6 +37,7 @@ import { MOBILE_LAYOUT_QUERY } from "./lib/mobileViewport";
 import { auth, configured, db } from "./lib/firebase";
 import { privateCache } from "./lib/memoryCache";
 const pageLoaders = {
+  "/equipos": () => import("./pages/TeamsPage"),
   "/": () => import("./pages/HomePage"),
   "/partidos": () => import("./pages/MatchesPage"),
   "/quiniela": () => import("./pages/PredictionsPage"),
@@ -45,6 +46,7 @@ const pageLoaders = {
   "/perfil": () => import("./pages/ProfilePage"),
   "/porra": () => import("./pages/PorraPage"),
 };
+const TeamsPage = lazy(pageLoaders["/equipos"]);
 const HomePage = lazy(pageLoaders["/"]);
 const MatchesPage = lazy(pageLoaders["/partidos"]);
 const PredictionsPage = lazy(pageLoaders["/quiniela"]);
@@ -278,6 +280,10 @@ export default function App() {
           >
             <div className="route-view" key={pathname}>
               <Routes>
+                <Route
+                  path="/equipos"
+                  element={<TeamsPage matches={matches} demo={demo} />}
+                />
                 <Route
                   path="/"
                   element={

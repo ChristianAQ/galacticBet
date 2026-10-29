@@ -18,6 +18,7 @@
     }
   ],
   "fieldOverrides": [
+    { "collectionGroup": "teamDirectory", "fieldPath": "teams", "indexes": [] },
     { "collectionGroup": "news", "fieldPath": "articles", "indexes": [] },
     {
       "collectionGroup": "matchInsights",

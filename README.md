@@ -311,3 +311,13 @@ El frontend sigue obteniendo una sola ficha de Firestore al abrirla, con caché 
 
 
 Corrección de titulares: los enlaces HTTP de dominios ESPN permitidos se normalizan a HTTPS antes de guardar. Si la edición solicitada en español no entrega titulares válidos, se consulta una vez `/news` sin parámetros; hasta seis peticiones de noticias por sincronización (dos por competición). No se reintentan bloqueos 403/429. El log identifica recibidos, válidos y descartes por título, enlace y fecha sin publicar respuestas completas. La caché local de titulares conserva una hora; las ausencias se revisan con una caché corta de dos minutos en memoria y almacenamiento, y una versión nueva invalida las ausencias guardadas por la versión anterior. La cobertura real se comprueba en Actions.
+
+### Herramienta Equipos y jugadores
+
+Disponible en el menú lateral → Herramientas → Equipos y jugadores (`/equipos`). Incluye 12 clubes destacados, búsqueda en la plantilla, posición, nacionalidad y edad calculada desde la fecha de nacimiento. La pestaña Alineaciones permite escoger el próximo partido o uno de los cinco últimos del calendario sincronizado y reutiliza las fichas ESPN guardadas, sin consultas directas del navegador al proveedor. Se distingue la plantilla del once de un encuentro concreto.
+
+La sincronización consulta `/v4/teams/{id}` de Football-Data.org con el token existente: máximo tres equipos por ejecución (además de posibles reintentos del cliente), rotación por bloques de dos horas y caché mínima de 24 horas por plantilla. La primera carga es progresiva. Las respuestas vacías o fallidas conservan datos anteriores. El plan contratado debe permitir acceder a las plantillas; la cobertura real se revisa en los mensajes `Plantillas` de Actions. No se necesitan nuevos secrets.
+
+Todas las plantillas se guardan en `teamDirectory/featured`: una lectura al abrir la herramienta, caché local de una hora y caché corta en memoria; listas y escrituras de clientes prohibidas. El campo `teams` está exento de índices. Las alineaciones mantienen su caché existente. No se descargan fotos de jugadores ni se añaden dependencias.
+
+**Límite de cobertura:** no se dispone de una fuente integrada verificada para notas de rendimiento ni valores de mercado; la interfaz lo explica y no inventa cifras ni sustituye una nota por minutos jugados. Para completar estos dos campos hace falta integrar un proveedor que los ofrezca con licencia de uso y cobertura de los clubes elegidos.

@@ -14,11 +14,13 @@ function Player({ player }: { player: MatchPlayer }) {
 export default function LineupPitch({
   match,
   lineups,
+  initialSide = "home",
 }: {
   match: Match;
   lineups: MatchLineup[];
+  initialSide?: "home" | "away";
 }) {
-  const [side, setSide] = useState<"home" | "away">("home");
+  const [side, setSide] = useState<"home" | "away">(initialSide);
   const lineup = lineups.find((l) => l.side === side);
   const { lines, unknown } = positionLines(lineup?.players || []);
   return (

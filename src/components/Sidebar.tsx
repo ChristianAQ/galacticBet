@@ -141,6 +141,15 @@ export default function Sidebar({
             <NotebookPen size={19} /> Porra rápida
           </NavLink>
         </div>
+        <div className="sidebar-tools">
+          <NavLink
+            to="/equipos"
+            onPointerEnter={() => onPrefetch?.("/equipos")}
+            onFocus={() => onPrefetch?.("/equipos")}
+          >
+            <Users size={19} /> Equipos y jugadores
+          </NavLink>
+        </div>
         <div className="sidebar-competitions">
           <span className="sidebar-caption">COMPETICIONES</span>
           {COMPETITION_CODES.map((code) => (

@@ -17,6 +17,7 @@ service cloud.firestore {
   // Public season snapshots reduce calendar reads; clients still cannot write results.
   match /calendars/{id} { allow read: if true; }
   // Complementary public match details, fetched only when a fixture is opened.
+  match /teamDirectory/featured { allow get: if true; }
   match /news/football { allow get: if true; }
   match /matchInsights/{id} { allow get: if true; }
   match /groups/{gid} {
