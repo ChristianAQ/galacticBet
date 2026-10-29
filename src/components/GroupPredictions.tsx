@@ -149,6 +149,7 @@ export default function GroupPredictions({
       </div>
       {matches.map((m) => (
         <RivalsCard
+          demo={demo}
           key={m.id}
           match={m}
           history={history}
@@ -171,6 +172,7 @@ export default function GroupPredictions({
   );
 }
 function RivalsCard({
+  demo,
   match,
   history,
   participants,
@@ -187,6 +189,7 @@ function RivalsCard({
   onRequest,
   onRetry,
 }: {
+  demo: boolean;
   match: Match;
   history: Match[];
   participants: Participant[];
@@ -253,7 +256,7 @@ function RivalsCard({
           <TeamForm match={match} side="away" matches={history} />
         </div>
       </div>
-      {match.status === "FINISHED" && <MatchResult match={match} />}
+      {match.status === "FINISHED" && <MatchResult match={match} demo={demo} />}
       {hasScore && match.status !== "FINISHED" && (
         <div className="saved-match-footer">
           <div

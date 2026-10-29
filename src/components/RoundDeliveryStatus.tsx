@@ -47,10 +47,15 @@ export default function RoundDeliveryStatus({
           {ready ? done.length : "—"} <span>de {memberIds.length}</span>
         </strong>
         <span className={`delivery-summary-date ${closed ? "is-closed" : ""}`}>
+          <span className="delivery-date-label">Inicio de jornada</span>
           {validDate ? (
             <time
               dateTime={new Date(deadline).toISOString()}
-              title={closed ? "Plazo cerrado" : "Cierre de entregas"}
+              title={
+                closed
+                  ? "Jornada iniciada · Plazo cerrado"
+                  : "Inicio de jornada · Cierre de entregas"
+              }
             >
               {date}
             </time>

@@ -2,7 +2,7 @@ import { competitionCode, competitionName } from "../lib/competitions";
 import { COMPETITION_CODES } from "../lib/competitions";
 import type { User } from "firebase/auth";
 import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
-import { LockKeyhole, Save, Target, Users } from "lucide-react";
+import { LockKeyhole, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import CompetitionSwitch from "../components/CompetitionSwitch";
@@ -80,7 +80,6 @@ export default function PredictionsPage({
   const [confirm, setConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [view, setView] = useState<"mine" | "group">("mine");
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [peopleError, setPeopleError] = useState("");
   const uid = demo ? "demo-me" : user?.uid || "demo-me";
@@ -116,7 +115,6 @@ export default function PredictionsPage({
   const required = list.filter((match) =>
     delivery.requiredIds.includes(match.id),
   );
-  const shownView = isSealed ? "group" : view;
   const pending =
     !demo &&
     (loadingPredictions ||
@@ -318,16 +316,32 @@ export default function PredictionsPage({
         ?.focus({ preventScroll: true });
     }
   }, [isSealed, submitting]);
-  useEffect(() => {
-    setView("mine");
-  }, [group, season, selected]);
   const disabled = Boolean(busy) || pending || submitting;
   const selectorsDisabled = Boolean(busy) || submitting;
   return (
     <>
       <PageTitle
         eyebrow={`QUINIELA${list[0] ? ` · ${competitionName(list[0].competition).toUpperCase()}` : ""}`}
-        title={list[0] ? roundLabel(list[0]) : "Mi quiniela"}
+        title="Mi quiniela"
+        titleControl={
+          <div className="heading-round-filter">
+            <select
+              aria-label="Jornada"
+              value={selected || ""}
+              disabled={selectorsDisabled || !rounds.length}
+              onChange={(e) => setRound(e.target.value)}
+            >
+              {!rounds.length && (
+                <option value="">Sin jornadas disponibles</option>
+              )}
+              {rounds.map((r) => (
+                <option key={r} value={r}>
+                  {roundLabel(filtered.find((m) => m.roundId === r)!)}
+                </option>
+              ))}
+            </select>
+          </div>
+        }
         description={
           !list.length
             ? "Selecciona tu grupo y la competición para ver tu quiniela."
@@ -416,23 +430,6 @@ export default function PredictionsPage({
               </select>
             </FilterField>
           )}
-        <FilterField label="Jornada o ronda">
-          <select
-            aria-label="Jornada"
-            value={selected || ""}
-            disabled={selectorsDisabled || !rounds.length}
-            onChange={(e) => setRound(e.target.value)}
-          >
-            {!rounds.length && (
-              <option value="">Sin jornadas disponibles</option>
-            )}
-            {rounds.map((r) => (
-              <option key={r} value={r}>
-                {roundLabel(filtered.find((m) => m.roundId === r)!)}
-              </option>
-            ))}
-          </select>
-        </FilterField>
       </FilterPanel>
       {error && (
         <p className="error" role="alert">
@@ -523,60 +520,11 @@ export default function PredictionsPage({
               </button>
             </section>
           )}
-          {!isSealed && (
-            <div
-              className="prediction-view-tabs"
-              role="tablist"
-              aria-label="Vista de pronósticos"
-              onKeyDown={(event) => {
-                if (
-                  !["ArrowLeft", "ArrowRight", "Home", "End"].includes(
-                    event.key,
-                  )
-                )
-                  return;
-                event.preventDefault();
-                const next =
-                  event.key === "Home"
-                    ? "mine"
-                    : event.key === "End"
-                      ? "group"
-                      : view === "mine"
-                        ? "group"
-                        : "mine";
-                setView(next);
-                document.getElementById(`${next}-tab`)?.focus();
-              }}
-            >
-              <button
-                id="mine-tab"
-                role="tab"
-                aria-selected={view === "mine"}
-                tabIndex={view === "mine" ? 0 : -1}
-                aria-controls="mine-predictions"
-                onClick={() => setView("mine")}
-              >
-                <Target size={17} />
-                Mi quiniela
-              </button>
-              <button
-                id="group-tab"
-                role="tab"
-                aria-selected={view === "group"}
-                tabIndex={view === "group" ? 0 : -1}
-                aria-controls="group-predictions"
-                onClick={() => setView("group")}
-              >
-                <Users size={17} />
-                El grupo
-              </button>
-            </div>
-          )}
-          {shownView === "mine" ? (
+          {!isSealed ? (
             <div
               id="mine-predictions"
-              role="tabpanel"
-              aria-labelledby="mine-tab"
+              role="region"
+              aria-label="Mi quiniela"
               className="prediction-list"
             >
               {list.map((m) => {
@@ -635,7 +583,9 @@ export default function PredictionsPage({
                         />
                       )}
                     </div>
-                    {m.status === "FINISHED" && <MatchResult match={m} />}
+                    {m.status === "FINISHED" && (
+                      <MatchResult match={m} demo={demo} />
+                    )}
                   </div>
                 );
               })}
@@ -643,10 +593,9 @@ export default function PredictionsPage({
           ) : (
             <div
               id="group-predictions"
-              tabIndex={isSealed ? -1 : 0}
-              role={isSealed ? "region" : "tabpanel"}
-              aria-label={isSealed ? "El grupo" : undefined}
-              aria-labelledby={!isSealed ? "group-tab" : undefined}
+              tabIndex={-1}
+              role="region"
+              aria-label="El grupo"
             >
               {peopleError && (
                 <p className="error" role="alert">

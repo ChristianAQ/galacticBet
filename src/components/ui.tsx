@@ -48,16 +48,21 @@ export function PageTitle({
   eyebrow,
   title,
   description,
+  titleControl,
 }: {
   eyebrow: string;
   title: string;
   description?: string;
+  titleControl?: ReactNode;
 }) {
   return (
     <div className="page-heading">
       <div>
         <div className="eyebrow">{eyebrow}</div>
-        <h1>{title}</h1>
+        <div className="page-title-row">
+          <h1>{title}</h1>
+          {titleControl}
+        </div>
         {description && <p>{description}</p>}
       </div>
     </div>

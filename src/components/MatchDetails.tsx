@@ -1,3 +1,4 @@
+import MatchMeta from "./MatchMeta";
 import { competitionName } from "../lib/competitions";
 import { CalendarDays, GitCompareArrows } from "lucide-react";
 import { matchStatusLabel, roundLabel, type Match } from "../lib/domain";
@@ -92,6 +93,7 @@ export default function MatchDetails({
           }).format(new Date(match.utcDate))}
         </time>
       </p>
+      {!demo && <MatchMeta insight={insights.insight} />}
       {!demo && <MatchCalendarAction match={match} />}
       {["EXTRA_TIME", "PENALTY_SHOOTOUT"].includes(
         match.scoreDuration || "",
@@ -103,8 +105,20 @@ export default function MatchDetails({
           Marcador mostrado a 90 minutos.
         </p>
       )}
-      {match.status === "FINISHED" && <MatchResult match={match} />}
-      <MatchExtras match={match} {...insights} demo={demo} />
+      {match.status === "FINISHED" && (
+        <MatchResult
+          match={match}
+          insight={insights.insight}
+          loading={insights.loading}
+          demo={demo}
+        />
+      )}
+      <MatchExtras
+        match={match}
+        {...insights}
+        demo={demo}
+        hideStatistics={match.status === "FINISHED"}
+      />
       {context && (
         <section className="match-insight-section">
           <h3>

@@ -7,7 +7,6 @@ import {
   ChartNoAxesColumnIncreasing,
   ChevronDown,
   CircleDot,
-  MapPin,
   RefreshCw,
   Tv,
   UsersRound,
@@ -98,6 +97,7 @@ export default function MatchExtras({
   error,
   onRetry,
   demo = false,
+  hideStatistics = false,
 }: {
   match: Match;
   insight: MatchInsight | null;
@@ -105,6 +105,7 @@ export default function MatchExtras({
   error: string;
   onRetry: () => void;
   demo?: boolean;
+  hideStatistics?: boolean;
 }) {
   const [selectedTab, setTab] = useState<DetailTab>(
     ["TIMED", "SCHEDULED"].includes(match.status) ? "probability" : "goals",
@@ -125,7 +126,11 @@ export default function MatchExtras({
     };
   }, []);
   const available =
-    !loading && !error && !demo ? availableMatchTabs(match, insight, now) : [];
+    !loading && !error && !demo
+      ? availableMatchTabs(match, insight, now).filter(
+          (tab) => !hideStatistics || tab !== "statistics",
+        )
+      : [];
   const tab = available.includes(selectedTab) ? selectedTab : available[0];
   const headingId = useId();
   const panelId = useId();
@@ -192,123 +197,102 @@ export default function MatchExtras({
                 ))}
             </div>
           )}
-          <div
-            id={panelId}
-            tabIndex={-1}
-            className={`match-extra-panel${tab === "statistics" ? " match-statistics-panel" : ""}`}
-            aria-busy={loading}
-          >
-            {loading ? (
-              <p className="match-extra-empty" role="status">
-                Cargando información del partido…
-              </p>
-            ) : error ? (
-              <div className="match-extra-empty" role="status">
-                <p>{error}</p>
-                <button
-                  type="button"
-                  className="match-extra-retry"
-                  onClick={() => {
-                    document.getElementById(panelId)?.focus();
-                    onRetry();
-                  }}
-                >
-                  <RefreshCw size={14} aria-hidden="true" /> Reintentar
-                </button>
-              </div>
-            ) : !tab ? (
-              <p className="match-extra-empty">
-                Información del partido pendiente de publicación.
-              </p>
-            ) : tab === "probability" ? (
-              <MatchProbability
-                match={match}
-                probability={insight?.probability}
-                now={now}
-              />
-            ) : !insight ? (
-              <p className="match-extra-empty">
-                Los detalles aún no están disponibles. Puedes consultar la ficha
-                externa mientras se actualizan.
-              </p>
-            ) : tab === "goals" ? (
-              <MatchTimeline match={match} insight={insight} />
-            ) : tab === "lineups" ? (
-              insight.lineups.length ? (
+          {(tab ||
+            loading ||
+            error ||
+            !hideStatistics ||
+            !insight?.statistics.length) && (
+            <div
+              key={tab || "pending"}
+              id={panelId}
+              tabIndex={-1}
+              className={`match-extra-panel${tab === "statistics" ? " match-statistics-panel" : ""}`}
+              aria-busy={loading}
+            >
+              {loading ? (
+                <p className="match-extra-empty" role="status">
+                  Cargando información del partido…
+                </p>
+              ) : error ? (
+                <div className="match-extra-empty" role="status">
+                  <p>{error}</p>
+                  <button
+                    type="button"
+                    className="match-extra-retry"
+                    onClick={() => {
+                      document.getElementById(panelId)?.focus();
+                      onRetry();
+                    }}
+                  >
+                    <RefreshCw size={14} aria-hidden="true" /> Reintentar
+                  </button>
+                </div>
+              ) : !tab ? (
+                <p className="match-extra-empty">
+                  Información del partido pendiente de publicación.
+                </p>
+              ) : tab === "probability" ? (
+                <MatchProbability
+                  match={match}
+                  probability={insight?.probability}
+                  now={now}
+                />
+              ) : !insight ? (
+                <p className="match-extra-empty">
+                  Los detalles aún no están disponibles. Puedes consultar la
+                  ficha externa mientras se actualizan.
+                </p>
+              ) : tab === "goals" ? (
+                <MatchTimeline match={match} insight={insight} />
+              ) : tab === "lineups" ? (
+                insight.lineups.length ? (
+                  <>
+                    <LineupPitch match={match} lineups={insight.lineups} />
+                    <details className="lineup-full-list">
+                      <summary>Ver lista completa y suplentes</summary>
+                      <div className="match-extra-lineups">
+                        <TeamLineup
+                          name={match.home}
+                          lineup={insight.lineups.find(
+                            (l) => l.side === "home",
+                          )}
+                        />
+                        <TeamLineup
+                          name={match.away}
+                          lineup={insight.lineups.find(
+                            (l) => l.side === "away",
+                          )}
+                        />
+                      </div>
+                    </details>
+                  </>
+                ) : (
+                  <p className="match-extra-empty">
+                    Alineaciones no disponibles. Suelen publicarse cerca del
+                    inicio del partido.
+                  </p>
+                )
+              ) : insight.statistics.length ? (
                 <>
-                  <LineupPitch match={match} lineups={insight.lineups} />
-                  <details className="lineup-full-list">
-                    <summary>Ver lista completa y suplentes</summary>
-                    <div className="match-extra-lineups">
-                      <TeamLineup
-                        name={match.home}
-                        lineup={insight.lineups.find((l) => l.side === "home")}
-                      />
-                      <TeamLineup
-                        name={match.away}
-                        lineup={insight.lineups.find((l) => l.side === "away")}
-                      />
-                    </div>
-                  </details>
+                  <MatchStatistics
+                    match={match}
+                    statistics={insight.statistics}
+                  />
+                  {["EXTRA_TIME", "PENALTY_SHOOTOUT"].includes(
+                    match.scoreDuration || "",
+                  ) && (
+                    <p className="match-extra-note">
+                      Las estadísticas del proveedor pueden incluir la prórroga.
+                    </p>
+                  )}
                 </>
               ) : (
                 <p className="match-extra-empty">
-                  Alineaciones no disponibles. Suelen publicarse cerca del
-                  inicio del partido.
+                  Estadísticas de este encuentro no disponibles.
                 </p>
-              )
-            ) : insight.statistics.length ? (
-              <>
-                <MatchStatistics
-                  match={match}
-                  statistics={insight.statistics}
-                />
-                {["EXTRA_TIME", "PENALTY_SHOOTOUT"].includes(
-                  match.scoreDuration || "",
-                ) && (
-                  <p className="match-extra-note">
-                    Las estadísticas del proveedor pueden incluir la prórroga.
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="match-extra-empty">
-                Estadísticas de este encuentro no disponibles.
-              </p>
-            )}
-          </div>
-
-          {hasInsight &&
-            (insight!.venue ||
-              insight!.referee ||
-              insight!.attendance !== undefined) && (
-              <dl className="match-extra-meta">
-                {insight!.venue && (
-                  <div>
-                    <dt>
-                      <MapPin size={13} aria-hidden="true" /> Estadio
-                    </dt>
-                    <dd>{insight!.venue}</dd>
-                  </div>
-                )}
-                {insight!.referee && (
-                  <div>
-                    <dt>Árbitro</dt>
-                    <dd>{insight!.referee}</dd>
-                  </div>
-                )}
-                {insight!.attendance !== undefined && (
-                  <div>
-                    <dt>Asistencia</dt>
-                    <dd>
-                      {new Intl.NumberFormat("es-ES").format(
-                        insight!.attendance,
-                      )}
-                    </dd>
-                  </div>
-                )}
-              </dl>
-            )}
+              )}
+            </div>
+          )}
 
           <div className="match-extra-links">
             <a

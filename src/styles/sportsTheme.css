@@ -599,3 +599,121 @@ body {
 .competition-switch > button:focus-visible {
   outline-color: var(--brand-accent);
 }
+
+/* A direct round selector keeps the prediction itself in view. */
+.page-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.page-title-row h1 {
+  margin-bottom: 0;
+}
+.heading-round-filter {
+  width: 170px;
+  min-width: 0;
+  max-width: 100%;
+}
+.heading-round-filter select {
+  width: 100%;
+  max-width: 100%;
+  padding: 10px 34px 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff08;
+  color: var(--text);
+  font-size: 14px;
+  transition:
+    background 0.18s,
+    border-color 0.18s;
+}
+.heading-round-filter select:hover {
+  border-color: #c5f66a55;
+  background: #c5f66a0a;
+}
+.heading-round-filter option {
+  color: #e3eaf4;
+  background: #171c24;
+}
+.delivery-date-label {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+.delivery-summary-date {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px 8px;
+}
+.result-statistics-toggle {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  background: #ffffff08;
+  color: #c5f66a;
+  border: 1px solid #c5f66a30;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  margin-top: 5px;
+  transition: background 0.18s;
+}
+.result-statistics-toggle:hover {
+  background: #c5f66a15;
+}
+.result-statistics-toggle svg {
+  transition: transform 0.18s;
+}
+.result-statistics-toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+.result-statistics-panel {
+  margin-top: 14px;
+  min-width: 0;
+}
+.result-statistics-panel[hidden] {
+  display: none;
+}
+.result-statistics-panel:not([hidden]),
+.match-extra-panel {
+  animation: detail-reveal 0.18s ease-out;
+}
+.match-local-date + .match-extra-meta {
+  margin: 0 0 20px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff03;
+}
+@keyframes detail-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 420px) {
+  .delivery-summary-date {
+    max-width: 220px;
+  }
+  .delivery-date-label {
+    flex-basis: 100%;
+    text-align: right;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .result-statistics-panel:not([hidden]),
+  .match-extra-panel {
+    animation: none;
+  }
+  .result-statistics-toggle,
+  .result-statistics-toggle svg,
+  .heading-round-filter select {
+    transition: none;
+  }
+}
