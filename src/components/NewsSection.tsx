@@ -85,6 +85,9 @@ export default function NewsSection({ demo = false }: { demo?: boolean }) {
                       </time>
                     </span>
                     <strong>{a.title}</strong>
+                    {a.description && (
+                      <p className="news-description">{a.description}</p>
+                    )}
                     <span className="news-read">
                       Leer en ESPN <ArrowUpRight size={13} aria-hidden="true" />
                     </span>

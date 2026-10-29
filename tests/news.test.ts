@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Firestore } from "firebase-admin/firestore";
-import { normalizeNews, syncNews } from "../scripts/syncNews";
+import { normalizeNews, newsDescription, syncNews } from "../scripts/syncNews";
 import {
   currentArticles,
   newsUrl,
@@ -18,6 +18,7 @@ const feed: FootballNews = {
   version: 1,
   provider: "ESPN",
   linkPolicyVersion: 2,
+  contentVersion: 1,
   fetchedAt: new Date(now).toISOString(),
   articles: normalizeNews({ articles: [article] }, "PD", now),
 };
@@ -159,27 +160,70 @@ it("acepta las ediciones regionales españolas sin aceptar dominios parecidos", 
 });
 it("prioriza la edición española y renueva una edición guardada con el filtro anterior", async () => {
   const { db, set } = database({ ...feed, linkPolicyVersion: undefined });
-  const request = vi
-    .fn<typeof fetch>()
-    .mockImplementation(
-      async () =>
-        new Response(
-          JSON.stringify({
-            articles: [
-              {
-                ...article,
-                links: {
-                  web: { href: "https://www.espn.com.ar/futbol/nota/_/id/123" },
-                },
+  const request = vi.fn<typeof fetch>().mockImplementation(
+    async () =>
+      new Response(
+        JSON.stringify({
+          articles: [
+            {
+              ...article,
+              links: {
+                web: { href: "https://www.espn.com.ar/futbol/nota/_/id/123" },
               },
-            ],
-          }),
-        ),
-    );
+            },
+          ],
+        }),
+      ),
+  );
   await syncNews(db, { now, request, log: vi.fn() });
   expect(request).toHaveBeenCalledTimes(3);
   expect(
     request.mock.calls.every(([url]) => String(url).includes("lang=es")),
   ).toBe(true);
   expect(set.mock.calls[0][0].linkPolicyVersion).toBe(2);
+});
+
+it("conserva descripciones breves como texto y omite las ausentes o repetidas", () => {
+  expect(
+    newsDescription(
+      "<p>Un <b>resumen</b> &amp; contexto.</p>",
+      article.headline,
+    ),
+  ).toBe("Un resumen & contexto.");
+  expect(newsDescription(article.headline, article.headline)).toBeUndefined();
+  expect(newsDescription(null, article.headline)).toBeUndefined();
+  expect(
+    newsDescription("<script>alert(1)</script>", article.headline),
+  ).toBeUndefined();
+  expect(
+    newsDescription("Una noticia extensa ".repeat(30), article.headline)
+      ?.length,
+  ).toBeLessThanOrEqual(240);
+  const articles = normalizeNews(
+    { articles: [{ ...article, description: "Resumen de ESPN" }] },
+    "PD",
+    now,
+  );
+  expect(articles[0].description).toBe("Resumen de ESPN");
+  expect(validNews({ ...feed, articles })).toBe(true);
+  expect(
+    validNews({ ...feed, articles: [{ ...articles[0], description: 123 }] }),
+  ).toBe(false);
+});
+it("renueva una edición sin descripciones aunque todavía esté en caché", async () => {
+  const { db, set } = database({ ...feed, contentVersion: undefined });
+  const request = vi
+    .fn<typeof fetch>()
+    .mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            articles: [{ ...article, description: "Resumen de ESPN" }],
+          }),
+        ),
+    );
+  await syncNews(db, { now, request, log: vi.fn() });
+  expect(request).toHaveBeenCalledTimes(3);
+  expect(set.mock.calls[0][0].articles[0].description).toBe("Resumen de ESPN");
+  expect(set.mock.calls[0][0].contentVersion).toBe(1);
 });

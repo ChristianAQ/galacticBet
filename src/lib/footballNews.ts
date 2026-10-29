@@ -1,6 +1,7 @@
 import { isCompetition, type CompetitionCode } from "./competitions";
 export interface FootballArticle {
   title: string;
+  description?: string;
   url: string;
   publishedAt: string;
   competition: CompetitionCode;
@@ -9,6 +10,7 @@ export interface FootballNews {
   version: 1;
   provider: "ESPN";
   linkPolicyVersion?: number;
+  contentVersion?: number;
   fetchedAt: string;
   articles: FootballArticle[];
 }
@@ -63,6 +65,8 @@ export function validNews(value: unknown): value is FootballNews {
         typeof a.title === "string" &&
         a.title.trim().length > 0 &&
         a.title.length <= 240 &&
+        (a.description === undefined ||
+          (typeof a.description === "string" && a.description.length <= 240)) &&
         newsUrl(a.url) !== null &&
         typeof a.publishedAt === "string" &&
         Number.isFinite(Date.parse(a.publishedAt)) &&

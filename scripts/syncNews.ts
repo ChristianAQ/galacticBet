@@ -12,6 +12,39 @@ import {
   type FootballNews,
 } from "../src/lib/footballNews";
 
+// Keep the provider's excerpt as plain text; never render provider HTML.
+export function newsDescription(
+  value: unknown,
+  title: string,
+): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const text = value
+    .slice(0, 10000)
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(
+      /&(?:amp|quot|apos|lt|gt|nbsp);/g,
+      (entity) =>
+        ({
+          "&amp;": "&",
+          "&quot;": '"',
+          "&apos;": "'",
+          "&lt;": "<",
+          "&gt;": ">",
+          "&nbsp;": " ",
+        })[entity] ?? entity,
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text || text.toLocaleLowerCase("es") === title.toLocaleLowerCase("es"))
+    return undefined;
+  if (text.length <= 240) return text;
+  const excerpt = text.slice(0, 239);
+  const boundary = excerpt.lastIndexOf(" ");
+  return `${excerpt.slice(0, boundary > 180 ? boundary : 239).trimEnd()}…`;
+}
+
 export function normalizeNews(
   value: unknown,
   competition: CompetitionCode,
@@ -51,9 +84,11 @@ export function normalizeNews(
       rejected.expired++;
       return [];
     }
+    const description = newsDescription(a.description, title);
     return [
       {
         title,
+        ...(description ? { description } : {}),
         url,
         publishedAt: new Date(published).toISOString(),
         competition,
@@ -81,6 +116,7 @@ export async function syncNews(
   const fresh =
     validNews(previous) &&
     previous.linkPolicyVersion === 2 &&
+    previous.contentVersion === 1 &&
     Date.parse(previous.fetchedAt) <= now &&
     now - Date.parse(previous.fetchedAt) < 6 * 3_600_000;
   if (fresh) return;
@@ -130,6 +166,7 @@ export async function syncNews(
     version: 1,
     provider: "ESPN",
     linkPolicyVersion: 2,
+    contentVersion: 1,
     fetchedAt: new Date(now).toISOString(),
     articles: unique,
   };
