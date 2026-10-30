@@ -1,16 +1,11 @@
-import { ArrowRight, Timer, Trophy } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ArrowRight, Timer } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   COMPETITION_CODES,
   competitionName,
   type CompetitionCode,
 } from "../lib/competitions";
-import {
-  getCachedGroupRankings,
-  loadGroupRankings,
-  type Group,
-} from "../lib/data";
 import { matchStatusLabel, type Match } from "../lib/domain";
 import {
   liveMatches,
@@ -20,33 +15,17 @@ import {
 import { currentLeagueTable, LEAGUE_STAGES } from "../lib/leagueTable";
 import { hasRegulationResult } from "../lib/matchInsights";
 import { countdownLabel } from "../lib/matchPreview";
-import { preferenceStore, resolveSelectedGroup } from "../lib/preferences";
-import { buildRanking, rankingSummary } from "../lib/rankings";
+import { preferenceStore } from "../lib/preferences";
 import { roundDateRange } from "../lib/roundOptions";
 import { usePreferences } from "../lib/useGroupSelection";
 import CompetitionLogo from "./CompetitionLogo";
-import { RankAvatar, RankBadge } from "./RankingWidgets";
-import { readableError } from "./ui";
+import { Crest } from "./ui";
+import "../styles/dashboard.css";
 
 const shortDate = new Intl.DateTimeFormat("es", {
   day: "numeric",
   month: "short",
 });
-
-function Crest({ src }: { src?: string }) {
-  return src ? (
-    <img
-      src={src}
-      alt=""
-      loading="lazy"
-      onError={(e) => {
-        e.currentTarget.style.visibility = "hidden";
-      }}
-    />
-  ) : (
-    <span className="crest-placeholder" aria-hidden="true" />
-  );
-}
 
 export function QuinielaSpotlight({
   rounds,
@@ -181,117 +160,16 @@ export function MatchTicker({ matches, now }: { matches: Match[]; now: number })
   );
 }
 
-export function GroupPulse({
-  userId,
-  groups,
-}: {
-  userId: string;
-  groups: Group[];
-}) {
-  const preferences = usePreferences(userId);
-  const groupId = resolveSelectedGroup(groups, null, preferences.groupId);
-  const group = groups.find((g) => g.id === groupId);
-  const key = group ? `${group.id}:${[...group.memberIds].sort().join(",")}` : "";
-  const [state, setState] = useState<{
-    key: string;
-    data?: Awaited<ReturnType<typeof loadGroupRankings>>;
-    error?: string;
-  }>({ key: "" });
-  useEffect(() => {
-    if (!group) return;
-    let active = true;
-    loadGroupRankings(group).then(
-      (data) => {
-        if (active) setState({ key, data });
-      },
-      (e: unknown) => {
-        if (active) setState({ key, error: readableError(e) });
-      },
-    );
-    return () => {
-      active = false;
-    };
-  }, [key]);
-  const data =
-    state.key === key && state.data
-      ? state.data
-      : group
-        ? getCachedGroupRankings(group)
-        : undefined;
-  const error = state.key === key ? state.error : undefined;
-  const rows = useMemo(
-    () =>
-      data
-        ? buildRanking(data.participants, data.seasons, preferences.competition)
-        : [],
-    [data, preferences.competition],
-  );
-  if (!group) return null;
-  const summary = rankingSummary(rows, userId);
-  const visible = rows.slice(0, 3);
-  if (summary.me && !visible.includes(summary.me)) visible.push(summary.me);
-  return (
-    <section className="group-pulse panel" aria-labelledby="pulse-title">
-      <header>
-        <div>
-          <span className="eyebrow">TU GRUPO</span>
-          <h3 id="pulse-title">{group.name}</h3>
-          <small>{competitionName(preferences.competition)} · Total</small>
-        </div>
-        <Trophy size={20} aria-hidden="true" />
-      </header>
-      {error ? (
-        <p className="pulse-empty" role="status">
-          {error}
-        </p>
-      ) : !data ? (
-        <div className="pulse-skeleton" role="status" aria-label="Cargando">
-          <span />
-          <span />
-          <span />
-        </div>
-      ) : (
-        <>
-          {summary.me && (
-            <p className="pulse-me">
-              <strong>{summary.me.position}º</strong>
-              <span>
-                de {summary.total} ·{" "}
-                {summary.me.position === 1
-                  ? "lideras el grupo"
-                  : `a ${summary.gapToLeader} pts del líder`}
-              </span>
-            </p>
-          )}
-          <ol className="pulse-list">
-            {visible.map((r) => (
-              <li key={r.id} className={r.id === userId ? "is-me" : undefined}>
-                <RankBadge position={r.position} />
-                <RankAvatar name={r.name} avatar={r.avatar} />
-                <span>
-                  {r.name}
-                  {r.id === userId && <small> Tú</small>}
-                </span>
-                <strong>{r.points}</strong>
-              </li>
-            ))}
-          </ol>
-        </>
-      )}
-      <Link to="/clasificacion" className="pulse-link">
-        Ver clasificación completa <ArrowRight size={14} />
-      </Link>
-    </section>
-  );
-}
-
 export function LeagueTableCard({
   matches,
   now,
+  userId,
 }: {
   matches: Match[];
   now: number;
+  userId: string;
 }) {
+  const preferences = usePreferences(userId);
   const available = useMemo(
     () =>
       COMPETITION_CODES.filter((code) =>
@@ -304,7 +182,9 @@ export function LeagueTableCard({
       ),
     [matches],
   );
-  const [selected, setSelected] = useState<CompetitionCode>("PD");
+  const [selected, setSelected] = useState<CompetitionCode>(
+    preferences.competition,
+  );
   const code = available.find((c) => c === selected) ?? available[0];
   const rows = useMemo(
     () => (code ? currentLeagueTable(matches, code, now).slice(0, 6) : []),
@@ -369,7 +249,13 @@ export function LeagueTableCard({
           })}
         </tbody>
       </table>
-      <p className="league-note">Calculada con los resultados sincronizados.</p>
+      <Link
+        className="league-link"
+        to="/clasificacion?vista=liga"
+        onClick={() => preferenceStore.update(userId, { competition: code })}
+      >
+        Ver tabla completa <ArrowRight size={14} />
+      </Link>
     </section>
   );
 }

@@ -61,9 +61,9 @@ function preloadPage(path: string) {
 const nav = [
   { to: "/", label: "Inicio", icon: Home },
   { to: "/partidos", label: "Partidos", icon: CalendarDays },
-  { to: "/quiniela", label: "Mi quiniela", icon: Target },
-  { to: "/grupos", label: "Mis grupos", icon: Users },
+  { to: "/quiniela", label: "Mi quiniela", short: "Quiniela", icon: Target },
   { to: "/clasificacion", label: "Clasificación", icon: Trophy },
+  { to: "/grupos", label: "Mis grupos", short: "Grupos", icon: Users },
 ];
 export default function App() {
   const navigate = useNavigate();
@@ -192,7 +192,6 @@ export default function App() {
     setGroups([]);
     void refreshGroups();
   }, [user]);
-  const name = user?.displayName?.split(" ")[0] || "crack";
   return (
     <div className="app-shell">
       <Sidebar
@@ -288,9 +287,7 @@ export default function App() {
                   path="/"
                   element={
                     <HomePage
-                      name={name}
                       userId={user?.uid || ""}
-                      groups={activeGroups}
                       matches={matches}
                       loading={loading}
                       demo={demo}
@@ -305,6 +302,7 @@ export default function App() {
                       demo={demo}
                       onDemo={() => setDemo(true)}
                       loading={loading}
+                      userId={user?.uid || ""}
                     />
                   }
                 />
@@ -345,6 +343,7 @@ export default function App() {
                     <StandingsPage
                       groups={activeGroups}
                       matches={matches}
+                      loading={loading}
                       user={user}
                       onLogin={() => setLogin(true)}
                     />

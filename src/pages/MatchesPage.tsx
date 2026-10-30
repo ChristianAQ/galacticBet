@@ -1,34 +1,71 @@
-import { competitionCode } from "../lib/competitions";
-import { competitionName } from "../lib/competitions";
-import { lazy, Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { ArrowUpRight } from "lucide-react";
+import { isCompetition, type CompetitionCode } from "../lib/competitions";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { ArrowUpRight, Target, Trophy } from "lucide-react";
 import { knockoutContext } from "../lib/matchInsights";
-import CompetitionSwitch from "../components/CompetitionSwitch";
-import FilterPanel, { FilterField } from "../components/FilterPanel";
+import CompetitionTabs from "../components/CompetitionTabs";
+import RoundSelector from "../components/RoundSelector";
 import { Empty, MatchRow, PageTitle } from "../components/ui";
-import { preferredRound, roundLabel, type Match } from "../lib/domain";
+import { preferredRound, type Match } from "../lib/domain";
+import { LEAGUE_STAGES } from "../lib/leagueTable";
+import { countdownLabel } from "../lib/matchPreview";
+import { preferenceStore } from "../lib/preferences";
+import { roundOptions } from "../lib/roundOptions";
+import { usePreferences } from "../lib/useGroupSelection";
 
 const MatchDetails = lazy(() => import("../components/MatchDetails"));
+const dayTitle = new Intl.DateTimeFormat("es", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
+
 export default function MatchesPage({
   matches,
   demo,
   onDemo,
   loading,
+  userId,
 }: {
   matches: Match[];
   demo: boolean;
   onDemo: () => void;
   loading: boolean;
+  userId: string;
 }) {
   const [params, setParams] = useSearchParams();
-  const competition = competitionCode(params.get("competition"));
+  const preferences = usePreferences(userId);
+  const requested = params.get("competition");
+  const competition: CompetitionCode = isCompetition(requested)
+    ? requested
+    : preferences.competition;
   const round = params.get("round") || "";
   const [detailId, setDetailId] = useState("");
   const detail = matches.find((m) => m.id === detailId);
-  const filtered = matches.filter((m) => m.competition === competition);
-  const rounds = [...new Set(filtered.map((m) => m.roundId))];
-  const selected = rounds.includes(round) ? round : preferredRound(filtered);
+  // A competition opened from a link becomes the shared choice for quiniela and standings.
+  useEffect(() => {
+    if (isCompetition(requested))
+      preferenceStore.update(userId, { competition: requested });
+  }, [userId, requested]);
+  const filtered = useMemo(
+    () => matches.filter((m) => m.competition === competition),
+    [matches, competition],
+  );
+  const rounds = useMemo(() => roundOptions(filtered), [filtered]);
+  const current = useMemo(() => preferredRound(filtered), [filtered]);
+  const selected = rounds.some((r) => r.id === round) ? round : current;
+  const selectedRound = rounds.find((r) => r.id === selected);
+  const days = useMemo(() => {
+    const byDay = new Map<string, Match[]>();
+    for (const m of filtered
+      .filter((m) => m.roundId === selected)
+      .sort((a, b) => a.utcDate.localeCompare(b.utcDate))) {
+      const key = new Date(m.utcDate).toDateString();
+      byDay.set(key, [...(byDay.get(key) || []), m]);
+    }
+    return [...byDay.values()];
+  }, [filtered, selected]);
+  const isLeague = LEAGUE_STAGES.includes(days[0]?.[0]?.stage || "");
   useEffect(() => {
     if (selected && round !== selected) {
       setParams(
@@ -43,87 +80,100 @@ export default function MatchesPage({
   }, [selected, round, setParams]);
   return (
     <>
-      <PageTitle
-        eyebrow="CADA PARTIDO CUENTA"
-        title="El calendario del fútbol"
+      <PageTitle eyebrow="CALENDARIO Y RESULTADOS" title="Partidos" />
+      <CompetitionTabs
+        value={competition}
+        onChange={(code) => {
+          preferenceStore.update(userId, { competition: code });
+          setParams({ competition: code }, { replace: true });
+        }}
       />
-      <FilterPanel
-        title={competitionName(competition)}
-        summary={
-          filtered.find((m) => m.roundId === selected)
-            ? roundLabel(filtered.find((m) => m.roundId === selected)!)
-            : "Sin jornadas disponibles"
-        }
-        competition={competition}
-        applyLabel="Ver partidos"
-      >
-        <CompetitionSwitch
-          value={competition}
-          onChange={(code) => setParams({ competition: code })}
-        />
-        <FilterField label="Jornada o ronda">
-          <select
-            aria-label="Seleccionar jornada o ronda"
-            value={selected || ""}
-            disabled={!rounds.length}
-            onChange={(e) => {
-              setParams((previous) => {
+      {!loading && filtered.length > 0 && (
+        <RoundSelector
+          rounds={rounds}
+          value={selected}
+          current={current}
+          onChange={(id) =>
+            setParams(
+              (previous) => {
                 const next = new URLSearchParams(previous);
-                next.set("round", e.target.value);
+                next.set("round", id);
                 return next;
-              });
-            }}
-          >
-            {rounds.length ? (
-              rounds.map((r) => (
-                <option key={r} value={r}>
-                  {roundLabel(filtered.find((m) => m.roundId === r)!)}
-                </option>
-              ))
-            ) : (
-              <option value="">Sin jornadas sincronizadas</option>
-            )}
-          </select>
-        </FilterField>
-      </FilterPanel>
+              },
+              { replace: true },
+            )
+          }
+        />
+      )}
+      {selectedRound && (selectedRound.state === "open" || isLeague) && (
+        <nav className="round-actions" aria-label="Acciones de la jornada">
+          {selectedRound.state === "open" && (
+            <Link
+              className="round-action is-primary"
+              to={`/quiniela?round=${encodeURIComponent(selectedRound.id)}`}
+            >
+              <Target size={16} aria-hidden="true" />
+              <span>
+                <strong>Hacer mi quiniela</strong>
+                <small>Cierra en {countdownLabel(selectedRound.start)}</small>
+              </span>
+            </Link>
+          )}
+          {isLeague && (
+            <Link className="round-action" to="/clasificacion?vista=liga">
+              <Trophy size={16} aria-hidden="true" />
+              <span>
+                <strong>Clasificación</strong>
+                <small>Tabla de la competición</small>
+              </span>
+            </Link>
+          )}
+        </nav>
+      )}
       <div className="match-calendar-list">
         {loading ? (
           <Empty title="Cargando partidos…">Consultando Firestore.</Empty>
         ) : filtered.length ? (
-          filtered
-            .filter((m) => m.roundId === selected)
-            .map((m) => {
-              const tie = knockoutContext(m, matches);
-              return (
-                <button
-                  key={m.id}
-                  className="panel fixture-card-button"
-                  aria-label={`Ver ficha de ${m.home} contra ${m.away}`}
-                  onClick={() => setDetailId(m.id)}
-                >
-                  <span className="fixture-card-heading">
-                    <span>{roundLabel(m)}</span>
-                    {tie?.leg && (
-                      <span>{tie.leg === 1 ? "Ida" : "Vuelta"}</span>
-                    )}
-                  </span>
-                  <MatchRow match={m} history={matches} as="span" />
-                  <span className="fixture-card-footer">
-                    Ver ficha del partido
-                    <ArrowUpRight size={15} />
-                  </span>
-                </button>
-              );
-            })
+          days.map((items) => (
+            <section
+              key={items[0].utcDate}
+              className="match-day"
+              aria-label={dayTitle.format(new Date(items[0].utcDate))}
+            >
+              <h2 className="match-day-title">
+                {dayTitle.format(new Date(items[0].utcDate))}
+              </h2>
+              {items.map((m) => {
+                const tie = knockoutContext(m, matches);
+                return (
+                  <button
+                    key={m.id}
+                    className="panel fixture-card-button"
+                    aria-label={`Ver ficha de ${m.home} contra ${m.away}`}
+                    onClick={() => setDetailId(m.id)}
+                  >
+                    <MatchRow match={m} history={matches} as="span" />
+                    <span className="fixture-card-footer">
+                      {tie?.leg ? `${tie.leg === 1 ? "Ida" : "Vuelta"} · ` : ""}
+                      Ver ficha del partido
+                      <ArrowUpRight size={15} />
+                    </span>
+                  </button>
+                );
+              })}
+            </section>
+          ))
         ) : (
           <Empty title="Aún no hay partidos disponibles">
             {demo
               ? "La demo contiene únicamente una jornada de LaLiga."
               : "La sincronización cargará los calendarios y resultados reales desde Football-Data.org."}
             <br />
-            <button className="button secondary" onClick={onDemo}>
-              Explorar modo demo
-            </button>
+            {!demo && (
+              <button className="button secondary" onClick={onDemo}>
+                Explorar modo demo
+              </button>
+            )}
           </Empty>
         )}
       </div>

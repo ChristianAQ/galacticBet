@@ -600,6 +600,136 @@ body {
   outline-color: var(--brand-accent);
 }
 
+/* Visible competition tabs shared by fixtures and standings. */
+.competition-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.competition-tabs::-webkit-scrollbar {
+  display: none;
+}
+.competition-tabs > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 5px 14px 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #ffffff05;
+  color: #c6ccd7;
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+.competition-tabs > button:hover:not(:disabled) {
+  border-color: #c5f66a55;
+}
+.competition-tabs > button[aria-pressed="true"] {
+  border-color: var(--brand-border);
+  background: var(--brand-tint);
+  color: var(--brand-accent);
+  box-shadow: inset 0 0 0 1px var(--brand-border);
+}
+.competition-tabs > button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.competition-tabs > button:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+.competition-tabs .competition-logo.competition-badge.small {
+  width: 30px;
+  height: 30px;
+  padding: 5px;
+  border-radius: 50%;
+}
+.competition-tabs-all {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #ffffff10;
+}
+.round-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: -4px 0 18px;
+}
+.round-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 220px;
+  min-height: 52px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  color: #d5dae4;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.round-action:hover {
+  border-color: #c5f66a55;
+}
+.round-action > span {
+  display: grid;
+  gap: 2px;
+}
+.round-action strong {
+  font-size: 13px;
+}
+.round-action small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.round-action.is-primary {
+  border-color: transparent;
+  background: var(--brand-accent);
+  color: #12171e;
+}
+.round-action.is-primary small {
+  color: #2b3a12;
+}
+.round-action.is-primary:hover {
+  background: #d4fb8c;
+}
+.round-action:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+.match-day {
+  display: grid;
+  gap: 10px;
+}
+.match-day-title {
+  margin: 6px 0 0;
+  color: #c6ccd7;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: capitalize;
+}
+@media (prefers-reduced-motion: reduce) {
+  .competition-tabs > button,
+  .round-action {
+    transition: none;
+  }
+}
+
 /* A direct round selector keeps the prediction itself in view. */
 .page-title-row {
   display: flex;

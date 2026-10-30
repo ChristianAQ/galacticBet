@@ -68,6 +68,20 @@ export function PageTitle({
     </div>
   );
 }
+export function Crest({ src }: { src?: string }) {
+  return src ? (
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      onError={(e) => {
+        e.currentTarget.style.visibility = "hidden";
+      }}
+    />
+  ) : (
+    <span className="crest-placeholder" aria-hidden="true" />
+  );
+}
 export function Team({ name, crest }: { name: string; crest?: string }) {
   return (
     <span className="team">

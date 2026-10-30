@@ -12,7 +12,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import CompetitionSwitch from "../components/CompetitionSwitch";
 import FilterPanel, { FilterField } from "../components/FilterPanel";
 import ConfirmQuiniela from "../components/ConfirmQuiniela";
@@ -112,7 +112,13 @@ export default function PredictionsPage({
   const minute = Math.floor(clock / 60_000);
   const rounds = useMemo(() => roundOptions(filtered), [filtered, minute]);
   const current = useMemo(() => preferredRound(filtered), [filtered, minute]);
-  const selected = rounds.some((r) => r.id === round) ? round : current;
+  const [searchParams] = useSearchParams();
+  const requestedRound = searchParams.get("round") || "";
+  const selected = rounds.some((r) => r.id === round)
+    ? round
+    : rounds.some((r) => r.id === requestedRound)
+      ? requestedRound
+      : current;
   const list = useMemo(
     () => filtered.filter((m) => m.roundId === selected),
     [filtered, selected],

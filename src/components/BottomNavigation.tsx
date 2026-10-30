@@ -46,7 +46,7 @@ export default function BottomNavigation({
   inactive,
   onPrefetch,
 }: {
-  items: { to: string; label: string; icon: LucideIcon }[];
+  items: { to: string; label: string; short?: string; icon: LucideIcon }[];
   inactive: boolean;
   onPrefetch: (path: string) => void;
 }) {
@@ -87,7 +87,7 @@ export default function BottomNavigation({
             onFocus={() => onPrefetch(item.to)}
           >
             <item.icon size={21} aria-hidden="true" />
-            <span>{item.label}</span>
+            <span>{item.short ?? item.label}</span>
           </NavLink>
         ))}
       </div>

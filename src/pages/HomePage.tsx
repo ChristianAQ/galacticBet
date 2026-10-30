@@ -1,38 +1,22 @@
-import {
-  ArrowRight,
-  CalendarDays,
-  Plus,
-  NotebookPen,
-  ShieldCheck,
-  Users,
-  Zap,
-} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import UpcomingSchedule from "../components/UpcomingSchedule";
 import NewsSection from "../components/NewsSection";
 import {
-  GroupPulse,
   LeagueTableCard,
   MatchTicker,
   QuinielaSpotlight,
 } from "../components/HomeWidgets";
-import type { Group } from "../lib/data";
 import type { Match } from "../lib/domain";
 import { openRounds } from "../lib/homeDashboard";
 import { upcomingMatches } from "../lib/schedule";
 
 export default function HomePage({
-  name,
   userId,
-  groups,
   matches,
   loading,
   demo = false,
 }: {
-  name: string;
   userId: string;
-  groups: Group[];
   matches: Match[];
   loading: boolean;
   demo?: boolean;
@@ -55,22 +39,7 @@ export default function HomePage({
   const rounds = useMemo(() => openRounds(matches, now), [matches, now]);
   return (
     <>
-      <div className="page-heading home-hero">
-        <div>
-          <div className="eyebrow">FÚTBOL ENTRE AMIGOS</div>
-          <h1>Hola, {name}</h1>
-          <p>Tus competiciones, tus jornadas y tu próxima quiniela.</p>
-        </div>
-        <div className="today">
-          <CalendarDays size={17} />
-          {new Intl.DateTimeFormat("es", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-            timeZone: "Europe/Madrid",
-          }).format(new Date(now))}
-        </div>
-      </div>
+      <h1 className="sr-only">Inicio</h1>
       <div className="home-top-grid">
         {!loading && (
           <QuinielaSpotlight rounds={rounds} now={now} userId={userId} />
@@ -83,72 +52,13 @@ export default function HomePage({
         />
       </div>
       {!loading && <MatchTicker matches={matches} now={now} />}
-      <Link to="/porra" className="porra-home-link">
-        <span className="porra-home-icon">
-          <NotebookPen size={23} />
-        </span>
-        <span>
-          <strong>Una porra para el próximo partido</strong>
-          <small>
-            Anota marcadores, calcula el bote y comparte la tarjeta.
-          </small>
-        </span>
-        <ArrowRight size={18} />
-      </Link>
       <div className="dashboard-columns home-columns">
         <NewsSection demo={demo} />
-        <aside className="right-column home-aside">
-          {userId && groups.length > 0 ? (
-            <GroupPulse userId={userId} groups={groups} />
-          ) : (
-            <>
-              <div className="section-heading">
-                <h2>Tu vestuario</h2>
-                <Users size={18} />
-              </div>
-              <div className="locker-card">
-                <div className="locker-illustration">
-                  <span>⚑</span>
-                  <span>⚑</span>
-                  <Users size={33} />
-                </div>
-                <h3>
-                  La rivalidad empieza
-                  <br />
-                  en tu grupo.
-                </h3>
-                <p>
-                  Reúne a tus amigos, elige las reglas y convierte cada jornada
-                  en vuestra competición.
-                </p>
-                <Link className="button primary full" to="/grupos">
-                  <Plus size={17} />
-                  Crear un grupo
-                </Link>
-                <Link className="join-link" to="/grupos?join=1">
-                  Tengo un código de invitación <ArrowRight size={14} />
-                </Link>
-              </div>
-            </>
+        <aside className="home-aside">
+          {!loading && (
+            <LeagueTableCard matches={matches} now={now} userId={userId} />
           )}
-          {!loading && <LeagueTableCard matches={matches} now={now} />}
-          <div className="how-card">
-            <span className="how-icon">
-              <Zap size={20} />
-            </span>
-            <div>
-              <h4>Dos formas de jugar</h4>
-              <p>El clásico 1X2 o afina tu instinto con el marcador exacto.</p>
-              <Link to="/perfil?tab=play">
-                Así se juega <ArrowRight size={13} />
-              </Link>
-            </div>
-          </div>
         </aside>
-      </div>
-      <div className="bottom-note">
-        <ShieldCheck size={15} />
-        Tu grupo, tus reglas. Una comunidad privada para disfrutar del fútbol.
       </div>
     </>
   );
