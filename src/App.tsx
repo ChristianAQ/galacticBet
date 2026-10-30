@@ -1,3 +1,4 @@
+import BottomNavigation from "./components/BottomNavigation";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import {
@@ -16,7 +17,6 @@ import {
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
   Link,
-  NavLink,
   Route,
   Routes,
   useNavigate,
@@ -400,26 +400,11 @@ export default function App() {
           </footer>
         </main>
       </div>
-      <nav
-        className="bottom-nav"
-        aria-label="Navegación inferior"
-        inert={mobileMenuOpen}
-        aria-hidden={mobileMenuOpen || undefined}
-      >
-        {nav.map((n) => (
-          <NavLink
-            end={n.to === "/"}
-            to={n.to}
-            key={n.to}
-            onPointerEnter={() => preloadPage(n.to)}
-            onFocus={() => preloadPage(n.to)}
-            onPointerDown={() => preloadPage(n.to)}
-          >
-            <n.icon size={21} />
-            <span>{n.label}</span>
-          </NavLink>
-        ))}
-      </nav>
+      <BottomNavigation
+        items={nav}
+        inactive={mobileMenuOpen}
+        onPrefetch={preloadPage}
+      />
       {login && <LoginModal close={() => setLogin(false)} />}
     </div>
   );
