@@ -482,3 +482,101 @@ describe("ESPN: asociación y datos complementarios", () => {
     ).rejects.toThrow("ESPN no respondió");
   });
 });
+
+describe("ESPN Last 5 matchups", () => {
+  const previous = (id: string, date = "2026-10-01T19:00:00Z") => ({
+    id,
+    date,
+    competitors: [
+      {
+        homeAway: "home",
+        team: { id: "86", displayName: "Real Madrid" },
+        score: "2",
+      },
+      {
+        homeAway: "away",
+        team: { id: "83", displayName: "Barcelona" },
+        score: { value: 1 },
+      },
+    ],
+    status: { type: { completed: true, state: "post" } },
+  });
+  it("conserva la localía histórica, ordena, deduplica y limita a cinco", () => {
+    const games = Array.from({ length: 7 }, (_, i) =>
+      previous(
+        String(100 + i),
+        `2026-10-${String(i + 1).padStart(2, "0")}T19:00:00Z`,
+      ),
+    );
+    const result = normalizeEspnSummary(
+      summary({ headToHeadGames: [{ events: [...games, games[0]] }] }),
+      match,
+      event,
+      "2026-10-28T19:00:00Z",
+    )!;
+    expect(result.matchups).toHaveLength(5);
+    expect(result.matchups?.[0]).toMatchObject({
+      id: "106",
+      home: "Real Madrid",
+      away: "Barcelona",
+      homeScore: 2,
+      awayScore: 1,
+    });
+    expect(validMatchInsight(result)).toBe(true);
+  });
+  it("descarta otros equipos, resultados ausentes, futuros y partidos sin terminar", () => {
+    const game = previous("1");
+    const games = [
+      { ...game, id: "777" },
+      previous("2", match.utcDate),
+      { ...game, competitors: [game.competitors[0]] },
+      { ...game, status: { type: { completed: false } } },
+      {
+        ...game,
+        competitors: [
+          game.competitors[0],
+          { ...game.competitors[1], score: null },
+        ],
+      },
+      {
+        ...game,
+        competitors: [
+          game.competitors[0],
+          { ...game.competitors[1], team: { id: "999", displayName: "Otro" } },
+        ],
+      },
+    ];
+    expect(
+      normalizeEspnSummary(
+        summary({ headToHeadGames: games }),
+        match,
+        event,
+        "2026-10-28T19:00:00Z",
+      )?.matchups,
+    ).toEqual([]);
+  });
+  it("admite equipos explícitos, sin confundir lastFiveGames con enfrentamientos", () => {
+    const compact = {
+      id: "3",
+      date: "2026-09-01T19:00:00Z",
+      homeTeam: { id: "83", displayName: "Barcelona" },
+      awayTeam: { id: "86", displayName: "Real Madrid" },
+      homeTeamScore: 0,
+      awayTeamScore: 0,
+    };
+    expect(
+      normalizeEspnSummary(
+        summary({ headToHeadGames: [compact] }),
+        match,
+        event,
+      )?.matchups?.[0],
+    ).toMatchObject({ homeScore: 0, awayScore: 0 });
+    expect(
+      normalizeEspnSummary(
+        summary({ lastFiveGames: [previous("1")] }),
+        match,
+        event,
+      )?.matchups,
+    ).toEqual([]);
+  });
+});

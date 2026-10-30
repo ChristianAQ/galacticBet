@@ -32,6 +32,15 @@ export interface MatchIncident {
   player: string;
   playerOut?: string;
 }
+export interface Matchup {
+  id: string;
+  date: string;
+  home: string;
+  away: string;
+  homeScore: number;
+  awayScore: number;
+  competition?: string;
+}
 // Complementary information never participates in results or scoring.
 export interface MatchInsight {
   version: 1;
@@ -42,6 +51,7 @@ export interface MatchInsight {
   eventId: string;
   fetchedAt: string;
   probability?: MatchProbability;
+  matchups?: Matchup[];
   incidents?: MatchIncident[];
   venue?: string;
   referee?: string;
@@ -71,6 +81,31 @@ export function validMatchInsight(value: unknown): value is MatchInsight {
     Number.isFinite(Date.parse(value.kickoff)) &&
     text(value.fetchedAt) &&
     Number.isFinite(Date.parse(value.fetchedAt)) &&
+    (value.matchups === undefined ||
+      (Array.isArray(value.matchups) &&
+        value.matchups.length <= 5 &&
+        value.matchups.every(
+          (m) =>
+            record(m) &&
+            text(m.id, 30) &&
+            /^\d+$/.test(m.id) &&
+            text(m.home) &&
+            text(m.away) &&
+            typeof m.date === "string" &&
+            Number.isFinite(Date.parse(m.date)) &&
+            Date.parse(m.date) <
+              Math.min(
+                Date.parse(String(value.kickoff)),
+                Date.parse(String(value.fetchedAt)),
+              ) &&
+            Number.isInteger(m.homeScore) &&
+            Number(m.homeScore) >= 0 &&
+            Number(m.homeScore) <= 99 &&
+            Number.isInteger(m.awayScore) &&
+            Number(m.awayScore) >= 0 &&
+            Number(m.awayScore) <= 99 &&
+            optionalText(m.competition),
+        ))) &&
     (value.probability === undefined || validProbability(value.probability)) &&
     (value.incidents === undefined ||
       (Array.isArray(value.incidents) &&

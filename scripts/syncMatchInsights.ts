@@ -187,6 +187,7 @@ function hasInformation(value: MatchInsight | null) {
     value &&
     (value.probability ||
       value.incidents?.length ||
+      value.matchups?.length ||
       value.venue ||
       value.referee ||
       value.attendance !== undefined ||
@@ -319,6 +320,10 @@ export async function syncMatchInsights(
           new Date(now).toISOString(),
         );
         if (!normalized) report.rejectedSummaries++;
+        else if (["TIMED", "SCHEDULED"].includes(match.status))
+          log(
+            `ESPN ${match.id}: ${normalized.matchups?.length || 0} enfrentamientos anteriores válidos.`,
+          );
         if (
           normalized &&
           !normalized.probability &&
@@ -381,6 +386,7 @@ export async function syncMatchInsights(
             // Missing sides/statistics are partial data, not evidence they vanished.
             // Preserve the oldest fetchedAt whenever any previous field is reused.
             const retained =
+              (!normalized.matchups?.length && Boolean(old.matchups?.length)) ||
               (!normalized.incidents?.length &&
                 Boolean(old.incidents?.length)) ||
               (!confirmedNoGoals &&
@@ -412,6 +418,9 @@ export async function syncMatchInsights(
               incidents: normalized.incidents?.length
                 ? normalized.incidents
                 : old.incidents || [],
+              matchups: normalized.matchups?.length
+                ? normalized.matchups
+                : old.matchups || [],
               lineups: [...lineups.values()],
               statistics: [...statistics.values()],
               fetchedAt: retained ? old.fetchedAt : normalized.fetchedAt,

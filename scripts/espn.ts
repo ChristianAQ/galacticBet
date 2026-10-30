@@ -10,6 +10,7 @@ import {
 import type { Match } from "../src/lib/domain";
 import {
   validMatchInsight,
+  type Matchup,
   type MatchGoal,
   type MatchIncident,
   type MatchInsight,
@@ -518,6 +519,87 @@ function normalizeStatistics(data: Row, event: EspnEvent): MatchStatistic[] {
     })
     .slice(0, 20);
 }
+/** Only the provider's head-to-head block is accepted, never each team's recent form. */
+export function normalizeMatchups(
+  value: unknown,
+  expected: Pick<EspnEvent, "id" | "homeId" | "awayId">,
+  cutoff: number,
+): Matchup[] {
+  function candidates(input: unknown, depth = 0): Row[] {
+    if (depth > 2) return [];
+    return rows(input).flatMap((item) =>
+      Array.isArray(item.events) ? candidates(item.events, depth + 1) : [item],
+    );
+  }
+  function score(value: unknown): number | null {
+    const raw =
+      typeof value === "object" && value !== null
+        ? (row(value).value ?? row(value).displayValue)
+        : value;
+    if (
+      typeof raw !== "number" &&
+      (typeof raw !== "string" || !/^\d{1,2}$/.test(raw))
+    )
+      return null;
+    const n = Number(raw);
+    return Number.isInteger(n) && n >= 0 && n <= 99 ? n : null;
+  }
+  const parsed = candidates(value)
+    .slice(0, 40)
+    .flatMap((item) => {
+      const comps = rows(item.competitions);
+      if (comps.length > 1) return [];
+      const game = comps[0] || item;
+      const id = identifier(item.id ?? game.id);
+      const date = text(game.date) || text(item.date);
+      if (
+        !id ||
+        id === expected.id ||
+        !date ||
+        !Number.isFinite(Date.parse(date)) ||
+        Date.parse(date) >= cutoff
+      )
+        return [];
+      const state = row(row(game.status ?? item.status).type);
+      if (state.completed === false || (state.state && state.state !== "post"))
+        return [];
+      const competitors = rows(game.competitors);
+      const home = competitors.find((c) => c.homeAway === "home");
+      const away = competitors.find((c) => c.homeAway === "away");
+      const ht = row(home?.team ?? game.homeTeam),
+        at = row(away?.team ?? game.awayTeam);
+      const hid = identifier(ht.id ?? game.homeTeamId),
+        aid = identifier(at.id ?? game.awayTeamId);
+      if (!(
+        (hid === expected.homeId && aid === expected.awayId) ||
+        (hid === expected.awayId && aid === expected.homeId)
+      ))
+        return [];
+      const homeName = text(ht.displayName) || text(ht.name);
+      const awayName = text(at.displayName) || text(at.name);
+      const homeScore = score(home?.score ?? game.homeTeamScore ?? ht.score);
+      const awayScore = score(away?.score ?? game.awayTeamScore ?? at.score);
+      if (!homeName || !awayName || homeScore === null || awayScore === null)
+        return [];
+      const league = row(item.league ?? game.league);
+      const competition = text(league.displayName) || text(league.name);
+      return [
+        {
+          id,
+          date: new Date(date).toISOString(),
+          home: homeName,
+          away: awayName,
+          homeScore,
+          awayScore,
+          ...(competition ? { competition } : {}),
+        },
+      ];
+    });
+  return [...new Map(parsed.map((m) => [m.id, m])).values()]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 5);
+}
+
 export function normalizeEspnSummary(
   value: unknown,
   match: Match,
@@ -585,6 +667,11 @@ export function normalizeEspnSummary(
     ...(venue ? { venue } : {}),
     ...(referee ? { referee } : {}),
     ...(attendance !== undefined ? { attendance } : {}),
+    matchups: normalizeMatchups(
+      data.headToHeadGames,
+      event,
+      Math.min(Date.parse(match.utcDate), Date.parse(fetchedAt)),
+    ),
     incidents: normalizeIncidents(data, event, competition),
     lineups: normalizeLineups(data, event),
     goals: normalizeGoals(data, event, competition),

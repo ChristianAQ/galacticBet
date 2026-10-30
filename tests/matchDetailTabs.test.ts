@@ -117,3 +117,24 @@ describe("Pestañas de la ficha según datos disponibles", () => {
     ).toEqual([]);
   });
 });
+
+it("muestra los enfrentamientos solo en la previa y cuando existen datos", () => {
+  const history = {
+    ...insight,
+    matchups: [
+      {
+        id: "5",
+        date: "2026-10-01T10:00:00Z",
+        home: "Local",
+        away: "Visitante",
+        homeScore: 2,
+        awayScore: 0,
+      },
+    ],
+  };
+  expect(availableMatchTabs(match, history, now)).toEqual(["matchups"]);
+  expect(availableMatchTabs(match, history, now + 7200000)).toEqual([]);
+  expect(
+    availableMatchTabs({ ...match, status: "FINISHED" }, history, now),
+  ).toEqual([]);
+});

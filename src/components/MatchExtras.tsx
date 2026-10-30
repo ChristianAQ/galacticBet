@@ -1,3 +1,4 @@
+import Matchups from "./Matchups";
 import MatchStatistics from "./MatchStatistics";
 import MatchTimeline from "./MatchTimeline";
 import MatchProbability from "./MatchProbability";
@@ -7,6 +8,7 @@ import {
   ChartNoAxesColumnIncreasing,
   ChevronDown,
   CircleDot,
+  GitCompareArrows,
   RefreshCw,
   Tv,
   UsersRound,
@@ -28,6 +30,7 @@ const detailTabs = [
     label: "Probabilidad",
     Icon: ChartNoAxesColumnIncreasing,
   },
+  { id: "matchups", label: "Enfrentamientos", Icon: GitCompareArrows },
   { id: "goals", label: "Eventos", Icon: CircleDot },
   { id: "lineups", label: "Alineaciones", Icon: UsersRound },
   {
@@ -131,6 +134,9 @@ export default function MatchExtras({
           (tab) => !hideStatistics || tab !== "statistics",
         )
       : [];
+  const upcoming =
+    ["SCHEDULED", "TIMED"].includes(match.status) &&
+    Date.parse(match.utcDate) > now;
   const tab = available.includes(selectedTab) ? selectedTab : available[0];
   const headingId = useId();
   const panelId = useId();
@@ -158,6 +164,8 @@ export default function MatchExtras({
               </>
             ) : demo ? (
               "Datos de ejemplo"
+            ) : upcoming ? (
+              "Previa del partido"
             ) : (
               "Alineaciones, goles y estadísticas"
             )}
@@ -200,8 +208,8 @@ export default function MatchExtras({
           {(tab ||
             loading ||
             error ||
-            !hideStatistics ||
-            !insight?.statistics.length) && (
+            (!upcoming &&
+              (!hideStatistics || !insight?.statistics.length))) && (
             <div
               key={tab || "pending"}
               id={panelId}
@@ -231,6 +239,8 @@ export default function MatchExtras({
                 <p className="match-extra-empty">
                   Información del partido pendiente de publicación.
                 </p>
+              ) : tab === "matchups" ? (
+                <Matchups matches={insight?.matchups || []} />
               ) : tab === "probability" ? (
                 <MatchProbability
                   match={match}

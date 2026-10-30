@@ -663,3 +663,63 @@
   display: block;
   margin-bottom: 6px;
 }
+
+.matchup-history h4 {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: #e3eaf4;
+}
+.matchup-history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.matchup-history li {
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+.matchup-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  color: var(--muted);
+  font-size: 10px;
+  margin-bottom: 10px;
+}
+.matchup-scoreline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #adb6c4;
+}
+.matchup-scoreline > span {
+  overflow-wrap: anywhere;
+}
+.matchup-scoreline > span:last-child {
+  text-align: right;
+}
+.matchup-scoreline strong {
+  background: #ffffff08;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 15px;
+  color: #edf3fa;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.matchup-scoreline strong span {
+  color: var(--muted);
+}
+.matchup-scoreline .matchup-winner {
+  color: #e5f5cf;
+  font-weight: 600;
+}
+.match-extra-tabs button span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: center;
+}

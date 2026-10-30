@@ -611,3 +611,27 @@ describe("sincronización acotada de información complementaria", () => {
     }
   });
 });
+
+it("guarda enfrentamientos aunque sean la única información y los conserva ante respuestas parciales", async () => {
+  const match = makeMatch("1", HOUR),
+    event = makeEvent(match);
+  const { db, docs } = database();
+  const client = clientFor([match]);
+  client.summary.mockResolvedValueOnce({
+    header: makeSummary(event).header,
+    headToHeadGames: [
+      {
+        id: "1234",
+        date: new Date(now - 86400000).toISOString(),
+        homeTeam: { id: event.homeId, displayName: event.home },
+        awayTeam: { id: event.awayId, displayName: event.away },
+        homeTeamScore: 1,
+        awayTeamScore: 0,
+      },
+    ],
+  });
+  await syncMatchInsights(db, [match], { now, client, log });
+  expect(docs.get(match.id)?.insight?.matchups).toHaveLength(1);
+  await syncMatchInsights(db, [match], { now: now + 3 * HOUR, client, log });
+  expect(docs.get(match.id)?.insight?.matchups).toHaveLength(1);
+});
