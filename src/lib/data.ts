@@ -228,6 +228,7 @@ async function fetchGroupRankings(group: Group) {
       return {
         id: config.id,
         competition: config.competition,
+        mode: config.mode,
         standings: standings.docs.map((doc) => {
           const value = doc.data();
           return {

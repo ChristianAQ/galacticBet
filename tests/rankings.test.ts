@@ -219,3 +219,39 @@ it("usa el último resultado cuando acaba el calendario y omite rondas fuera de 
   ).toBe(r1);
   expect(currentRankingRound([], [])).toBe("");
 });
+
+it("oculta aciertos solo cuando todas las temporadas de la vista son clásicas", async () => {
+  const { isClassicRanking } = await import("../src/lib/rankings");
+  const configs: SeasonRanking[] = [
+    { id: "PD-2026", competition: "PD", mode: "classic", standings: [] },
+    { id: "CL-2026", competition: "CL", mode: "exact", standings: [] },
+    { id: "CDR-2026", competition: "CDR", mode: "exact", standings: [] },
+  ];
+  expect(isClassicRanking(configs, "PD")).toBe(true);
+  expect(isClassicRanking(configs, "PD", r1)).toBe(true);
+  expect(isClassicRanking(configs, "CL")).toBe(false);
+  expect(isClassicRanking(configs, "global")).toBe(false);
+  expect(
+    isClassicRanking(
+      configs.map((s) => ({ ...s, mode: "classic" })),
+      "global",
+    ),
+  ).toBe(true);
+  expect(isClassicRanking([configs[0], configs[2]], "global")).toBe(true);
+  expect(isClassicRanking([], "PD")).toBe(false);
+  expect(isClassicRanking([{ ...configs[0], mode: undefined }], "PD")).toBe(
+    false,
+  );
+});
+it("determina la modalidad de la jornada sin confundir temporadas históricas", async () => {
+  const { isClassicRanking } = await import("../src/lib/rankings");
+  const configs: SeasonRanking[] = [
+    { id: "PD-2025", competition: "PD", mode: "exact", standings: [] },
+    { id: "PD-2026", competition: "PD", mode: "classic", standings: [] },
+  ];
+  expect(isClassicRanking(configs, "PD", r1)).toBe(true);
+  expect(isClassicRanking(configs, "PD")).toBe(false);
+  expect(isClassicRanking(configs, "PD", "PD-2027-REGULAR_SEASON-1")).toBe(
+    false,
+  );
+});

@@ -1,3 +1,5 @@
+import HomeRanking from "../components/HomeRanking";
+import type { Group } from "../lib/data";
 import { useEffect, useMemo, useState } from "react";
 import UpcomingSchedule from "../components/UpcomingSchedule";
 import NewsSection from "../components/NewsSection";
@@ -12,11 +14,13 @@ import { upcomingMatches } from "../lib/schedule";
 
 export default function HomePage({
   userId,
+  groups,
   matches,
   loading,
   demo = false,
 }: {
   userId: string;
+  groups: Group[];
   matches: Match[];
   loading: boolean;
   demo?: boolean;
@@ -40,6 +44,9 @@ export default function HomePage({
   return (
     <>
       <h1 className="sr-only">Inicio</h1>
+      {!demo && userId && groups.length > 0 && (
+        <HomeRanking userId={userId} groups={groups} />
+      )}
       <div className="home-top-grid">
         {!loading && (
           <QuinielaSpotlight rounds={rounds} now={now} userId={userId} />

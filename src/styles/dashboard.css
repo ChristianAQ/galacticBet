@@ -56,8 +56,7 @@
   border: 1px solid var(--brand-border);
   border-radius: 16px;
   background:
-    radial-gradient(90% 80% at 0% 0%, #c5f66a17, transparent 60%),
-    var(--panel);
+    radial-gradient(90% 80% at 0% 0%, #c5f66a17, transparent 60%), var(--panel);
 }
 .home-spotlight .eyebrow {
   margin: 0;
@@ -812,5 +811,114 @@
   }
   .view-tabs::before {
     transition: none;
+  }
+}
+
+/* Personal group ranking is the first item on Home, above the next fixture. */
+.home-ranking {
+  padding: 20px;
+  margin-bottom: 20px;
+  border-color: var(--brand-border);
+  background: linear-gradient(125deg, #c5f66a0c, transparent 70%), var(--panel);
+}
+.home-ranking header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.home-ranking header > div {
+  min-width: 0;
+}
+.home-ranking .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--brand-accent);
+}
+.home-ranking h2 {
+  margin: 8px 0 0;
+  font-size: 19px;
+  overflow-wrap: anywhere;
+}
+.home-ranking-context {
+  margin: 6px 0 20px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.home-ranking-numbers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+}
+.home-ranking-position,
+.home-ranking-hits {
+  display: grid;
+  gap: 6px;
+}
+.home-ranking-position > strong {
+  color: var(--brand-accent);
+  font-size: 42px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.home-ranking-position > strong > span {
+  font-size: 25px;
+}
+.home-ranking-hits {
+  border-left: 1px solid var(--border);
+  padding-left: 20px;
+}
+.home-ranking-hits > strong {
+  font-size: 30px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.home-ranking-numbers > div > span {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.home-ranking-note,
+.home-ranking-message p {
+  margin: 16px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.home-ranking-loading {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+.home-ranking-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: #e2eccf;
+}
+.home-ranking-link:hover {
+  color: var(--brand-accent);
+}
+.standings-points-only thead th:nth-child(2) {
+  width: 63%;
+}
+.standings-points-only thead th:last-child {
+  width: 22%;
+}
+@media (max-width: 400px) {
+  .home-ranking {
+    padding: 16px;
+  }
+  .home-ranking-hits {
+    padding-left: 14px;
   }
 }

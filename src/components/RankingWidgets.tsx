@@ -33,7 +33,13 @@ export function RankBadge({ position }: { position: number }) {
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-export function Podium({ rows, userId }: { rows: RankingRow[]; userId: string }) {
+export function Podium({
+  rows,
+  userId,
+}: {
+  rows: RankingRow[];
+  userId: string;
+}) {
   const top = rows.slice(0, 3);
   // Classic podium order: second, first, third.
   const order = [top[1], top[0], top[2]].filter(Boolean);
@@ -71,14 +77,17 @@ export function Podium({ rows, userId }: { rows: RankingRow[]; userId: string })
 export function MyRankCard({
   rows,
   userId,
+  showHits = true,
 }: {
   rows: RankingRow[];
   userId: string;
+  showHits?: boolean;
 }) {
   const s = rankingSummary(rows, userId);
   if (!s.me) return null;
-  const status =
-    s.me.position === 1
+  const status = !rows.some((r) => r.points > 0)
+    ? "Los puntos aparecerán cuando se puntúen los partidos."
+    : s.me.position === 1
       ? s.sharedLead
         ? "Compartes el liderato"
         : s.total > 1
@@ -98,10 +107,12 @@ export function MyRankCard({
           <strong>{s.me.points}</strong>
           <small>puntos</small>
         </span>
-        <span>
-          <strong>{s.me.hits}</strong>
-          <small>aciertos</small>
-        </span>
+        {showHits && (
+          <span>
+            <strong>{s.me.hits}</strong>
+            <small>aciertos</small>
+          </span>
+        )}
       </span>
       <p className="my-rank-status">
         <TrendingUp size={14} aria-hidden="true" />

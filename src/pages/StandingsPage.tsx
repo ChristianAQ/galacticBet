@@ -5,20 +5,11 @@ import {
 } from "../lib/competitions";
 import type { User } from "firebase/auth";
 import { ArrowRight } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import {
-  Crest,
-  Empty,
-  PageTitle,
-  PrivateGate,
-  readableError,
-} from "../components/ui";
-import {
-  getCachedGroupRankings,
-  loadGroupRankings,
-  type Group,
-} from "../lib/data";
+import { Crest, Empty, PageTitle, PrivateGate } from "../components/ui";
+import { type Group } from "../lib/data";
+import { useGroupRankings } from "../lib/useGroupRankings";
 import { type Match } from "../lib/domain";
 import CompetitionTabs from "../components/CompetitionTabs";
 import RoundSelector from "../components/RoundSelector";
@@ -30,11 +21,11 @@ import {
 } from "../components/RankingWidgets";
 import { formNames } from "../components/TeamForm";
 import { currentLeagueTable, LEAGUE_STAGES } from "../lib/leagueTable";
-import { privateCache } from "../lib/memoryCache";
 import { preferenceStore } from "../lib/preferences";
 import { useGroupSelection, usePreferences } from "../lib/useGroupSelection";
 import {
   buildRanking,
+  isClassicRanking,
   rankingRounds,
   currentRankingRound,
 } from "../lib/rankings";
@@ -110,7 +101,9 @@ export default function StandingsPage({
   return (
     <>
       <PageTitle
-        eyebrow={view === "liga" ? "TABLA DE LA COMPETICIÓN" : "CADA ACIERTO SUMA"}
+        eyebrow={
+          view === "liga" ? "TABLA DE LA COMPETICIÓN" : "CADA ACIERTO SUMA"
+        }
         title="Clasificación"
       />
       <div
@@ -176,8 +169,7 @@ function LeagueStandings({
     [matches],
   );
   const wanted = chosen ?? preferences.competition;
-  const code =
-    available.find((c) => c === wanted) ?? available[0] ?? wanted;
+  const code = available.find((c) => c === wanted) ?? available[0] ?? wanted;
   const rows = useMemo(
     () => currentLeagueTable(matches, code),
     [matches, code],
@@ -290,7 +282,9 @@ function LeagueStandings({
                       <td className="hide-md">
                         <span
                           className="team-form"
-                          aria-label={r.form.map((f) => formNames[f]).join(", ")}
+                          aria-label={r.form
+                            .map((f) => formNames[f])
+                            .join(", ")}
                         >
                           {r.form.map((f, j) => (
                             <span
@@ -338,57 +332,14 @@ function GroupStandings({
   );
   const competition = preferences.competition;
   const [combined, setCombined] = useState(false);
-  const [period, setPeriod] = useState<"all" | "round">("round");
+  const [params] = useSearchParams();
+  const [period, setPeriod] = useState<"all" | "round">(
+    params.get("period") === "all" ? "all" : "round",
+  );
   const scope = period === "all" && combined ? "global" : competition;
   const [round, setRound] = useState("");
-  const [retry, setRetry] = useState(0);
-  const [result, setResult] = useState<{
-    key: string;
-    data?: Awaited<ReturnType<typeof loadGroupRankings>>;
-    error?: string;
-  }>({ key: "" });
   const selectedGroup = groups.find((g) => g.id === groupId);
-  const membersKey = JSON.stringify(selectedGroup?.memberIds || []);
-  const loadKey =
-    user && selectedGroup ? `${user.uid}:${groupId}:${membersKey}` : "";
-
-  const cached =
-    selectedGroup && user ? getCachedGroupRankings(selectedGroup) : undefined;
-  useEffect(() => {
-    if (!loadKey || !selectedGroup) return;
-    let active = true;
-    setResult({ key: loadKey, data: getCachedGroupRankings(selectedGroup) });
-    loadGroupRankings(selectedGroup)
-      .then((data) => {
-        if (active) setResult({ key: loadKey, data });
-      })
-      .catch((e: unknown) => {
-        if (active) setResult({ key: loadKey, error: readableError(e) });
-      });
-    return () => {
-      active = false;
-    };
-    // The key includes the signed-in user, group and current member IDs.
-  }, [loadKey, retry]);
-
-  useEffect(() => {
-    const refresh = () => {
-      if (
-        document.visibilityState === "visible" &&
-        selectedGroup &&
-        !getCachedGroupRankings(selectedGroup)
-      )
-        setRetry((n) => n + 1);
-    };
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [loadKey]);
-  const data = result.key === loadKey ? result.data || cached : cached;
-  const error = result.key === loadKey ? result.error : undefined;
+  const { data, error, retry } = useGroupRankings(user.uid, selectedGroup);
   const rounds = useMemo(
     () => rankingRounds(data?.seasons || [], matches, scope),
     [data, matches, scope],
@@ -435,6 +386,11 @@ function GroupStandings({
         period === "round" ? selectedRound : "",
       ),
     [data, roundUnavailable, scope, period, selectedRound],
+  );
+  const showHits = !isClassicRanking(
+    data?.seasons || [],
+    scope,
+    period === "round" ? selectedRound : "",
   );
   const hasPoints = rows.some((r) => r.points > 0);
   const leaderPoints = rows[0]?.points || 0;
@@ -505,127 +461,117 @@ function GroupStandings({
       )}
       <div
         className="panel standings-panel"
-        aria-busy={Boolean(loadKey && !data && !error)}
+        aria-busy={Boolean(selectedGroup && !data && !error)}
       >
         {!selectedGroup ? (
           <Empty title="Tu grupo, en la tabla">
-            Selecciona un grupo para ver a todos sus participantes y sus
-            puntos.
+            Selecciona un grupo para ver a todos sus participantes y sus puntos.
           </Empty>
         ) : error ? (
-              <div role="alert" className="empty">
-                <h3>No se pudo cargar la clasificación</h3>
-                <p>{error}</p>
-                <button
-                  className="button secondary"
-                  onClick={() => {
-                    privateCache.clear();
-                    setRetry((n) => n + 1);
-                  }}
-                >
-                  Reintentar
-                </button>
+          <div role="alert" className="empty">
+            <h3>No se pudo cargar la clasificación</h3>
+            <p>{error}</p>
+            <button className="button secondary" onClick={retry}>
+              Reintentar
+            </button>
+          </div>
+        ) : !data ? (
+          <div
+            className="standings-skeleton"
+            role="status"
+            aria-label="Cargando clasificación"
+          >
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+        ) : (
+          <div
+            className="ranking-view"
+            key={`${groupId}:${scope}:${period}:${selectedRound}`}
+          >
+            <div className="standings-heading">
+              <div>
+                <h2>{selectedGroup.name}</h2>
+                <p>{title}</p>
               </div>
-            ) : !data ? (
-              <div
-                className="standings-skeleton"
-                role="status"
-                aria-label="Cargando clasificación"
-              >
-                <span />
-                <span />
-                <span />
-                <span />
-              </div>
+              <span>
+                {rows.length}{" "}
+                {rows.length === 1 ? "participante" : "participantes"}
+              </span>
+            </div>
+            {roundUnavailable ? (
+              <p className="standings-note" role="status">
+                Aún no hay jornadas disponibles para esta competición. Estos son
+                los participantes, con 0 puntos para esta vista.
+              </p>
             ) : (
-              <div
-                className="ranking-view"
-                key={`${groupId}:${scope}:${period}:${selectedRound}`}
-              >
-                <div className="standings-heading">
-                  <div>
-                    <h2>{selectedGroup.name}</h2>
-                    <p>{title}</p>
-                  </div>
-                  <span>
-                    {rows.length}{" "}
-                    {rows.length === 1 ? "participante" : "participantes"}
-                  </span>
-                </div>
-                {roundUnavailable ? (
-                  <p className="standings-note" role="status">
-                    Aún no hay jornadas disponibles para esta competición. Estos
-                    son los participantes, con 0 puntos para esta vista.
-                  </p>
-                ) : (
-                  !hasPoints && (
-                    <p className="standings-note" role="status">
-                      Todos en la línea de salida. Los puntos aparecerán cuando
-                      se sincronicen y puntúen los resultados.
-                    </p>
-                  )
-                )}
-                {hasPoints && rows.length >= 2 && (
-                  <Podium rows={rows} userId={user.uid} />
-                )}
-                <MyRankCard rows={rows} userId={user.uid} />
-                <table className="standings-table">
-                  <caption className="sr-only">
-                    {selectedGroup.name} · {title} ·{" "}
-                    {scope === "global"
-                      ? "Global del grupo"
-                      : competitionName(scope)}
-                  </caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Pos.</th>
-                      <th scope="col">Jugador</th>
-                      <th scope="col">Aciertos</th>
-                      <th scope="col">Puntos</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((r) => (
-                      <tr
-                        key={r.id}
-                        className={
-                          r.id === user.uid ? "standings-me" : undefined
-                        }
-                      >
-                        <td>
-                          <RankBadge position={r.position} />
-                        </td>
-                        <th scope="row">
-                          <span className="standings-player">
-                            <RankAvatar name={r.name} avatar={r.avatar} />
-                            <span className="standings-name">
-                              <span>
-                                {r.name}
-                                {r.id === user.uid && <small> Tú</small>}
-                              </span>
-                              <span
-                                className="standings-bar"
-                                aria-hidden="true"
-                              >
-                                <i
-                                  style={{
-                                    width: `${leaderPoints ? (r.points / leaderPoints) * 100 : 0}%`,
-                                  }}
-                                />
-                              </span>
-                            </span>
-                          </span>
-                        </th>
-                        <td>{r.hits}</td>
-                        <td>
-                          <strong>{r.points}</strong>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              !hasPoints && (
+                <p className="standings-note" role="status">
+                  Todos en la línea de salida. Los puntos aparecerán cuando se
+                  sincronicen y puntúen los resultados.
+                </p>
+              )
             )}
+            {hasPoints && rows.length >= 2 && (
+              <Podium rows={rows} userId={user.uid} />
+            )}
+            <MyRankCard rows={rows} userId={user.uid} showHits={showHits} />
+            <table
+              className={`standings-table${showHits ? "" : " standings-points-only"}`}
+            >
+              <caption className="sr-only">
+                {selectedGroup.name} · {title} ·{" "}
+                {scope === "global"
+                  ? "Global del grupo"
+                  : competitionName(scope)}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Pos.</th>
+                  <th scope="col">Jugador</th>
+                  {showHits && <th scope="col">Aciertos</th>}
+                  <th scope="col">Puntos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr
+                    key={r.id}
+                    className={r.id === user.uid ? "standings-me" : undefined}
+                  >
+                    <td>
+                      <RankBadge position={r.position} />
+                    </td>
+                    <th scope="row">
+                      <span className="standings-player">
+                        <RankAvatar name={r.name} avatar={r.avatar} />
+                        <span className="standings-name">
+                          <span>
+                            {r.name}
+                            {r.id === user.uid && <small> Tú</small>}
+                          </span>
+                          <span className="standings-bar" aria-hidden="true">
+                            <i
+                              style={{
+                                width: `${leaderPoints ? (r.points / leaderPoints) * 100 : 0}%`,
+                              }}
+                            />
+                          </span>
+                        </span>
+                      </span>
+                    </th>
+                    {showHits && <td>{r.hits}</td>}
+                    <td>
+                      <strong>{r.points}</strong>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </>
   );

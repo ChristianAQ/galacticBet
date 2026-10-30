@@ -1,6 +1,6 @@
 import { isCompetition } from "./competitions";
 import { competitionName } from "./competitions";
-import { roundLabelFromId, type Match } from "./domain";
+import { roundLabelFromId, type Match, type Mode } from "./domain";
 import type { Participant } from "./data";
 
 export interface RankingTotal {
@@ -8,6 +8,7 @@ export interface RankingTotal {
   hits: number;
 }
 export interface SeasonRanking {
+  mode?: Mode;
   id: string;
   competition: string;
   standings: {
@@ -53,6 +54,21 @@ export function buildRanking(
     if (index && row.points !== sorted[index - 1].points) position = index + 1;
     return { ...row, position };
   });
+}
+
+// Unknown or mixed modes keep the hit count; only confirmed classic scopes hide it.
+export function isClassicRanking(
+  seasons: SeasonRanking[],
+  scope: string,
+  roundId = "",
+) {
+  const relevant = seasons.filter(
+    (s) =>
+      isCompetition(s.competition) &&
+      (scope === "global" || scope === s.competition) &&
+      (!roundId || roundId.startsWith(`${s.id}-`)),
+  );
+  return relevant.length > 0 && relevant.every((s) => s.mode === "classic");
 }
 
 export function rankingSummary(rows: RankingRow[], userId: string) {
