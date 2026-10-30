@@ -85,6 +85,7 @@ const dayOnly = new Intl.DateTimeFormat("es", { day: "numeric" });
 export function roundDateRange(start: string, end: string) {
   const a = new Date(start),
     b = new Date(end);
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return "";
   if (a.toDateString() === b.toDateString()) return dayMonth.format(a);
   return a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()
     ? `${dayOnly.format(a)}–${dayMonth.format(b)}`

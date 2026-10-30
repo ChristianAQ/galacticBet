@@ -55,6 +55,24 @@ export function buildRanking(
   });
 }
 
+export function rankingSummary(rows: RankingRow[], userId: string) {
+  const me = rows.find((r) => r.id === userId) || null;
+  const leaderPoints = rows[0]?.points ?? 0;
+  const above = me
+    ? rows.filter((r) => r.points > me.points).at(-1) || null
+    : null;
+  return {
+    me,
+    total: rows.length,
+    leaderPoints,
+    gapToLeader: me ? leaderPoints - me.points : 0,
+    gapToAbove: me && above ? above.points - me.points : 0,
+    above,
+    sharedLead:
+      me?.position === 1 && rows.filter((r) => r.position === 1).length > 1,
+  };
+}
+
 export function rankingRounds(
   seasons: SeasonRanking[],
   matches: Match[],

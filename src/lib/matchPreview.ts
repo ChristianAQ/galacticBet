@@ -1,4 +1,5 @@
 import type { Match } from "./domain";
+import { LEAGUE_STAGES, leagueTable, teamKey } from "./leagueTable";
 import {
   headToHead,
   previousResults,
@@ -44,54 +45,25 @@ export interface MatchPreviewData {
   hasData: boolean;
 }
 
-const leagueStages = ["REGULAR_SEASON", "LEAGUE_STAGE"];
 const other = (side: Side): Side => (side === "home" ? "away" : "home");
-const teamKey = (match: Match, side: Side) => {
-  const id = side === "home" ? match.homeTeamId : match.awayTeamId;
-  return id != null
-    ? `id:${id}`
-    : `name:${match[side].trim().toLocaleLowerCase("es")}`;
-};
 const sameCompetition = (a: Match, b: Match) =>
   a.competition === b.competition && a.seasonId === b.seasonId;
 const average = (value: number, played: number) =>
   played ? (value / played).toFixed(1).replace(".", ",") : "0";
 
 function standings(target: Match, prior: Match[]) {
-  const rows = new Map<
-    string,
-    { name: string; points: number; diff: number; goals: number }
-  >();
-  for (const m of prior) {
-    if (!sameCompetition(m, target) || m.stage !== target.stage) continue;
-    for (const side of ["home", "away"] as const) {
-      const key = teamKey(m, side);
-      const row = rows.get(key) || { name: m[side], points: 0, diff: 0, goals: 0 };
-      const result = teamResult(m, side);
-      const goals = side === "home" ? m.homeScore! : m.awayScore!;
-      const conceded = side === "home" ? m.awayScore! : m.homeScore!;
-      row.points += result === "win" ? 3 : result === "draw" ? 1 : 0;
-      row.diff += goals - conceded;
-      row.goals += goals;
-      rows.set(key, row);
-    }
-  }
-  const order = [...rows.entries()]
-    .sort(
-      ([, a], [, b]) =>
-        b.points - a.points ||
-        b.diff - a.diff ||
-        b.goals - a.goals ||
-        a.name.localeCompare(b.name, "es"),
-    )
-    .map(([key]) => key);
+  const rows = leagueTable(
+    prior.filter(
+      (m) => sameCompetition(m, target) && m.stage === target.stage,
+    ),
+  );
   return {
-    size: order.length,
+    size: rows.length,
     position: (key: string) => {
-      const index = order.indexOf(key);
+      const index = rows.findIndex((r) => r.key === key);
       return index < 0 ? null : index + 1;
     },
-    points: (key: string) => rows.get(key)?.points ?? 0,
+    points: (key: string) => rows.find((r) => r.key === key)?.points ?? 0,
   };
 }
 
@@ -110,7 +82,7 @@ export function matchPreview(
   now = Date.now(),
 ): MatchPreviewData {
   const prior = previousResults(target, matches, now);
-  const table = leagueStages.includes(target.stage)
+  const table = LEAGUE_STAGES.includes(target.stage)
     ? standings(target, prior)
     : null;
   const facts: string[] = [];

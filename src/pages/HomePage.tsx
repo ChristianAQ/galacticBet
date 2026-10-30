@@ -7,22 +7,31 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import UpcomingSchedule from "../components/UpcomingSchedule";
 import NewsSection from "../components/NewsSection";
+import {
+  GroupPulse,
+  LeagueTableCard,
+  MatchTicker,
+  QuinielaSpotlight,
+} from "../components/HomeWidgets";
 import type { Group } from "../lib/data";
 import type { Match } from "../lib/domain";
+import { openRounds } from "../lib/homeDashboard";
 import { upcomingMatches } from "../lib/schedule";
 
 export default function HomePage({
   name,
+  userId,
   groups,
   matches,
   loading,
   demo = false,
 }: {
   name: string;
+  userId: string;
   groups: Group[];
   matches: Match[];
   loading: boolean;
@@ -42,10 +51,11 @@ export default function HomePage({
       document.removeEventListener("visibilitychange", refresh);
     };
   }, []);
-  const upcoming = upcomingMatches(matches, now);
+  const upcoming = useMemo(() => upcomingMatches(matches, now), [matches, now]);
+  const rounds = useMemo(() => openRounds(matches, now), [matches, now]);
   return (
     <>
-      <div className="page-heading">
+      <div className="page-heading home-hero">
         <div>
           <div className="eyebrow">FÚTBOL ENTRE AMIGOS</div>
           <h1>Hola, {name}</h1>
@@ -61,12 +71,18 @@ export default function HomePage({
           }).format(new Date(now))}
         </div>
       </div>
-      <UpcomingSchedule
-        matches={matches}
-        upcoming={upcoming}
-        now={now}
-        loading={loading}
-      />
+      <div className="home-top-grid">
+        {!loading && (
+          <QuinielaSpotlight rounds={rounds} now={now} userId={userId} />
+        )}
+        <UpcomingSchedule
+          matches={matches}
+          upcoming={upcoming}
+          now={now}
+          loading={loading}
+        />
+      </div>
+      {!loading && <MatchTicker matches={matches} now={now} />}
       <Link to="/porra" className="porra-home-link">
         <span className="porra-home-icon">
           <NotebookPen size={23} />
@@ -79,36 +95,43 @@ export default function HomePage({
         </span>
         <ArrowRight size={18} />
       </Link>
-      <div className="dashboard-columns">
+      <div className="dashboard-columns home-columns">
         <NewsSection demo={demo} />
-        <aside className="right-column">
-          <div className="section-heading">
-            <h2>Tu vestuario</h2>
-            <Users size={18} />
-          </div>
-          <div className="locker-card">
-            <div className="locker-illustration">
-              <span>⚑</span>
-              <span>⚑</span>
-              <Users size={33} />
-            </div>
-            <h3>
-              La rivalidad empieza
-              <br />
-              en tu grupo.
-            </h3>
-            <p>
-              Reúne a tus amigos, elige las reglas y convierte cada jornada en
-              vuestra competición.
-            </p>
-            <Link className="button primary full" to="/grupos">
-              <Plus size={17} />
-              {groups.length ? "Ir a mis grupos" : "Crear un grupo"}
-            </Link>
-            <Link className="join-link" to="/grupos?join=1">
-              Tengo un código de invitación <ArrowRight size={14} />
-            </Link>
-          </div>
+        <aside className="right-column home-aside">
+          {userId && groups.length > 0 ? (
+            <GroupPulse userId={userId} groups={groups} />
+          ) : (
+            <>
+              <div className="section-heading">
+                <h2>Tu vestuario</h2>
+                <Users size={18} />
+              </div>
+              <div className="locker-card">
+                <div className="locker-illustration">
+                  <span>⚑</span>
+                  <span>⚑</span>
+                  <Users size={33} />
+                </div>
+                <h3>
+                  La rivalidad empieza
+                  <br />
+                  en tu grupo.
+                </h3>
+                <p>
+                  Reúne a tus amigos, elige las reglas y convierte cada jornada
+                  en vuestra competición.
+                </p>
+                <Link className="button primary full" to="/grupos">
+                  <Plus size={17} />
+                  Crear un grupo
+                </Link>
+                <Link className="join-link" to="/grupos?join=1">
+                  Tengo un código de invitación <ArrowRight size={14} />
+                </Link>
+              </div>
+            </>
+          )}
+          {!loading && <LeagueTableCard matches={matches} now={now} />}
           <div className="how-card">
             <span className="how-icon">
               <Zap size={20} />

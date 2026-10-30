@@ -1,6 +1,6 @@
 import { competitionName } from "../lib/competitions";
 import type { User } from "firebase/auth";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Empty, PageTitle, PrivateGate, readableError } from "../components/ui";
 import {
   getCachedGroupRankings,
@@ -10,6 +10,13 @@ import {
 import { type Match } from "../lib/domain";
 import CompetitionSwitch from "../components/CompetitionSwitch";
 import FilterPanel, { FilterField } from "../components/FilterPanel";
+import RoundSelector from "../components/RoundSelector";
+import {
+  MyRankCard,
+  Podium,
+  RankAvatar,
+  RankBadge,
+} from "../components/RankingWidgets";
 import { privateCache } from "../lib/memoryCache";
 import { preferenceStore } from "../lib/preferences";
 import { useGroupSelection } from "../lib/useGroupSelection";
@@ -18,6 +25,11 @@ import {
   rankingRounds,
   currentRankingRound,
 } from "../lib/rankings";
+import {
+  roundOptions,
+  roundShortLabel,
+  type RoundOption,
+} from "../lib/roundOptions";
 
 export default function StandingsPage({
   groups,
@@ -87,21 +99,55 @@ export default function StandingsPage({
   }, [loadKey]);
   const data = result.key === loadKey ? result.data || cached : cached;
   const error = result.key === loadKey ? result.error : undefined;
-  const rounds = rankingRounds(data?.seasons || [], matches, scope);
-  const selectedRound = rounds.some((r) => r.id === round)
-    ? round
-    : currentRankingRound(
+  const rounds = useMemo(
+    () => rankingRounds(data?.seasons || [], matches, scope),
+    [data, matches, scope],
+  );
+  const current = useMemo(
+    () =>
+      currentRankingRound(
         matches,
         rounds.map((r) => r.id),
-      );
+      ),
+    [matches, rounds],
+  );
+  const selectedRound = rounds.some((r) => r.id === round) ? round : current;
+  const roundChoices = useMemo((): RoundOption[] => {
+    const ids = new Set(rounds.map((r) => r.id));
+    const known = new Map(
+      roundOptions(matches.filter((m) => ids.has(m.roundId))).map((r) => [
+        r.id,
+        r,
+      ]),
+    );
+    return rounds.map((r) => {
+      const [, , stage = "", matchday = "0"] = r.id.split("-");
+      return {
+        ...(known.get(r.id) || {
+          id: r.id,
+          short: roundShortLabel({ stage, matchday: Number(matchday) || 0 }),
+          start: r.kickoff,
+          end: r.kickoff,
+          state: "finished" as const,
+          matches: 0,
+        }),
+        label: r.label,
+      };
+    });
+  }, [rounds, matches]);
   const roundUnavailable = period === "round" && !selectedRound;
-  const rows = buildRanking(
-    data?.participants || [],
-    roundUnavailable ? [] : data?.seasons || [],
-    scope,
-    period === "round" ? selectedRound : "",
+  const rows = useMemo(
+    () =>
+      buildRanking(
+        data?.participants || [],
+        roundUnavailable ? [] : data?.seasons || [],
+        scope,
+        period === "round" ? selectedRound : "",
+      ),
+    [data, roundUnavailable, scope, period, selectedRound],
   );
   const hasPoints = rows.some((r) => r.points > 0);
+  const leaderPoints = rows[0]?.points || 0;
   const title =
     period === "all"
       ? "Todas las jornadas"
@@ -181,26 +227,15 @@ export default function StandingsPage({
                 <span>Sumar todas las competiciones</span>
               </label>
             )}
-            {period === "round" && (
-              <FilterField label="Jornada o ronda">
-                <select
-                  aria-label="Jornada de clasificación"
-                  value={selectedRound}
-                  disabled={!rounds.length}
-                  onChange={(e) => setRound(e.target.value)}
-                >
-                  {!rounds.length && (
-                    <option value="">Sin jornadas disponibles</option>
-                  )}
-                  {rounds.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-              </FilterField>
-            )}
           </FilterPanel>
+          {selectedGroup && period === "round" && data && (
+            <RoundSelector
+              rounds={roundChoices}
+              value={selectedRound}
+              current={current}
+              onChange={setRound}
+            />
+          )}
           <div
             className="panel standings-panel"
             aria-busy={Boolean(loadKey && !data && !error)}
@@ -263,6 +298,10 @@ export default function StandingsPage({
                     </p>
                   )
                 )}
+                {hasPoints && rows.length >= 2 && (
+                  <Podium rows={rows} userId={user.uid} />
+                )}
+                <MyRankCard rows={rows} userId={user.uid} />
                 <table className="standings-table">
                   <caption className="sr-only">
                     {selectedGroup.name} · {title} ·{" "}
@@ -286,22 +325,27 @@ export default function StandingsPage({
                           r.id === user.uid ? "standings-me" : undefined
                         }
                       >
-                        <td className="green-text">
-                          {r.position}
-                          {hasPoints && r.position === 1 ? " 🏆" : ""}
+                        <td>
+                          <RankBadge position={r.position} />
                         </td>
                         <th scope="row">
                           <span className="standings-player">
-                            <span className="rival-avatar">
-                              {r.avatar ? (
-                                <img src={r.avatar} alt="" />
-                              ) : (
-                                r.name.charAt(0).toUpperCase()
-                              )}
-                            </span>
+                            <RankAvatar name={r.name} avatar={r.avatar} />
                             <span className="standings-name">
-                              {r.name}
-                              {r.id === user.uid && <small> Tú</small>}
+                              <span>
+                                {r.name}
+                                {r.id === user.uid && <small> Tú</small>}
+                              </span>
+                              <span
+                                className="standings-bar"
+                                aria-hidden="true"
+                              >
+                                <i
+                                  style={{
+                                    width: `${leaderPoints ? (r.points / leaderPoints) * 100 : 0}%`,
+                                  }}
+                                />
+                              </span>
                             </span>
                           </span>
                         </th>

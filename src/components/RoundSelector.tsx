@@ -54,9 +54,13 @@ function RoundSelector({
           {selected && (
             <span className={`round-state round-state-${selected.state}`}>
               <i aria-hidden="true" />
-              {roundStateLabel[selected.state]} ·{" "}
-              {roundDateRange(selected.start, selected.end)} ·{" "}
-              {selected.matches} partidos
+              {[
+                roundStateLabel[selected.state],
+                roundDateRange(selected.start, selected.end),
+                selected.matches ? `${selected.matches} partidos` : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </span>
           )}
         </div>
@@ -104,13 +108,19 @@ function RoundSelector({
               type="button"
               className={`round-chip round-chip-${r.state}`}
               aria-pressed={r.id === value}
-              aria-label={`${r.label}, ${roundStateLabel[r.state]}, ${roundDateRange(r.start, r.end)}`}
+              aria-label={[
+                r.label,
+                roundStateLabel[r.state],
+                roundDateRange(r.start, r.end),
+              ]
+                .filter(Boolean)
+                .join(", ")}
               tabIndex={i === Math.max(index, 0) ? 0 : -1}
               disabled={disabled}
               onClick={() => onChange(r.id)}
             >
               <strong>{r.short}</strong>
-              <small>{roundDateRange(r.start, r.end)}</small>
+              <small>{roundDateRange(r.start, r.end) || "—"}</small>
               <i className="round-chip-dot" aria-hidden="true" />
             </button>
           ))}

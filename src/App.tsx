@@ -289,6 +289,7 @@ export default function App() {
                   element={
                     <HomePage
                       name={name}
+                      userId={user?.uid || ""}
                       groups={activeGroups}
                       matches={matches}
                       loading={loading}
