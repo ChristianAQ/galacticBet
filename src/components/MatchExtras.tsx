@@ -16,6 +16,7 @@ import {
 import type { Match } from "../lib/domain";
 import {
   matchExternalLinks,
+  type Matchup,
   type MatchInsight,
   type MatchLineup,
   type MatchPlayer,
@@ -101,6 +102,7 @@ export default function MatchExtras({
   onRetry,
   demo = false,
   hideStatistics = false,
+  fallbackMatchups = [],
 }: {
   match: Match;
   insight: MatchInsight | null;
@@ -109,6 +111,7 @@ export default function MatchExtras({
   onRetry: () => void;
   demo?: boolean;
   hideStatistics?: boolean;
+  fallbackMatchups?: Matchup[];
 }) {
   const [selectedTab, setTab] = useState<DetailTab>(
     ["TIMED", "SCHEDULED"].includes(match.status) ? "probability" : "goals",
@@ -137,6 +140,17 @@ export default function MatchExtras({
   const upcoming =
     ["SCHEDULED", "TIMED"].includes(match.status) &&
     Date.parse(match.utcDate) > now;
+  const officialHistory =
+    !demo && upcoming && !insight?.matchups?.length
+      ? fallbackMatchups.slice(0, 5)
+      : [];
+  if (
+    !loading &&
+    !error &&
+    officialHistory.length &&
+    !available.includes("matchups")
+  )
+    available.push("matchups");
   const tab = available.includes(selectedTab) ? selectedTab : available[0];
   const headingId = useId();
   const panelId = useId();
@@ -240,7 +254,14 @@ export default function MatchExtras({
                   Información del partido pendiente de publicación.
                 </p>
               ) : tab === "matchups" ? (
-                <Matchups matches={insight?.matchups || []} />
+                <Matchups
+                  matches={
+                    officialHistory.length
+                      ? officialHistory
+                      : insight?.matchups || []
+                  }
+                  source={officialHistory.length ? "Football-Data.org" : "ESPN"}
+                />
               ) : tab === "probability" ? (
                 <MatchProbability
                   match={match}

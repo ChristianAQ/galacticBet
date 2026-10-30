@@ -2,7 +2,7 @@ import MatchMeta from "./MatchMeta";
 import { competitionName } from "../lib/competitions";
 import { CalendarDays } from "lucide-react";
 import { matchStatusLabel, roundLabel, type Match } from "../lib/domain";
-import { knockoutContext } from "../lib/matchInsights";
+import { headToHead, knockoutContext } from "../lib/matchInsights";
 import CompetitionLogo from "./CompetitionLogo";
 import Modal from "./Modal";
 import MatchResult from "./MatchResult";
@@ -97,6 +97,19 @@ export default function MatchDetails({
         {...insights}
         demo={demo}
         hideStatistics={match.status === "FINISHED"}
+        fallbackMatchups={
+          demo
+            ? []
+            : headToHead(match, matches).map((m) => ({
+                id: m.id,
+                date: m.utcDate,
+                home: m.home,
+                away: m.away,
+                homeScore: m.homeScore!,
+                awayScore: m.awayScore!,
+                competition: competitionName(m.competition, true),
+              }))
+        }
       />
     </Modal>
   );

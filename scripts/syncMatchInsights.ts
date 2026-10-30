@@ -1,3 +1,4 @@
+import { createMatchupRecovery, mergeMatchups } from "./matchupRecovery";
 import { probabilityFromOdds } from "../src/lib/matchProbability";
 import { COMPETITION_CODES } from "../src/lib/competitions";
 import type { Firestore } from "firebase-admin/firestore";
@@ -24,6 +25,7 @@ export interface StoredMatchInsight {
   checkedAt: string;
   kickoff: string;
   status: string;
+  matchupsCheckedAt?: string;
 }
 interface SyncOptions {
   now?: number;
@@ -180,6 +182,10 @@ function validPrevious(
     checkedAt: value.checkedAt,
     kickoff: value.kickoff,
     status: value.status,
+    ...(typeof value.matchupsCheckedAt === "string" &&
+    Number.isFinite(Date.parse(value.matchupsCheckedAt))
+      ? { matchupsCheckedAt: value.matchupsCheckedAt }
+      : {}),
   };
 }
 function hasInformation(value: MatchInsight | null) {
@@ -209,12 +215,14 @@ export async function syncMatchInsights(
   const now = options.now ?? Date.now();
   const client = options.client ?? createEspnClient();
   const log = options.log ?? console.log;
+  const history = createMatchupRecovery(client, now);
   const candidates = insightCandidates(matches, now);
   const report = {
     reads: 0,
     scoreboards: 0,
     summaries: 0,
     odds: 0,
+    historyRequests: 0,
     missingSummaries: 0,
     failedCompetitions: 0,
     updated: 0,
@@ -299,6 +307,7 @@ export async function syncMatchInsights(
       if (!listing) continue;
       const event = findEspnEvent(match, listing);
       let insight = previous?.insight || null;
+      let matchupsCheckedAt = previous?.matchupsCheckedAt;
       if (event) {
         if (report.summaries >= MAX_SUMMARIES) break;
         report.summaries++;
@@ -313,19 +322,70 @@ export async function syncMatchInsights(
             report.missingSummaries++;
           else throw error;
         }
-        const normalized = normalizeEspnSummary(
+        let normalized = normalizeEspnSummary(
           summary,
           match,
           event,
           new Date(now).toISOString(),
         );
         if (!normalized) report.rejectedSummaries++;
-        else if (["TIMED", "SCHEDULED"].includes(match.status))
-          log(
-            `ESPN ${match.id}: ${normalized.matchups?.length || 0} enfrentamientos anteriores válidos.`,
-          );
+        // A missing summary may still have a fully matched, real scoreboard event.
+        if (
+          !normalized &&
+          summary === undefined &&
+          ["TIMED", "SCHEDULED"].includes(match.status)
+        )
+          normalized = {
+            version: 1,
+            matchId: match.id,
+            competition: match.competition,
+            kickoff: match.utcDate,
+            provider: "ESPN",
+            eventId: event.id,
+            fetchedAt: new Date(now).toISOString(),
+            goals: [],
+            lineups: [],
+            statistics: [],
+          };
         if (
           normalized &&
+          ["TIMED", "SCHEDULED"].includes(match.status) &&
+          Date.parse(match.utcDate) > now
+        ) {
+          const priorHistory =
+            previous?.insight?.eventId === event.id
+              ? previous.insight.matchups || []
+              : [];
+          normalized.matchups = mergeMatchups(
+            priorHistory,
+            normalized.matchups || [],
+          );
+          try {
+            const recovered = await history.recover(
+              match,
+              event,
+              normalized.matchups,
+              previous?.insight && previous.insight.eventId !== event.id
+                ? undefined
+                : matchupsCheckedAt,
+            );
+            normalized.matchups = recovered.matches;
+            matchupsCheckedAt = recovered.checkedAt;
+          } catch (error) {
+            report.stopped = true;
+            log(
+              error instanceof EspnRequestError
+                ? error.message
+                : "ESPN: historial no disponible; se conserva la ficha.",
+            );
+          }
+          log(
+            `ESPN ${match.id}: ${normalized.matchups.length} enfrentamientos reales disponibles.`,
+          );
+        }
+        if (
+          normalized &&
+          !report.stopped &&
           !normalized.probability &&
           client.odds &&
           report.odds < 8 &&
@@ -437,6 +497,7 @@ export async function syncMatchInsights(
         id: match.id,
         data: {
           insight,
+          ...(matchupsCheckedAt ? { matchupsCheckedAt } : {}),
           checkedAt: new Date(now).toISOString(),
           kickoff: match.utcDate,
           status: match.status,
@@ -470,8 +531,9 @@ export async function syncMatchInsights(
       if (hasInformation(update.data.insight)) report.available++;
     }
   }
+  report.historyRequests = history.requests;
   log(
-    `Detalles de partidos: ${report.reads} lecturas, ${report.scoreboards} calendarios ESPN, ${report.summaries} fichas, ${report.odds} consultas de cuotas, ${report.missingSummaries} fichas no disponibles, ${report.failedCompetitions} calendarios fallidos, ${report.updated} documentos actualizados, ${report.available} fichas con información, ${report.unmatched} sin asociación y ${report.rejectedSummaries} respuestas rechazadas${report.stopped ? "; proveedor interrumpido" : ""}.`,
+    `Detalles de partidos: ${report.reads} lecturas, ${report.historyRequests} consultas de historial, ${report.scoreboards} calendarios ESPN, ${report.summaries} fichas, ${report.odds} consultas de cuotas, ${report.missingSummaries} fichas no disponibles, ${report.failedCompetitions} calendarios fallidos, ${report.updated} documentos actualizados, ${report.available} fichas con información, ${report.unmatched} sin asociación y ${report.rejectedSummaries} respuestas rechazadas${report.stopped ? "; proveedor interrumpido" : ""}.`,
   );
   return report;
 }

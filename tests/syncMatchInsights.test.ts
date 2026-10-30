@@ -635,3 +635,64 @@ it("guarda enfrentamientos aunque sean la única información y los conserva ant
   await syncMatchInsights(db, [match], { now: now + 3 * HOUR, client, log });
   expect(docs.get(match.id)?.insight?.matchups).toHaveLength(1);
 });
+
+it("recupera historial de calendarios con una ficha ausente y conserva lo descargado ante un 429", async () => {
+  const match = makeMatch("1", HOUR),
+    event = makeEvent(match);
+  const { db, docs } = database();
+  const schedule = vi.fn().mockResolvedValue({
+    team: { id: event.homeId },
+    events: [
+      {
+        id: "999",
+        date: new Date(now - 86400000).toISOString(),
+        competitions: [
+          {
+            status: { type: { completed: true, state: "post" } },
+            competitors: [
+              {
+                homeAway: "home",
+                team: { id: event.homeId, displayName: event.home },
+                score: "1",
+              },
+              {
+                homeAway: "away",
+                team: { id: event.awayId, displayName: event.away },
+                score: "0",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  const client = { ...clientFor([match]), schedule };
+  client.summary.mockRejectedValueOnce(new EspnRequestError(404));
+  await syncMatchInsights(db, [match], { now, client, log });
+  expect(docs.get(match.id)?.insight?.matchups).toHaveLength(1);
+  expect(docs.get(match.id)?.matchupsCheckedAt).toBe(
+    new Date(now).toISOString(),
+  );
+  const { db: blockedDb, docs: blockedDocs } = database();
+  schedule.mockRejectedValue(new EspnRequestError(429));
+  const report = await syncMatchInsights(blockedDb, [match], {
+    now,
+    client,
+    log,
+  });
+  expect(report.stopped).toBe(true);
+  expect(blockedDocs.get(match.id)?.insight?.venue).toBe("Estadio del partido");
+});
+it("no repite la búsqueda de calendarios vacíos al renovar otra ficha", async () => {
+  const match = makeMatch("1", HOUR);
+  const prior = stored(match, 13 * HOUR);
+  prior.matchupsCheckedAt = new Date(now - HOUR).toISOString();
+  const { db } = database({ "1": prior });
+  const schedule = vi.fn();
+  await syncMatchInsights(db, [match], {
+    now,
+    client: { ...clientFor([match]), schedule },
+    log,
+  });
+  expect(schedule).not.toHaveBeenCalled();
+});

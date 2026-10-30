@@ -1,5 +1,11 @@
 import type { Matchup } from "../lib/matchInsightsData";
-export default function Matchups({ matches }: { matches: Matchup[] }) {
+export default function Matchups({
+  matches,
+  source = "ESPN",
+}: {
+  matches: Matchup[];
+  source?: "ESPN" | "Football-Data.org";
+}) {
   if (!matches.length) return null;
   return (
     <section
@@ -41,8 +47,11 @@ export default function Matchups({ matches }: { matches: Matchup[] }) {
         ))}
       </ul>
       <p className="match-extra-note">
-        Fuente: ESPN · Marcadores publicados del partido, que pueden incluir
-        prórroga. No se utilizan para puntuar la quiniela.
+        Fuente: {source} ·{" "}
+        {source === "ESPN"
+          ? "Marcadores publicados del partido, que pueden incluir prórroga."
+          : "Resultados a 90 minutos del calendario sincronizado."}{" "}
+        Hasta cinco encuentros disponibles.
       </p>
     </section>
   );

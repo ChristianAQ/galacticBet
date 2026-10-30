@@ -564,6 +564,13 @@ export function normalizeMatchups(
       if (state.completed === false || (state.state && state.state !== "post"))
         return [];
       const competitors = rows(game.competitors);
+      if (
+        competitors.length &&
+        (competitors.length !== 2 ||
+          competitors.filter((c) => c.homeAway === "home").length !== 1 ||
+          competitors.filter((c) => c.homeAway === "away").length !== 1)
+      )
+        return [];
       const home = competitors.find((c) => c.homeAway === "home");
       const away = competitors.find((c) => c.homeAway === "away");
       const ht = row(home?.team ?? game.homeTeam),
@@ -695,6 +702,11 @@ export class EspnRequestError extends Error {
   }
 }
 export interface EspnClient {
+  schedule?: (
+    competition: Match["competition"],
+    teamId: string,
+    season: number,
+  ) => Promise<unknown>;
   odds?: (
     competition: Match["competition"],
     eventId: string,
@@ -728,6 +740,19 @@ export function createEspnClient(request: typeof fetch = fetch): EspnClient {
     }
   }
   return {
+    async schedule(competition, teamId, season) {
+      if (
+        !ESPN_LEAGUES[competition] ||
+        !/^\d{1,30}$/.test(teamId) ||
+        !Number.isInteger(season) ||
+        season < 2000 ||
+        season > 2100
+      )
+        throw new Error("ESPN: calendario de equipo inválido.");
+      return read(
+        `${API_ROOT}/${ESPN_LEAGUES[competition]}/teams/${teamId}/schedule?season=${season}`,
+      );
+    },
     async scoreboard(competition, from, to) {
       if (!/^\d{8}$/.test(from) || !/^\d{8}$/.test(to))
         throw new Error("ESPN: intervalo de fechas inválido.");
