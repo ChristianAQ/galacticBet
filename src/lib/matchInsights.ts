@@ -36,7 +36,11 @@ export function hasRegulationResult(match: Match) {
     match.awayScore >= 0
   );
 }
-function previousResults(target: Match, matches: Match[], now: number) {
+export function previousResults(
+  target: Match,
+  matches: Match[],
+  now: number,
+) {
   const cutoff = Math.min(Date.parse(target.utcDate), now);
   return matches
     .filter(

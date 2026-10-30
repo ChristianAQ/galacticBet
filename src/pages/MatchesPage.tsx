@@ -1,14 +1,15 @@
 import { competitionCode } from "../lib/competitions";
 import { competitionName } from "../lib/competitions";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
-import MatchDetails from "../components/MatchDetails";
 import { knockoutContext } from "../lib/matchInsights";
 import CompetitionSwitch from "../components/CompetitionSwitch";
 import FilterPanel, { FilterField } from "../components/FilterPanel";
 import { Empty, MatchRow, PageTitle } from "../components/ui";
 import { preferredRound, roundLabel, type Match } from "../lib/domain";
+
+const MatchDetails = lazy(() => import("../components/MatchDetails"));
 export default function MatchesPage({
   matches,
   demo,
@@ -127,13 +128,15 @@ export default function MatchesPage({
         )}
       </div>
       {detail && (
-        <MatchDetails
-          key={detail.id}
-          match={detail}
-          matches={matches}
-          demo={demo}
-          onClose={() => setDetailId("")}
-        />
+        <Suspense fallback={null}>
+          <MatchDetails
+            key={detail.id}
+            match={detail}
+            matches={matches}
+            demo={demo}
+            onClose={() => setDetailId("")}
+          />
+        </Suspense>
       )}
     </>
   );

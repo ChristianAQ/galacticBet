@@ -1,68 +1,156 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Match } from "../lib/domain";
 import type { MatchLineup, MatchPlayer } from "../lib/matchInsightsData";
-import { positionLines } from "../lib/matchPresentation";
+import { pitchRows, shortPlayerName } from "../lib/matchPresentation";
+
+type Side = "home" | "away";
+type View = Side | "both";
 
 function Player({ player }: { player: MatchPlayer }) {
+  const label = `${player.number ? `${player.number} · ` : ""}${player.name}${player.position ? ` (${player.position})` : ""}`;
   return (
-    <span className="pitch-player">
-      <b>{player.number || "—"}</b>
-      <span>{player.name}</span>
+    <span className="pitch-player" title={label} aria-label={label}>
+      <b aria-hidden="true">{player.number || "—"}</b>
+      <span aria-hidden="true">{shortPlayerName(player.name)}</span>
     </span>
   );
 }
+
+function TeamHalf({
+  name,
+  side,
+  rows,
+  top = false,
+}: {
+  name: string;
+  side: Side;
+  rows: MatchPlayer[][];
+  top?: boolean;
+}) {
+  // The team at the top faces the viewer, so its left appears on the right.
+  const ordered = top
+    ? rows.map((row) => [...row].reverse())
+    : [...rows].reverse();
+  return (
+    <div
+      className={`pitch-half pitch-half-${side}`}
+      role="group"
+      aria-label={`Once de ${name}`}
+    >
+      {ordered.map((row, i) => (
+        <div key={i} className="pitch-line">
+          {row.map((p, j) => (
+            <Player key={`${p.name}-${j}`} player={p} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TeamCaption({
+  match,
+  side,
+  formation,
+}: {
+  match: Match;
+  side: Side;
+  formation?: string;
+}) {
+  const crest = side === "home" ? match.homeCrest : match.awayCrest;
+  return (
+    <p className={`pitch-caption pitch-caption-${side}`}>
+      {crest && <img src={crest} alt="" loading="lazy" />}
+      <strong>{match[side]}</strong>
+      {formation && <span>{formation}</span>}
+    </p>
+  );
+}
+
 export default function LineupPitch({
   match,
   lineups,
-  initialSide = "home",
+  initialSide,
 }: {
   match: Match;
   lineups: MatchLineup[];
-  initialSide?: "home" | "away";
+  initialSide?: Side;
 }) {
-  const [side, setSide] = useState<"home" | "away">(initialSide);
-  const lineup = lineups.find((l) => l.side === side);
-  const { lines, unknown } = positionLines(lineup?.players || []);
+  const data = useMemo(() => {
+    const build = (side: Side) => {
+      const lineup = lineups.find((l) => l.side === side);
+      return {
+        formation: lineup?.formation,
+        ...pitchRows(lineup?.players || [], lineup?.formation),
+      };
+    };
+    return { home: build("home"), away: build("away") };
+  }, [lineups]);
+  const both = data.home.rows.length > 0 && data.away.rows.length > 0;
+  const [view, setView] = useState<View>(
+    initialSide ?? (both ? "both" : data.home.rows.length ? "home" : "away"),
+  );
+  const views: View[] = both ? ["both", "home", "away"] : ["home", "away"];
+  const shown: Side[] = view === "both" ? ["away", "home"] : [view];
+  const unknown = shown.flatMap((s) => data[s].unknown);
+  const hasRows = shown.some((s) => data[s].rows.length);
+  const captionSide: Side = view === "both" ? "home" : view;
   return (
-    <section
-      className="lineup-map"
-      aria-label="Distribución de titulares por posición"
-    >
+    <section className="lineup-map" aria-label="Alineaciones sobre el campo">
       <div
         className="pitch-team-switch"
+        style={{ gridTemplateColumns: `repeat(${views.length}, 1fr)` }}
         role="group"
         aria-label="Equipo sobre el campo"
       >
-        {(["home", "away"] as const).map((s) => (
+        {views.map((v) => (
           <button
             type="button"
-            key={s}
-            aria-pressed={side === s}
-            onClick={() => setSide(s)}
+            key={v}
+            aria-pressed={view === v}
+            onClick={() => setView(v)}
           >
-            {match[s]}
+            {v === "both" ? "Ambos" : match[v]}
+            {v !== "both" && data[v].formation && (
+              <small>{data[v].formation}</small>
+            )}
           </button>
         ))}
       </div>
-      {lines.some((l) => l.players.length) ? (
+      {hasRows ? (
         <>
-          <div className="lineup-pitch">
-            {[...lines].reverse().map((line) => (
-              <div
-                key={line.label}
-                className="pitch-line"
-                role="group"
-                aria-label={line.label}
-              >
-                {line.players.map((p, i) => (
-                  <Player key={`${p.name}-${i}`} player={p} />
-                ))}
-              </div>
-            ))}
+          {view === "both" && (
+            <TeamCaption
+              match={match}
+              side="away"
+              formation={data.away.formation}
+            />
+          )}
+          <div className={`lineup-pitch lineup-pitch-${view}`}>
+            <span className="pitch-box pitch-box-top" aria-hidden="true" />
+            <span className="pitch-box pitch-box-bottom" aria-hidden="true" />
+            {view === "both" ? (
+              <>
+                <TeamHalf
+                  name={match.away}
+                  side="away"
+                  rows={data.away.rows}
+                  top
+                />
+                <TeamHalf name={match.home} side="home" rows={data.home.rows} />
+              </>
+            ) : (
+              <TeamHalf name={match[view]} side={view} rows={data[view].rows} />
+            )}
           </div>
+          <TeamCaption
+            match={match}
+            side={captionSide}
+            formation={data[captionSide].formation}
+          />
           <p className="match-extra-note">
-            Distribución por posición publicada. La ubicación exacta en el campo
-            puede variar.
+            Posiciones según la alineación publicada. La ubicación exacta en el
+            campo puede variar.
           </p>
         </>
       ) : (
@@ -83,3 +171,4 @@ export default function LineupPitch({
     </section>
   );
 }
+

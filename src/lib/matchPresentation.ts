@@ -10,47 +10,123 @@ export function chronologicalGoals<T extends { minute: string }>(goals: T[]) {
   return [...goals].sort((a, b) => key(a.minute) - key(b.minute));
 }
 
-export function positionLines(players: MatchPlayer[]) {
-  const groups: Record<string, string[]> = {
-    Portería: ["G", "GK", "POR", "GOALKEEPER"],
-    Defensa: [
-      "D",
-      "DF",
-      "DEF",
-      "CB",
-      "LB",
-      "RB",
-      "LCB",
-      "RCB",
-      "LWB",
-      "RWB",
-      "DEFENDER",
-    ],
-    "Centro del campo": [
-      "M",
-      "MF",
-      "MID",
-      "MED",
-      "CM",
-      "DM",
-      "AM",
-      "LM",
-      "RM",
-      "CDM",
-      "CAM",
-      "MIDFIELDER",
-    ],
-    Ataque: ["F", "FW", "ATT", "DEL", "ST", "CF", "LW", "RW", "FORWARD"],
+// Rank orders roles from goal to attack; lateral runs 0 (left flank) to 4 (right flank).
+const roleCodes: Record<string, [rank: number, lateral: number]> = {
+  G: [0, 2], GK: [0, 2], POR: [0, 2],
+  D: [1, 2], DF: [1, 2], DEF: [1, 2], CB: [1, 2], CD: [1, 2], SW: [1, 2],
+  LB: [1, 0], RB: [1, 4], LCB: [1, 1], RCB: [1, 3],
+  WB: [2, 2], LWB: [2, 0], RWB: [2, 4],
+  DM: [3, 2], CDM: [3, 2], LDM: [3, 1], RDM: [3, 3],
+  M: [4, 2], MF: [4, 2], MID: [4, 2], MED: [4, 2], CM: [4, 2],
+  LM: [4, 0], RM: [4, 4], LCM: [4, 1], RCM: [4, 3],
+  AM: [5, 2], CAM: [5, 2], LAM: [5, 1], RAM: [5, 3],
+  F: [6, 2], FW: [6, 2], ATT: [6, 2], DEL: [6, 2], ST: [6, 2], CF: [6, 2],
+  SS: [6, 2], LW: [6, 0], RW: [6, 4], LF: [6, 1], RF: [6, 3],
+};
+const roleWords: [RegExp, number][] = [
+  [/goal/, 0],
+  [/wing ?back/, 2],
+  [/back|defender|defence|defense/, 1],
+  [/defensive mid/, 3],
+  [/attacking mid/, 5],
+  [/mid/, 4],
+  [/forward|striker|wing|attack/, 6],
+];
+
+export function positionRole(position?: string) {
+  const raw = (position || "").trim();
+  if (!raw) return null;
+  const upper = raw.toUpperCase().replace(/\s+/g, "");
+  const suffix = /-(L|C|R)$/.exec(upper);
+  const code = roleCodes[suffix ? upper.slice(0, -2) : upper];
+  const side = suffix ? "LCR".indexOf(suffix[1]) + 1 : null;
+  if (code) return { rank: code[0], lateral: side ?? code[1] };
+  const words = raw.toLowerCase();
+  const match = roleWords.find(([pattern]) => pattern.test(words));
+  if (!match) return null;
+  const inner = /cent/.test(words);
+  return {
+    rank: match[1],
+    lateral: /left/.test(words)
+      ? inner ? 1 : 0
+      : /right/.test(words)
+        ? inner ? 3 : 4
+        : 2,
   };
+}
+
+const lineLabels = ["Portería", "Defensa", "Centro del campo", "Ataque"];
+const lineOf = (rank: number) => (rank === 0 ? 0 : rank <= 2 ? 1 : rank <= 5 ? 2 : 3);
+
+export function positionLines(players: MatchPlayer[]) {
   const starters = players.filter((p) => p.starter);
-  const lines = Object.entries(groups).map(([label, positions]) => ({
+  const lines = lineLabels.map((label) => ({
     label,
-    players: starters.filter((p) =>
-      positions.includes((p.position || "").toUpperCase()),
-    ),
+    players: [] as MatchPlayer[],
   }));
-  const assigned = new Set(lines.flatMap((line) => line.players));
-  return { lines, unknown: starters.filter((p) => !assigned.has(p)) };
+  const unknown: MatchPlayer[] = [];
+  for (const p of starters) {
+    const role = positionRole(p.position);
+    if (role) lines[lineOf(role.rank)].players.push(p);
+    else unknown.push(p);
+  }
+  return { lines, unknown };
+}
+
+export function parseFormation(formation?: string) {
+  const parts = (formation || "").split(/[^0-9]+/).filter(Boolean).map(Number);
+  return parts.length >= 2 &&
+    parts.every((n) => n >= 1 && n <= 6) &&
+    parts.reduce((a, b) => a + b, 0) === 10
+    ? parts
+    : null;
+}
+
+// Rows from goalkeeper to attack, each ordered from the team's left to right.
+export function pitchRows(players: MatchPlayer[], formation?: string) {
+  const starters = players.filter((p) => p.starter);
+  const roles = new Map(starters.map((p) => [p, positionRole(p.position)]));
+  const byLateral = (row: MatchPlayer[]) =>
+    row
+      .map((p, i) => ({ p, i, l: roles.get(p)?.lateral ?? 2 }))
+      .sort((a, b) => a.l - b.l || a.i - b.i)
+      .map(({ p }) => p);
+  const counts = parseFormation(formation);
+  if (counts && starters.length === 11) {
+    const known = starters.every((p) => roles.get(p));
+    // Providers list the XI from goalkeeper to attack, so keep that order when roles are missing.
+    const ordered = known
+      ? starters
+          .map((p, i) => ({ p, i, r: roles.get(p)!.rank }))
+          .sort((a, b) => a.r - b.r || a.i - b.i)
+          .map(({ p }) => p)
+      : starters;
+    let offset = 0;
+    const rows = [1, ...counts].map((size) => {
+      const row = ordered.slice(offset, offset + size);
+      offset += size;
+      return byLateral(row);
+    });
+    return { rows, unknown: [] as MatchPlayer[] };
+  }
+  const { lines, unknown } = positionLines(players);
+  return {
+    rows: lines.filter((l) => l.players.length).map((l) => byLateral(l.players)),
+    unknown,
+  };
+}
+
+export function shortPlayerName(name: string) {
+  const parts = name.trim().split(/\s+/);
+  let start = parts.length - 1;
+  while (
+    start > 1 &&
+    /^(de|del|da|do|dos|das|di|van|von|der|den|la|le|el|ter|ten)$/i.test(
+      parts[start - 1],
+    )
+  )
+    start--;
+  return parts.length > 1 ? parts.slice(start).join(" ") : name;
 }
 
 export function statisticShares(home: string, away: string) {

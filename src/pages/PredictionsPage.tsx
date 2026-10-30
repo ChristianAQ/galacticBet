@@ -2,16 +2,25 @@ import { competitionCode, competitionName } from "../lib/competitions";
 import { COMPETITION_CODES } from "../lib/competitions";
 import type { User } from "firebase/auth";
 import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
-import { LockKeyhole, Save } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Save } from "lucide-react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Link } from "react-router-dom";
 import CompetitionSwitch from "../components/CompetitionSwitch";
 import FilterPanel, { FilterField } from "../components/FilterPanel";
 import ConfirmQuiniela from "../components/ConfirmQuiniela";
 import RoundDeliveryStatus from "../components/RoundDeliveryStatus";
 import GroupPredictions from "../components/GroupPredictions";
-import MatchResult from "../components/MatchResult";
-import { Empty, MatchRow, PageTitle, readableError } from "../components/ui";
+import PredictionCard from "../components/PredictionCard";
+import RoundSelector from "../components/RoundSelector";
+import { Empty, PageTitle, readableError } from "../components/ui";
 import {
   loadGameSeasons,
   loadParticipants,
@@ -26,13 +35,15 @@ import {
   roundLabel,
   type Match,
   type Mode,
-  type Prediction,
   type PredictionValue,
 } from "../lib/domain";
 import { db } from "../lib/firebase";
 import { preferenceStore } from "../lib/preferences";
+import { roundOptions } from "../lib/roundOptions";
 import { useGroupSelection } from "../lib/useGroupSelection";
 import { useRoundDelivery } from "../lib/useRoundDelivery";
+
+const MatchDetails = lazy(() => import("../components/MatchDetails"));
 
 const demoPlayers: Participant[] = [
   { id: "demo-me", name: "Tú", avatar: null },
@@ -82,18 +93,31 @@ export default function PredictionsPage({
   const [submitError, setSubmitError] = useState("");
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [peopleError, setPeopleError] = useState("");
+  const [detailId, setDetailId] = useState("");
   const uid = demo ? "demo-me" : user?.uid || "demo-me";
   const selectedGroup = groups.find((g) => g.id === group);
   const active = seasons.find((s) => s.id === season);
+  const activeCompetition = active?.competition;
   const mode: Mode = demo ? "classic" : active?.mode || "classic";
-  const filtered = matches.filter((m) =>
-    demo
-      ? m.competition === demoCompetition
-      : m.competition === active?.competition && m.seasonId === season,
+  const filtered = useMemo(
+    () =>
+      matches.filter((m) =>
+        demo
+          ? m.competition === demoCompetition
+          : m.competition === activeCompetition && m.seasonId === season,
+      ),
+    [matches, demo, demoCompetition, activeCompetition, season],
   );
-  const rounds = [...new Set(filtered.map((m) => m.roundId))];
-  const selected = rounds.includes(round) ? round : preferredRound(filtered);
-  const list = filtered.filter((m) => m.roundId === selected);
+  // Round states only change at minute granularity; avoid recomputing every second.
+  const minute = Math.floor(clock / 60_000);
+  const rounds = useMemo(() => roundOptions(filtered), [filtered, minute]);
+  const current = useMemo(() => preferredRound(filtered), [filtered, minute]);
+  const selected = rounds.some((r) => r.id === round) ? round : current;
+  const list = useMemo(
+    () => filtered.filter((m) => m.roundId === selected),
+    [filtered, selected],
+  );
+  const detail = detailId ? matches.find((m) => m.id === detailId) : undefined;
   const predictionKey = `${uid}:${group}:${season}:${selected}`;
   const sealKey = predictionKey;
   const values = demo || valuesKey === predictionKey ? storedValues : {};
@@ -308,6 +332,12 @@ export default function PredictionsPage({
       setSubmitting(false);
     }
   }
+  const chooseRef = useRef(choose);
+  chooseRef.current = choose;
+  const onChoose = useCallback(
+    (match: Match, value: PredictionValue) => void chooseRef.current(match, value),
+    [],
+  );
   useEffect(() => {
     if (isSealed && !submitting) {
       setConfirm(false);
@@ -323,25 +353,6 @@ export default function PredictionsPage({
       <PageTitle
         eyebrow={`QUINIELA${list[0] ? ` · ${competitionName(list[0].competition).toUpperCase()}` : ""}`}
         title="Mi quiniela"
-        titleControl={
-          <div className="heading-round-filter">
-            <select
-              aria-label="Jornada"
-              value={selected || ""}
-              disabled={selectorsDisabled || !rounds.length}
-              onChange={(e) => setRound(e.target.value)}
-            >
-              {!rounds.length && (
-                <option value="">Sin jornadas disponibles</option>
-              )}
-              {rounds.map((r) => (
-                <option key={r} value={r}>
-                  {roundLabel(filtered.find((m) => m.roundId === r)!)}
-                </option>
-              ))}
-            </select>
-          </div>
-        }
         description={
           !list.length
             ? "Selecciona tu grupo y la competición para ver tu quiniela."
@@ -431,6 +442,15 @@ export default function PredictionsPage({
             </FilterField>
           )}
       </FilterPanel>
+      {(demo || active) && (
+        <RoundSelector
+          rounds={rounds}
+          value={selected}
+          current={current}
+          disabled={selectorsDisabled}
+          onChange={setRound}
+        />
+      )}
       {error && (
         <p className="error" role="alert">
           {error}
@@ -525,70 +545,32 @@ export default function PredictionsPage({
               id="mine-predictions"
               role="region"
               aria-label="Mi quiniela"
+              aria-busy={pending}
               className="prediction-list"
             >
-              {list.map((m) => {
-                const kickoffLocked =
-                  deadlineClosed || !canPredict(m.utcDate, clock, m.status);
-                const locked = isSealed || kickoffLocked;
-                return (
-                  <div
-                    className={`panel prediction-card ${locked ? "prediction-locked" : ""}`}
-                    key={m.id}
-                  >
-                    <MatchRow match={m} history={matches} />
-                    <div className="prediction-actions">
-                      <span>
-                        {isSealed ? (
-                          <>
-                            <LockKeyhole size={14} />
-                            Quiniela cerrada
-                          </>
-                        ) : kickoffLocked ? (
-                          <>
-                            <LockKeyhole size={14} />
-                            {deadlineClosed
-                              ? "Plazo cerrado"
-                              : "Partido cerrado"}
-                          </>
-                        ) : values[m.id] ? (
-                          "Elegido"
-                        ) : (
-                          "Tu pronóstico"
-                        )}
-                      </span>
-                      {mode === "classic" ? (
-                        <div className="outcomes">
-                          {(["1", "X", "2"] as const).map((v) => (
-                            <button
-                              disabled={locked || disabled}
-                              aria-pressed={values[m.id] === v}
-                              className={values[m.id] === v ? "selected" : ""}
-                              key={v}
-                              onClick={() => void choose(m, v)}
-                            >
-                              {v}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <ExactInput
-                          disabled={locked || disabled}
-                          value={
-                            typeof values[m.id] === "object"
-                              ? (values[m.id] as Prediction)
-                              : undefined
-                          }
-                          onApply={(value) => void choose(m, value)}
-                        />
-                      )}
-                    </div>
-                    {m.status === "FINISHED" && (
-                      <MatchResult match={m} demo={demo} />
-                    )}
-                  </div>
-                );
-              })}
+              {list.map((m) => (
+                <PredictionCard
+                  key={m.id}
+                  match={m}
+                  history={matches}
+                  value={values[m.id]}
+                  mode={mode}
+                  lock={
+                    isSealed
+                      ? "sealed"
+                      : deadlineClosed
+                        ? "deadline"
+                        : !canPredict(m.utcDate, clock, m.status)
+                          ? "kickoff"
+                          : null
+                  }
+                  disabled={disabled}
+                  saving={busy === m.id}
+                  demo={demo}
+                  onChoose={onChoose}
+                  onDetails={setDetailId}
+                />
+              ))}
             </div>
           ) : (
             <div
@@ -658,58 +640,17 @@ export default function PredictionsPage({
           onConfirm={() => void finalize()}
         />
       )}
+      {detail && (
+        <Suspense fallback={null}>
+          <MatchDetails
+            key={detail.id}
+            match={detail}
+            matches={matches}
+            demo={demo}
+            onClose={() => setDetailId("")}
+          />
+        </Suspense>
+      )}
     </>
-  );
-}
-function ExactInput({
-  disabled,
-  value,
-  onApply,
-}: {
-  disabled: boolean;
-  value?: Prediction;
-  onApply: (value: Prediction) => void;
-}) {
-  const [home, setHome] = useState(value?.home ?? 0);
-  const [away, setAway] = useState(value?.away ?? 0);
-  useEffect(() => {
-    setHome(value?.home ?? 0);
-    setAway(value?.away ?? 0);
-  }, [value]);
-  return (
-    <form
-      className="exact-input"
-      onSubmit={(e) => {
-        e.preventDefault();
-        onApply({ home, away });
-      }}
-    >
-      <input
-        aria-label="Goles local"
-        type="number"
-        inputMode="numeric"
-        min="0"
-        max="99"
-        required
-        disabled={disabled}
-        value={home}
-        onChange={(e) => setHome(Number(e.target.value))}
-      />
-      <span>—</span>
-      <input
-        aria-label="Goles visitante"
-        type="number"
-        inputMode="numeric"
-        min="0"
-        max="99"
-        required
-        disabled={disabled}
-        value={away}
-        onChange={(e) => setAway(Number(e.target.value))}
-      />
-      <button className="button secondary" disabled={disabled}>
-        Aplicar
-      </button>
-    </form>
   );
 }

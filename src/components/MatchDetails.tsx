@@ -8,6 +8,7 @@ import Modal from "./Modal";
 import MatchResult from "./MatchResult";
 import MatchExtras from "./MatchExtras";
 import MatchCalendarAction from "./MatchCalendarAction";
+import MatchPreview from "./MatchPreview";
 import { useMatchInsight } from "../lib/useMatchInsight";
 import TeamForm from "./TeamForm";
 import { Team } from "./ui";
@@ -26,6 +27,9 @@ export default function MatchDetails({
   const insights = useMatchInsight(match, demo);
   const context = knockoutContext(match, matches);
   const resultKnown = match.homeScore !== null && match.awayScore !== null;
+  const upcoming =
+    ["TIMED", "SCHEDULED"].includes(match.status) &&
+    Date.parse(match.utcDate) > Date.now();
   return (
     <Modal
       title="Ficha del partido"
@@ -74,6 +78,7 @@ export default function MatchDetails({
       </p>
       {!demo && <MatchMeta insight={insights.insight} />}
       {!demo && <MatchCalendarAction match={match} />}
+      {upcoming && <MatchPreview match={match} matches={matches} />}
       {["EXTRA_TIME", "PENALTY_SHOOTOUT"].includes(
         match.scoreDuration || "",
       ) && (
