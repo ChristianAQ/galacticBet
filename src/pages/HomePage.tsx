@@ -1,26 +1,18 @@
-import HomeRanking from "../components/HomeRanking";
-import type { Group } from "../lib/data";
 import { useEffect, useMemo, useState } from "react";
 import UpcomingSchedule from "../components/UpcomingSchedule";
 import NewsSection from "../components/NewsSection";
-import {
-  LeagueTableCard,
-  MatchTicker,
-  QuinielaSpotlight,
-} from "../components/HomeWidgets";
+import { MatchTicker, QuinielaSpotlight } from "../components/HomeWidgets";
 import type { Match } from "../lib/domain";
 import { openRounds } from "../lib/homeDashboard";
 import { upcomingMatches } from "../lib/schedule";
 
 export default function HomePage({
   userId,
-  groups,
   matches,
   loading,
   demo = false,
 }: {
   userId: string;
-  groups: Group[];
   matches: Match[];
   loading: boolean;
   demo?: boolean;
@@ -44,9 +36,6 @@ export default function HomePage({
   return (
     <>
       <h1 className="sr-only">Inicio</h1>
-      {!demo && userId && groups.length > 0 && (
-        <HomeRanking userId={userId} groups={groups} />
-      )}
       <div className="home-top-grid">
         {!loading && (
           <QuinielaSpotlight rounds={rounds} now={now} userId={userId} />
@@ -59,14 +48,7 @@ export default function HomePage({
         />
       </div>
       {!loading && <MatchTicker matches={matches} now={now} />}
-      <div className="dashboard-columns home-columns">
-        <NewsSection demo={demo} />
-        <aside className="home-aside">
-          {!loading && (
-            <LeagueTableCard matches={matches} now={now} userId={userId} />
-          )}
-        </aside>
-      </div>
+      <NewsSection demo={demo} />
     </>
   );
 }

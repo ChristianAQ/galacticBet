@@ -1,23 +1,16 @@
 import { ArrowRight, Timer } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import {
-  COMPETITION_CODES,
-  competitionName,
-  type CompetitionCode,
-} from "../lib/competitions";
+import { competitionName, type CompetitionCode } from "../lib/competitions";
 import { matchStatusLabel, type Match } from "../lib/domain";
 import {
   liveMatches,
   recentResults,
   type OpenRound,
 } from "../lib/homeDashboard";
-import { currentLeagueTable, LEAGUE_STAGES } from "../lib/leagueTable";
-import { hasRegulationResult } from "../lib/matchInsights";
 import { countdownLabel } from "../lib/matchPreview";
 import { preferenceStore } from "../lib/preferences";
 import { roundDateRange } from "../lib/roundOptions";
-import { usePreferences } from "../lib/useGroupSelection";
 import CompetitionLogo from "./CompetitionLogo";
 import { Crest } from "./ui";
 import "../styles/dashboard.css";
@@ -98,7 +91,13 @@ export function QuinielaSpotlight({
   );
 }
 
-export function MatchTicker({ matches, now }: { matches: Match[]; now: number }) {
+export function MatchTicker({
+  matches,
+  now,
+}: {
+  matches: Match[];
+  now: number;
+}) {
   const live = useMemo(() => liveMatches(matches), [matches]);
   const recent = useMemo(() => recentResults(matches, now), [matches, now]);
   const list = live.length ? live : recent;
@@ -148,7 +147,11 @@ export function MatchTicker({ matches, now }: { matches: Match[]; now: number })
                   >
                     <Crest src={side === "home" ? m.homeCrest : m.awayCrest} />
                     <span>{m[side]}</span>
-                    <b>{side === "home" ? m.homeScore ?? "–" : m.awayScore ?? "–"}</b>
+                    <b>
+                      {side === "home"
+                        ? (m.homeScore ?? "–")
+                        : (m.awayScore ?? "–")}
+                    </b>
                   </span>
                 ))}
               </Link>
@@ -156,106 +159,6 @@ export function MatchTicker({ matches, now }: { matches: Match[]; now: number })
           );
         })}
       </ul>
-    </section>
-  );
-}
-
-export function LeagueTableCard({
-  matches,
-  now,
-  userId,
-}: {
-  matches: Match[];
-  now: number;
-  userId: string;
-}) {
-  const preferences = usePreferences(userId);
-  const available = useMemo(
-    () =>
-      COMPETITION_CODES.filter((code) =>
-        matches.some(
-          (m) =>
-            m.competition === code &&
-            LEAGUE_STAGES.includes(m.stage) &&
-            hasRegulationResult(m),
-        ),
-      ),
-    [matches],
-  );
-  const [selected, setSelected] = useState<CompetitionCode>(
-    preferences.competition,
-  );
-  const code = available.find((c) => c === selected) ?? available[0];
-  const rows = useMemo(
-    () => (code ? currentLeagueTable(matches, code, now).slice(0, 6) : []),
-    [matches, code, now],
-  );
-  if (!code) return null;
-  return (
-    <section className="league-card panel" aria-labelledby="league-title">
-      <header>
-        <h3 id="league-title">Clasificación</h3>
-        {available.length > 1 && (
-          <div className="league-tabs" role="group" aria-label="Competición">
-            {available.map((c) => (
-              <button
-                key={c}
-                type="button"
-                aria-pressed={c === code}
-                onClick={() => setSelected(c)}
-              >
-                {competitionName(c, true)}
-              </button>
-            ))}
-          </div>
-        )}
-      </header>
-      <table className="league-mini">
-        <caption className="sr-only">
-          Clasificación de {competitionName(code)}
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">#</th>
-            <th scope="col">Equipo</th>
-            <th scope="col" title="Partidos jugados">
-              PJ
-            </th>
-            <th scope="col" title="Diferencia de goles">
-              DG
-            </th>
-            <th scope="col">Pts</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => {
-            const diff = r.goalsFor - r.goalsAgainst;
-            return (
-              <tr key={r.key}>
-                <td>{i + 1}</td>
-                <th scope="row">
-                  <span className="league-team">
-                    <Crest src={r.crest} />
-                    <span>{r.name}</span>
-                  </span>
-                </th>
-                <td>{r.played}</td>
-                <td>{diff > 0 ? `+${diff}` : diff}</td>
-                <td>
-                  <strong>{r.points}</strong>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <Link
-        className="league-link"
-        to="/clasificacion?vista=liga"
-        onClick={() => preferenceStore.update(userId, { competition: code })}
-      >
-        Ver tabla completa <ArrowRight size={14} />
-      </Link>
     </section>
   );
 }

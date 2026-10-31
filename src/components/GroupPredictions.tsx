@@ -5,7 +5,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { ChevronDown, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   hasMatchStarted,
@@ -55,20 +55,26 @@ export default function GroupPredictions({
   canShare: boolean;
   completedIds: string[];
 }) {
-  const [requested, setRequested] = useState(false);
   const [entries, setEntries] = useState<SharedEntries>({});
   const [pending, setPending] = useState(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
-  const membersKey = participants.map((p) => p.id).sort();
+  const membersKey = participants
+    .filter((p) => p.id !== userId)
+    .map((p) => p.id)
+    .sort();
   const membersQueryKey = JSON.stringify(membersKey);
   useEffect(() => {
     setEntries({});
     setReady(false);
     setError("");
     setPending(false);
-    if (!requested || !canShare || membersQueryKey === "[]") return;
+    if (!canShare) return;
+    if (membersQueryKey === "[]") {
+      setReady(true);
+      return;
+    }
     if (demo) {
       setEntries(
         Object.fromEntries(
@@ -127,7 +133,6 @@ export default function GroupPredictions({
       },
     );
   }, [
-    requested,
     canShare,
     membersQueryKey,
     groupId,
@@ -164,7 +169,6 @@ export default function GroupPredictions({
           ready={ready}
           error={error}
           completedIds={completedIds}
-          onRequest={() => setRequested(true)}
           onRetry={() => setAttempt((n) => n + 1)}
         />
       ))}
@@ -186,7 +190,6 @@ function RivalsCard({
   ready,
   error,
   completedIds,
-  onRequest,
   onRetry,
 }: {
   demo: boolean;
@@ -203,15 +206,11 @@ function RivalsCard({
   ready: boolean;
   error: string;
   completedIds: string[];
-  onRequest: () => void;
   onRetry: () => void;
 }) {
   const visible = participants.filter(
     (p) => p.id !== userId && completedIds.includes(p.id),
   );
-  const available = visible.filter(
-    (person) => entries[person.id]?.[match.id],
-  ).length;
   const hasScore =
     match.homeScore !== null &&
     match.awayScore !== null &&
@@ -271,21 +270,21 @@ function RivalsCard({
         </div>
       )}
       {canShare && (
-        <details
+        <section
           className="shared-predictions"
-          onToggle={(event) => {
-            if (event.currentTarget.open) onRequest();
-          }}
+          aria-label="Pronósticos compartidos"
         >
-          <summary>
-            <span>
-              <Users size={14} /> Pronósticos compartidos
-            </span>
-            <span className="shared-predictions-count">
+          <header className="shared-predictions-heading">
+            <h3>
+              <Users size={13} aria-hidden="true" /> Pronósticos compartidos
+            </h3>
+            <span
+              className="shared-predictions-count"
+              aria-label={`${visible.length} compañeros`}
+            >
               {visible.length}
-              <ChevronDown size={15} />
             </span>
-          </summary>
+          </header>
           <div className="rivals-content" aria-busy={pending || !ready}>
             {pending || !ready ? (
               <p className="rivals-loading" role="status">
@@ -300,44 +299,32 @@ function RivalsCard({
               </div>
             ) : (
               <>
-                <div className="rivals-count">
-                  <span>
-                    <Users size={13} /> Compañeros
-                  </span>
-                  <span>
-                    {available}/{visible.length}
-                  </span>
-                </div>
                 {visible.length === 0 && (
                   <p className="rivals-empty">
                     Aquí aparecerán cuando guarden su quiniela.
                   </p>
                 )}
-                <div className="rivals-grid">
+                <ul
+                  className="rivals-grid"
+                  aria-label="Pronósticos de tus compañeros"
+                >
                   {visible.map((person) => (
-                    <div className="rival-player" key={person.id}>
-                      <div className="rival-person">
-                        <span className="rival-avatar">
-                          {person.avatar ? (
-                            <img src={person.avatar} alt="" />
-                          ) : (
-                            person.name.trim().charAt(0).toUpperCase()
-                          )}
-                        </span>
-                        <h3 title={person.name}>{person.name}</h3>
-                      </div>
+                    <li className="rival-player" key={person.id}>
+                      <span className="rival-name" title={person.name}>
+                        {person.name}
+                      </span>
                       <PickValue
                         match={match}
                         value={entries[person.id]?.[match.id]}
                         condensed
                       />
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </>
             )}
           </div>
-        </details>
+        </section>
       )}
     </article>
   );
